@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+
+# Assets lourds rapatriés par `npm run setup` (cf. README)
+client/public/mediapipe-wasm/
+client/public/models/
+server/models/
+server/captures/
