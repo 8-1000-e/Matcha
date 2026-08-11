@@ -17,22 +17,6 @@ décisions ouvertes. À lire avant toute session de dev.
 
 ## 0. État des lieux du dépôt
 
-**Ce qui existe** (`git log --oneline`) :
-
-```
-4323795  Merge pull request #2 from 8-1000-e/Next-Scaffold
-f5d8cb9  init NextJs          ← ajoute matcha-app/, supprime mon-api/
-504a03b  Merge pull request #1 from 8-1000-e/back-init
-7994c8c  init backend         ← ajoute SUBJECT.md + .gitignore, supprime le README initial
-ea36e93  first commit
-```
-
-Workflow par branches + pull requests sur `main`. Une tentative de backend séparé (`mon-api/`,
-route handlers Next) a été **abandonnée au profit d'un Next.js unique** — c'est cohérent avec
-la stack décidée ici : une seule app, front et API dans le même projet.
-
-**Le scaffold en place** — `matcha-app/`, issu de `create-next-app` :
-
 | Élément | Version / état |
 |---|---|
 | `next` | **16.3.0** |
@@ -52,8 +36,7 @@ Le `layout.tsx` est déjà gréé pour un footer collant (`h-full` sur `<html>`,
 `matcha-app/AGENTS.md` (généré par `next dev`, et re-généré à chaque fois) le dit
 explicitement : cette version a des **breaking changes** par rapport aux connaissances
 d'entraînement des modèles, et la doc de référence est **locale**, dans
-`matcha-app/node_modules/next/dist/docs/`. À lire avant d'écrire du code Next, plutôt que de
-se fier à une habitude de Next 13/14/15. Deux signes déjà visibles dans le scaffold :
+`matcha-app/node_modules/next/dist/docs/`. À lire avant d'écrire du code Next.
 
 - `layout.tsx` utilise `LayoutProps<"/">` (types de routes générés), pas `{ children }: { children: React.ReactNode }`.
 - `package.json` déclare `"lint": "eslint"` — `next lint` a disparu.
