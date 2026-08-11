@@ -17,16 +17,6 @@ décisions ouvertes. À lire avant toute session de dev.
 
 ## 0. État des lieux du dépôt
 
-**Ce qui existe** (`git log --oneline`) :
-
-```
-4323795  Merge pull request #2 from 8-1000-e/Next-Scaffold
-f5d8cb9  init NextJs          ← ajoute matcha-app/, supprime mon-api/
-504a03b  Merge pull request #1 from 8-1000-e/back-init
-7994c8c  init backend         ← ajoute SUBJECT.md + .gitignore, supprime le README initial
-ea36e93  first commit
-```
-
 Workflow par branches + pull requests sur `main`. Une tentative de backend séparé (`mon-api/`,
 route handlers Next) a été **abandonnée au profit d'un Next.js unique** — c'est cohérent avec
 la stack décidée ici : une seule app, front et API dans le même projet.
