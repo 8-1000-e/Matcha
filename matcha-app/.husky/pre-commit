@@ -1,0 +1,9 @@
+cd matcha-app
+
+# Lint uniquement les fichiers indexes, et les corrige au passage.
+npx lint-staged
+
+# Les types de routes de Next vivent dans .next/types : sans eux tsc
+# echoue sur LayoutProps apres un clone frais.
+npx next typegen > /dev/null
+npm run typecheck

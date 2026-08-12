@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+# Une seule execution par branche : un nouveau push annule la precedente.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: matcha-app
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    # Next charge les modules de route pour collecter leur configuration,
+    # donc le build a besoin des variables lues au chargement des modules.
+    # Valeurs factices : rien ne tourne vraiment ici.
+    env:
+      AUTH_SECRET: ci-build-only-secret
+      DATABASE_PATH: ./data/ci.db
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: matcha-app/package-lock.json
+
+      # npm ci et pas npm install : installe exactement le lockfile et
+      # echoue s'il est desynchronise de package.json.
+      - name: Install
+        run: npm ci
+
+      # Le sujet exige zero erreur ET zero warning, cote serveur comme client.
+      - name: Lint
+        run: npm run lint -- --max-warnings=0
+
+      # Next genere les types de routes (LayoutProps, PageProps...) dans
+      # .next/types. Sans cette etape, tsc ne les trouve pas.
+      - name: Generate route types
+        run: npx next typegen
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build

@@ -35,11 +35,13 @@ yarn-error.log*
 .env.*
 !.env.example
 
-# sqlite
+# sqlite — le nom du fichier depend de DATABASE_PATH, d'ou le filet large
 *.db
 *.db-journal
 *.db-shm
 *.db-wal
+/database*
+/data/*.db*
 
 # vercel
 .vercel
