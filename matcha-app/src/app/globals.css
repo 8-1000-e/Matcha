@@ -1,26 +1,142 @@
 @import "tailwindcss";
 
-:root {
-	--background: #ffffff;
-	--foreground: #171717;
+@theme {
+	--color-cream: #f4f8ee;
+	--color-leaf: #d7e8bf;
+	--color-matcha: #4c7a2f;
+	--color-matcha-dark: #3a5f23;
+	--color-ink: #26301c;
+	--color-muted: #5a6552;
+	--color-edge: #85907c;
 }
 
-@theme inline {
-	--color-background: var(--background);
-	--color-foreground: var(--foreground);
-	--font-sans: var(--font-geist-sans);
-	--font-mono: var(--font-geist-mono);
-}
+@layer base {
+	body {
+		background-color: var(--color-cream);
+		color: var(--color-ink);
+		-webkit-font-smoothing: antialiased;
+	}
 
-@media (prefers-color-scheme: dark) {
-	:root {
-		--background: #0a0a0a;
-		--foreground: #ededed;
+	:focus-visible {
+		outline: 2px solid var(--color-matcha);
+		outline-offset: 2px;
 	}
 }
 
-body {
-	background: var(--background);
-	color: var(--foreground);
-	font-family: Arial, Helvetica, sans-serif;
+@keyframes turn {
+	from {
+		transform: rotate(0deg) scale(1);
+	}
+	to {
+		transform: rotate(360deg) scale(1.12);
+	}
+}
+
+@keyframes sway {
+	from {
+		transform: translate3d(0, 0.75rem, 0) rotate(-8deg);
+	}
+	to {
+		transform: translate3d(0, -1.25rem, 0) rotate(8deg);
+	}
+}
+
+@keyframes steam {
+	0%,
+	100% {
+		opacity: 0.5;
+		transform: translateY(0) scale(1);
+	}
+	50% {
+		opacity: 1;
+		transform: translateY(-4%) scale(1.04);
+	}
+}
+
+@keyframes pop-in {
+	from {
+		opacity: 0;
+		transform: translateY(0.25rem);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+@keyframes rise-in {
+	from {
+		opacity: 0;
+		transform: translate3d(0, 1rem, 0);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+@utility blob {
+	border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%;
+	animation: turn 55s linear infinite alternate;
+}
+
+@utility blob-alt {
+	border-radius: 63% 37% 38% 62% / 54% 39% 61% 46%;
+	animation: turn 78s linear infinite alternate-reverse;
+}
+
+@utility sway {
+	animation: sway 14s ease-in-out infinite alternate;
+}
+
+@utility steam {
+	transform-box: fill-box;
+	transform-origin: bottom center;
+	animation: steam 3.5s ease-in-out infinite;
+}
+
+@utility popup {
+	animation: pop-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@utility stagger {
+	& > * {
+		opacity: 0;
+		animation: rise-in 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+	}
+
+	& > *:nth-child(1) {
+		animation-delay: 60ms;
+	}
+
+	& > *:nth-child(2) {
+		animation-delay: 160ms;
+	}
+
+	& > *:nth-child(3) {
+		animation-delay: 260ms;
+	}
+
+	& > *:nth-child(4) {
+		animation-delay: 360ms;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.blob,
+	.blob-alt,
+	.popup,
+	.sway,
+	.steam,
+	.stagger > * {
+		animation: none;
+	}
+
+	.stagger > * {
+		opacity: 1;
+	}
+
+	.steam {
+		opacity: 0.5;
+	}
 }
