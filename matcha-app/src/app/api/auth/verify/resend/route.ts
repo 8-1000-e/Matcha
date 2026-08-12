@@ -46,7 +46,7 @@ export async function POST(request: Request)
 	const link = `${process.env.APP_URL}/api/auth/verify?token=${verification.token}`;
 	await sendMail(
 		user.email,
-		"Verify your address — Matcha",
+		"Verify your address - Matcha",
 		`<p>Welcome ${user.username},</p>
 		 <p><a href="${link}">Verify your address</a></p>
 		 <p>This link expires in ${Math.round(EMAIL_TTL / 60)} minutes.</p>`,
