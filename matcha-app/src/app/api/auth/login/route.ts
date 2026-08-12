@@ -34,15 +34,14 @@ export async function POST(request: Request)
 		return Response.json({ errors: ["invalid username or password"] }, { status: 401 });
 	}
 
-	if (user.is_verified !== 1)
-	{
-		return Response.json(
-			{ errors: ["email address not verified"], code: "email_not_verified" },
-			{ status: 403 },
-		);
-	}
-
 	await setAuthCookies(user.id);
-	return Response.json({ ok: true, user: { id: user.id, username: user.username } });
+	return Response.json({
+		ok: true,
+		user: {
+			id: user.id,
+			username: user.username,
+			is_verified: user.is_verified === 1,
+		},
+	});
 
 }
