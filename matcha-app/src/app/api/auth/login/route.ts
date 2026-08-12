@@ -1,39 +1,47 @@
 import { verifyPassword } from "@/lib/auth/password";
 import { setAuthCookies } from "@/lib/auth/session";
-import { findUserByUsername } from "@/lib/db";
+import { findUserByUsername, purgeIfDue } from "@/lib/db";
+import { readJsonBody } from "@/lib/http/body";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request)
 {
-	let raw: string;
-	try {
-		raw = await request.text();
+	purgeIfDue();
+
+	const body = await readJsonBody(request);
+	if (!body.ok)
+	{
+		return body.response;
 	}
-	catch {
+
+	if (typeof body.value !== "object" || body.value === null || Array.isArray(body.value))
+	{
 		return Response.json({ errors: ["invalid request body"] }, { status: 400 });
 	}
 
-	let username: string;
-	let password: string;
-	try {
-		const body = JSON.parse(raw);
-		if (typeof body.username !== "string" || typeof body.password !== "string")
-		{
-			return Response.json({ errors: ["username and password are required"] }, { status: 400 });
-		}
-		username = body.username.trim();
-		password = body.password;
+	const { username: rawUsername, password } = body.value as Record<string, unknown>;
+	if (typeof rawUsername !== "string" || typeof password !== "string")
+	{
+		return Response.json({ errors: ["username and password are required"] }, { status: 400 });
 	}
-	catch {
-		return Response.json({ errors: ["invalid json body"] }, { status: 400 });
-	}
+
+	const username = rawUsername.trim();
 
 	const user = findUserByUsername(username);
 	if (!user || !(await verifyPassword(password, user.password_hash)))
 	{
 		return Response.json({ errors: ["invalid username or password"] }, { status: 401 });
 	}
+
+	if (user.is_verified !== 1)
+	{
+		return Response.json(
+			{ errors: ["email address not verified"], code: "email_not_verified" },
+			{ status: 403 },
+		);
+	}
+
 	await setAuthCookies(user.id);
 	return Response.json({ ok: true, user: { id: user.id, username: user.username } });
 

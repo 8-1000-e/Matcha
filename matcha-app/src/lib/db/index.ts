@@ -152,6 +152,7 @@ export {
 	updatePassword,
 	users,
 } from "./repositories/users";
+export { purgeIfDue } from "./maintenance";
 export { applySchema, dropSchema, SCHEMA_VERSION } from "./schema/apply";
 export { TAG_LABELS } from "./schema/tags";
 export * from "./types";

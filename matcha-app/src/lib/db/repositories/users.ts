@@ -2,7 +2,7 @@ import { queryOne, queryScalar, transaction } from "../core/client";
 import { createRepository } from "../core/repository";
 import { sql } from "../core/sql";
 import { createId, nowIso, toFlag, type Flag } from "../core/values";
-import type { UserInsert, UserRow } from "../types";
+import { MINIMUM_TAGS, type UserInsert, type UserRow } from "../types";
 
 export const users = createRepository<UserRow, UserInsert>({
 	table: "users",
@@ -102,9 +102,10 @@ export function refreshProfileCompletion(id: string): Flag {
 					AND users.biography IS NOT NULL
 					AND length(trim(users.biography)) > 0
 					AND (users.latitude IS NOT NULL OR users.city IS NOT NULL)
-					AND EXISTS (
-						SELECT 1 FROM user_tags WHERE user_tags.user_id = users.id
-					)
+					AND (
+						SELECT count(*) FROM user_tags
+						WHERE user_tags.user_id = users.id
+					) >= ${MINIMUM_TAGS}
 					AND EXISTS (
 						SELECT 1 FROM photos
 						WHERE photos.user_id = users.id AND photos.is_profile = 1

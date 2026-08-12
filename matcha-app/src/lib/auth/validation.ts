@@ -15,7 +15,7 @@ const USERNAME_RE = /^[A-Za-z0-9._-]+$/;
 const NAME_RE = /^\p{L}+(?:[ '-]\p{L}+)*$/u;
 const CONTROL_RE = /\p{Cc}/u;
 
-const PASSWORD_MESSAGES: Record<NonNullable<PasswordError>, string> = {
+export const PASSWORD_MESSAGES: Record<NonNullable<PasswordError>, string> = {
 	too_short: "password is too short",
 	too_long: "password is too long",
 	control_char: "password contains control characters",

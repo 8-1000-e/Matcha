@@ -25,6 +25,7 @@ function readTtl(name: string, fallback: number): number {
 
 export const ACCESS_TTL = readTtl("ACCESS_TOKEN_TTL", 900);
 export const REFRESH_TTL = readTtl("REFRESH_TOKEN_TTL", 2592000);
+export const EMAIL_TTL = readTtl("EMAIL_TOKEN_TTL", 900);
 
 const ALGORITHM = "HS256";
 
@@ -49,7 +50,7 @@ function sign(data: string): string {
 	return createHmac("sha256", SECRET).update(data).digest("base64url");
 }
 
-export function hashRefreshToken(token: string): string
+export function hashToken(token: string): string
 {
 	return createHash("sha256").update(token).digest("hex");
 }
@@ -57,8 +58,16 @@ export function hashRefreshToken(token: string): string
 export function createRefreshToken(): { token: string; hash: string; expiresAt: string }
 {
 	const rdmBytes = randomBytes(32).toString("base64url");
-	const bytesHash = hashRefreshToken(rdmBytes);
+	const bytesHash = hashToken(rdmBytes);
 	const expiresAt = new Date(Date.now() + REFRESH_TTL * 1000).toISOString();
+	return { token: rdmBytes, hash: bytesHash, expiresAt };
+}
+
+export function createEmailToken(): { token: string; hash: string; expiresAt: string }
+{
+	const rdmBytes = randomBytes(32).toString("base64url");
+	const bytesHash = hashToken(rdmBytes);
+	const expiresAt = new Date(Date.now() + EMAIL_TTL * 1000).toISOString();
 	return { token: rdmBytes, hash: bytesHash, expiresAt };
 }
 
@@ -70,6 +79,10 @@ export function signAccessToken(userId: string): string
 		sub: userId,
 		iat: now,
 		exp: now + ACCESS_TTL,
+		// iat n'a qu'une precision d'une seconde : sans jti, deux jetons
+		// emis dans la meme seconde seraient identiques, et un refresh
+		// immediat ne prolongerait rien.
+		jti: randomBytes(9).toString("base64url"),
 	})).toString("base64url");
 	return `${header}.${payload}.${sign(`${header}.${payload}`)}`;
 }
