@@ -30,6 +30,10 @@ export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
 export const MAX_PHOTOS_PER_USER = 5;
 
+// Source unique : refreshProfileCompletion l'applique en SQL et /auth/me s'en
+// sert pour dire ce qui manque. Les deux doivent dire la meme chose.
+export const MINIMUM_TAGS = 3;
+
 export interface UserRow {
 	id: string;
 	email: string;
