@@ -2,7 +2,7 @@ import Link from "next/link";
 import { LoginForm, OauthGroup } from "@/components/Form/AuthForms";
 import { FlowScreen } from "@/components/Layout/Screen";
 
-export function LoginPage() {
+export function LoginPage({ created = false }: { created?: boolean }) {
 	return (
 		<FlowScreen
 			back="/"
@@ -17,6 +17,15 @@ export function LoginPage() {
 			}
 		>
 			<div className="flex flex-col gap-6">
+				{created ? (
+					<p
+						role="status"
+						className="popup rounded-xl bg-leaf/70 px-3 py-2.5 text-xs leading-snug ring-1 ring-matcha/20"
+					>
+						Compte créé. Connectez-vous pour continuer.
+					</p>
+				) : null}
+
 				<OauthGroup />
 				<LoginForm />
 				<Link

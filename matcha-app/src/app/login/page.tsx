@@ -6,6 +6,7 @@ export const metadata: Metadata = {
 	description: "Connectez-vous à Brewmance.",
 };
 
-export default function Page() {
-	return <LoginPage />;
+export default async function Page({ searchParams }: PageProps<"/login">) {
+	const { created } = await searchParams;
+	return <LoginPage created={created === "1"} />;
 }

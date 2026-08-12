@@ -1,10 +1,12 @@
 "use client";
 
 import { type FormEvent, useState } from "react";
+import { Alert } from "@/components/Form/Alert";
 
 type TextFieldProps = {
 	id: string;
 	label: string;
+	name?: string;
 	type?: "text" | "email" | "password" | "date";
 	autoComplete?: string;
 	minLength?: number;
@@ -13,6 +15,9 @@ type TextFieldProps = {
 	hint?: string;
 	optional?: boolean;
 	describedBy?: string;
+	defaultValue?: string;
+	error?: string;
+	reveal?: boolean;
 	onValue?: (value: string) => void;
 };
 
@@ -31,23 +36,55 @@ function describe(input: HTMLInputElement, patternMessage?: string) {
 		const missing = input.minLength - input.value.length;
 		return `Il manque ${missing} caractère${missing > 1 ? "s" : ""}.`;
 	}
+	if (validity.badInput) {
+		return "Ce format n’est pas valide.";
+	}
 	if (validity.patternMismatch) {
 		return patternMessage ?? "Ce format n’est pas valide.";
 	}
 	return "";
 }
 
+function EyeIcon({ crossed }: { crossed: boolean }) {
+	return (
+		<svg
+			viewBox="0 0 20 20"
+			aria-hidden="true"
+			className="size-5 shrink-0"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="1.5"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+		>
+			<path d="M1.8 10S4.9 4.8 10 4.8 18.2 10 18.2 10 15.1 15.2 10 15.2 1.8 10 1.8 10Z" />
+			<circle cx="10" cy="10" r="2.4" />
+			{crossed ? <path d="M3.2 16.8 16.8 3.2" /> : null}
+		</svg>
+	);
+}
+
 export function TextField({
 	id,
 	label,
+	name,
 	hint,
 	optional = false,
 	patternMessage,
 	describedBy,
+	error,
+	reveal = false,
 	onValue,
 	...input
 }: TextFieldProps) {
-	const [message, setMessage] = useState("");
+	const [message, setMessage] = useState(error ?? "");
+	const [previous, setPrevious] = useState(error);
+	const [visible, setVisible] = useState(false);
+
+	if (previous !== error) {
+		setPrevious(error);
+		setMessage(error ?? "");
+	}
 
 	const hintId = hint ? `${id}-hint` : undefined;
 	const errorId = message ? `${id}-error` : undefined;
@@ -77,38 +114,45 @@ export function TextField({
 				) : null}
 			</div>
 
-			<input
-				id={id}
-				name={id}
-				required={!optional}
-				{...input}
-				onInput={handleInput}
-				onBlur={(event) => check(event.currentTarget)}
-				onInvalid={(event) => {
-					event.preventDefault();
-					check(event.currentTarget);
-				}}
-				aria-invalid={message ? true : undefined}
-				aria-describedby={described}
-				className="mt-2 w-full rounded-xl border border-edge bg-white/70 px-4 py-3 text-base transition-colors duration-200 ease-out aria-invalid:border-red-700 aria-invalid:bg-red-50/60 focus-visible:border-matcha"
-			/>
+			<div className="relative">
+				<input
+					id={id}
+					name={name ?? id}
+					required={!optional}
+					{...input}
+					type={reveal && visible ? "text" : input.type}
+					onInput={handleInput}
+					onBlur={(event) => check(event.currentTarget)}
+					onInvalid={(event) => {
+						event.preventDefault();
+						check(event.currentTarget);
+					}}
+					aria-invalid={message ? true : undefined}
+					aria-describedby={described}
+					className={`mt-2 w-full rounded-xl border border-edge bg-white/70 py-3 pl-4 text-base transition-colors duration-200 ease-out aria-invalid:border-red-700 aria-invalid:bg-red-50/60 focus-visible:border-matcha ${
+						reveal ? "pr-12" : "pr-4"
+					}`}
+				/>
+
+				{reveal ? (
+					<button
+						type="button"
+						onClick={() => setVisible(!visible)}
+						aria-pressed={visible}
+						aria-label={
+							visible ? "Masquer le mot de passe" : "Afficher le mot de passe"
+						}
+						className="absolute inset-y-0 right-0 mt-2 flex cursor-pointer items-center rounded-r-xl px-4 text-muted transition-colors duration-200 ease-out hover:text-ink"
+					>
+						<EyeIcon crossed={visible} />
+					</button>
+				) : null}
+			</div>
 
 			{message ? (
-				<p
-					id={errorId}
-					role="alert"
-					className="popup mt-2 flex items-start gap-2 rounded-xl bg-red-50 px-3 py-2.5 text-xs leading-snug text-red-800 ring-1 ring-red-200"
-				>
-					<svg
-						viewBox="0 0 16 16"
-						aria-hidden="true"
-						className="mt-px size-4 shrink-0"
-						fill="currentColor"
-					>
-						<path d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13Zm-.75 3h1.5l-.15 4h-1.2l-.15-4Zm.75 5.4a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8Z" />
-					</svg>
+				<Alert id={errorId} className="mt-2">
 					{message}
-				</p>
+				</Alert>
 			) : null}
 
 			{hint && !message ? (

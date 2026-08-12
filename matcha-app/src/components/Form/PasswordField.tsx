@@ -30,8 +30,13 @@ function grade(value: string) {
 	return { passed, score };
 }
 
-export function PasswordField() {
-	const [value, setValue] = useState("");
+type PasswordFieldProps = {
+	defaultValue?: string;
+	error?: string;
+};
+
+export function PasswordField({ defaultValue, error }: PasswordFieldProps) {
+	const [value, setValue] = useState(defaultValue ?? "");
 
 	const { passed, score } = grade(value);
 	const empty = value.length === 0;
@@ -48,6 +53,9 @@ export function PasswordField() {
 				pattern={PASSWORD_PATTERN}
 				patternMessage="Ajoutez un chiffre et un caractère spécial."
 				describedBy="password-strength password-rules"
+				defaultValue={defaultValue}
+				error={error}
+				reveal
 				onValue={setValue}
 			/>
 
@@ -106,7 +114,8 @@ export function PasswordField() {
 			</ul>
 
 			<p className="mt-2.5 text-xs text-muted">
-				Douze caractères ou plus pour un matcha bien fouetté.
+				Douze caractères ou plus pour un matcha bien fouetté. Les mots anglais
+				courants sont refusés, même à l’intérieur du mot de passe.
 			</p>
 		</div>
 	);
