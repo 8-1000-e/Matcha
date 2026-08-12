@@ -1,6 +1,8 @@
 import { hashPassword } from "@/lib/auth/password";
+import { createEmailToken, EMAIL_TTL } from "@/lib/auth/tokens";
 import { validateRegister } from "@/lib/auth/validation";
-import { ConstraintError, createUser, isEmailTaken, isUsernameTaken } from "@/lib/db";
+import { ConstraintError, createUser, isEmailTaken, issueEmailToken, isUsernameTaken } from "@/lib/db";
+import { sendMail } from "@/lib/mail/mailer";
 
 export const runtime = "nodejs";
 
@@ -67,6 +69,24 @@ export async function POST(request: Request)
 		}
 		throw error;
 	}
+
+
+	const verification = createEmailToken();
+	issueEmailToken({
+		user_id: user.id,
+		token_hash: verification.hash,
+		type: "email_verification",
+		expires_at: verification.expiresAt,
+	});
+
+	const link = `${process.env.APP_URL}/api/auth/verify?token=${verification.token}`;
+	await sendMail(
+		result.value.email,
+		"Verify your address - BrewMance",
+		`<p>Welcome ${user.username},</p>
+		 <p><a href="${link}">Verify your address</a></p>
+		 <p>This link expires in ${Math.round(EMAIL_TTL / 60)} minutes.</p>`,
+	);
 
 	return Response.json(
 		{ id: user.id, username: user.username },

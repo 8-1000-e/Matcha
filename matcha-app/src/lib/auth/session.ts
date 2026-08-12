@@ -3,7 +3,7 @@ import { issueRefreshToken, revokeRefreshToken, users, type UserRow } from "@/li
 import {
 	ACCESS_TTL,
 	createRefreshToken,
-	hashRefreshToken,
+	hashToken,
 	REFRESH_TTL,
 	signAccessToken,
 	verifyAccessToken,
@@ -38,7 +38,7 @@ export async function clearAuthCookies(): Promise<void>
 	const refreshToken = store.get("refresh")?.value;
 	if (refreshToken)
 	{
-		revokeRefreshToken(hashRefreshToken(refreshToken));
+		revokeRefreshToken(hashToken(refreshToken));
 	}
 
 	store.set("access", "", { ...COOKIE_OPTIONS, maxAge: 0 });
