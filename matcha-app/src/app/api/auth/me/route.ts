@@ -1,5 +1,5 @@
 import { requireUser } from "@/lib/auth/session";
-import { photos, userTags } from "@/lib/db";
+import { MINIMUM_TAGS, photos, userTags } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -11,9 +11,6 @@ export async function GET()
 		return Response.json({ errors: ["unauthorized"] }, { status: 401 });
 	}
 
-	// Ce que le front doit encore faire remplir. Les criteres sont les memes
-	// que ceux de refreshProfileCompletion en base : si les deux divergent,
-	// profile_completed dira une chose et missing une autre.
 	const missing: string[] = [];
 	if (user.gender === null)
 	{
@@ -23,7 +20,7 @@ export async function GET()
 	{
 		missing.push("biography");
 	}
-	if (userTags.count({ user_id: user.id }) === 0)
+	if (userTags.count({ user_id: user.id }) < MINIMUM_TAGS)
 	{
 		missing.push("tags");
 	}

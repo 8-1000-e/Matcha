@@ -3,6 +3,7 @@ import { setAuthCookies } from "@/lib/auth/session";
 import { hashToken } from "@/lib/auth/tokens";
 import {
 	findUsableRefreshToken,
+	purgeIfDue,
 	refreshTokens,
 	revokeAllRefreshTokens,
 	revokeRefreshToken,
@@ -13,6 +14,8 @@ export const runtime = "nodejs";
 
 export async function POST()
 {
+	purgeIfDue();
+
 	const cookie = (await cookies()).get("refresh")?.value;
 	if (!cookie)
 	{

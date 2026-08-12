@@ -1,12 +1,14 @@
 import { verifyPassword } from "@/lib/auth/password";
 import { setAuthCookies } from "@/lib/auth/session";
-import { findUserByUsername } from "@/lib/db";
+import { findUserByUsername, purgeIfDue } from "@/lib/db";
 import { readJsonBody } from "@/lib/http/body";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request)
 {
+	purgeIfDue();
+
 	const body = await readJsonBody(request);
 	if (!body.ok)
 	{
