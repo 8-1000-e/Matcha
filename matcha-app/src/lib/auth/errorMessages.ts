@@ -15,6 +15,8 @@ export const GENERIC_ERROR = "Une erreur est survenue, réessayez.";
 export const NETWORK_ERROR = "Serveur injoignable, vérifiez votre connexion.";
 
 const REQUIRED = "Ce champ est obligatoire.";
+const EXPIRED = "Votre session a expiré, reconnectez-vous.";
+const LINK_DEAD = "Ce lien n’est plus valide, demandez-en un nouveau.";
 
 const TRANSLATIONS: Record<string, AuthError> = {
 	"email is required": { field: "email", message: REQUIRED },
@@ -90,10 +92,23 @@ const TRANSLATIONS: Record<string, AuthError> = {
 		field: null,
 		message: "Renseignez votre nom d’utilisateur et votre mot de passe.",
 	},
-	unauthorized: { field: null, message: "Votre session a expiré, reconnectez-vous." },
+	"token is required": { field: null, message: LINK_DEAD },
+	"invalid or expired token": { field: null, message: LINK_DEAD },
+	"token has already been used": {
+		field: null,
+		message: "Ce lien a déjà été utilisé.",
+	},
+	"token and password are required": {
+		field: "password",
+		message: REQUIRED,
+	},
+	unauthorized: { field: null, message: EXPIRED },
+	"refresh token is required": { field: null, message: EXPIRED },
+	"invalid session": { field: null, message: EXPIRED },
 	"request body is too large": { field: null, message: GENERIC_ERROR },
 	"invalid request body": { field: null, message: GENERIC_ERROR },
 	"invalid json body": { field: null, message: GENERIC_ERROR },
+	"content-type must be application/json": { field: null, message: GENERIC_ERROR },
 };
 
 export function translateError(raw: string): AuthError {

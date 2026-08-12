@@ -31,11 +31,16 @@ function grade(value: string) {
 }
 
 type PasswordFieldProps = {
+	label?: string;
 	defaultValue?: string;
 	error?: string;
 };
 
-export function PasswordField({ defaultValue, error }: PasswordFieldProps) {
+export function PasswordField({
+	label = "Mot de passe",
+	defaultValue,
+	error,
+}: PasswordFieldProps) {
 	const [value, setValue] = useState(defaultValue ?? "");
 
 	const { passed, score } = grade(value);
@@ -46,7 +51,7 @@ export function PasswordField({ defaultValue, error }: PasswordFieldProps) {
 		<div>
 			<TextField
 				id="password"
-				label="Mot de passe"
+				label={label}
 				type="password"
 				autoComplete="new-password"
 				minLength={8}

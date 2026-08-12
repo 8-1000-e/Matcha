@@ -3,19 +3,26 @@ import { consumeEmailToken, findUsableEmailToken, markUserVerified } from "@/lib
 
 export const runtime = "nodejs";
 
+function expired(): Response
+{
+	return Response.redirect(
+		new URL("/link-expired?type=verification", process.env.APP_URL),
+	);
+}
+
 export async function GET(request: Request)
 {
 	const token = new URL(request.url).searchParams.get("token");
 	if (!token)
-	{return Response.json({ errors: ["token is required"] }, { status: 400 });}
+	{return expired();}
 
 	const tokenFound = findUsableEmailToken(hashToken(token), "email_verification");
 	if (!tokenFound)
-	{return Response.json({ errors: ["invalid or expired token"] }, { status: 400 });}
+	{return expired();}
 
 	const consumed = consumeEmailToken(tokenFound.id);
 	if (!consumed)
-	{return Response.json({ errors: ["token has already been used"] }, { status: 400 });}
+	{return expired();}
 
 
 	await markUserVerified(tokenFound.user_id);

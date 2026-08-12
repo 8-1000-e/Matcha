@@ -7,7 +7,7 @@ export function SignupPage() {
 		<FlowScreen
 			back="/"
 			title="Votre compte"
-			intro="Vous compléterez votre profil après la connexion."
+			intro="Un lien de vérification vous sera envoyé par e-mail. Vous compléterez votre profil après la connexion."
 			footer={
 				<>
 					Déjà inscrit ?{" "}

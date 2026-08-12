@@ -1,6 +1,8 @@
 import type Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
+import { BrandLockup } from "@/components/Brand/Brand";
 import { BackLink } from "@/components/Form/Button";
+import { LogoutButton } from "@/components/Form/LogoutButton";
 import { Backdrop } from "@/components/Layout/Backdrop";
 
 type ScreenProps = {
@@ -46,6 +48,37 @@ export function Screen({
 				{footer}
 			</footer>
 		</>
+	);
+}
+
+type PrivateScreenProps = {
+	title: string;
+	intro?: string;
+	children: ReactNode;
+	footer: ReactNode;
+};
+
+export function PrivateScreen({
+	title,
+	intro,
+	children,
+	footer,
+}: PrivateScreenProps) {
+	return (
+		<Screen
+			top={
+				<div className="flex w-full items-center justify-between gap-3">
+					<BrandLockup />
+					<LogoutButton />
+				</div>
+			}
+			footer={footer}
+		>
+			<h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+			{intro ? <p className="mt-3 text-sm text-muted">{intro}</p> : null}
+
+			<div className="mt-8">{children}</div>
+		</Screen>
 	);
 }
 

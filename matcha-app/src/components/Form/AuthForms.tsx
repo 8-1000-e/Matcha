@@ -1,13 +1,21 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useActionState, useState } from "react";
+import { useActionState, useState } from "react";
 import { GoogleIcon, Intra42Icon } from "@/components/Brand/ProviderLogos";
 import { Alert } from "@/components/Form/Alert";
 import { ActionButton } from "@/components/Form/Button";
+import { Notice } from "@/components/Form/Notice";
 import { PasswordField } from "@/components/Form/PasswordField";
 import { TextField } from "@/components/Form/TextField";
-import { login, register } from "@/lib/auth/api";
+import {
+	login,
+	register,
+	requestPasswordReset,
+	resendVerification,
+	resetPassword,
+} from "@/lib/auth/api";
 import type { AuthError, AuthField } from "@/lib/auth/errorMessages";
 
 const PROVIDERS = [
@@ -17,9 +25,13 @@ const PROVIDERS = [
 
 const MINIMUM_AGE = 18;
 
+const LINK_SENT
+	= "Si cette adresse correspond à un compte, un lien vient d’être envoyé. Il expire dans quinze minutes.";
+
 type FormState = {
 	errors: AuthError[];
 	values: Partial<Record<AuthField, string>>;
+	sent?: boolean;
 };
 
 const CLEAN: FormState = { errors: [], values: {} };
@@ -154,6 +166,7 @@ export function SignupForm() {
 				label="Adresse e-mail"
 				type="email"
 				autoComplete="email"
+				hint="Un lien de vérification y sera envoyé."
 				defaultValue={state.values.email}
 				error={fieldError(state, "email")}
 			/>
@@ -203,7 +216,7 @@ export function LoginForm() {
 				return { errors: result.errors, values: fields };
 			}
 
-			router.push("/");
+			router.push(result.data.user.is_verified ? "/me" : "/verify-email");
 			router.refresh();
 			return CLEAN;
 		},
@@ -244,29 +257,150 @@ export function LoginForm() {
 	);
 }
 
-export function ForgotPasswordForm() {
-	const [notice, setNotice] = useState("");
+export function ResendVerificationForm() {
+	const [state, action, pending] = useActionState(
+		async (_previous: FormState, formData: FormData): Promise<FormState> => {
+			const email = read(formData, "email");
+			const result = await resendVerification(email);
+			if (!result.ok) {
+				return { errors: result.errors, values: { email } };
+			}
 
-	function handleSubmit(event: FormEvent<HTMLFormElement>) {
-		event.preventDefault();
-		setNotice("L’envoi du lien arrive avec le back-end.");
+			return { errors: [], values: { email }, sent: true };
+		},
+		CLEAN,
+	);
+
+	if (state.sent) {
+		return <Notice>{LINK_SENT}</Notice>;
 	}
 
 	return (
-		<form onSubmit={handleSubmit} className="flex flex-col gap-5">
+		<form action={action} className="flex flex-col gap-4">
+			<p className="text-xs text-muted">
+				Indiquez l’adresse du compte pour recevoir un nouveau lien de
+				vérification.
+			</p>
+
+			<TextField
+				id="resendEmail"
+				name="email"
+				label="Adresse e-mail"
+				type="email"
+				autoComplete="email"
+				defaultValue={state.values.email}
+				error={fieldError(state, "email")}
+			/>
+
+			<GlobalAlert state={state} />
+
+			<ActionButton type="submit" tone="secondary" disabled={pending}>
+				{pending ? "Envoi…" : "Renvoyer le lien"}
+			</ActionButton>
+		</form>
+	);
+}
+
+export function ForgotPasswordForm() {
+	const [state, action, pending] = useActionState(
+		async (_previous: FormState, formData: FormData): Promise<FormState> => {
+			const email = read(formData, "email");
+			const result = await requestPasswordReset(email);
+			if (!result.ok) {
+				return { errors: result.errors, values: { email } };
+			}
+
+			return { errors: [], values: { email }, sent: true };
+		},
+		CLEAN,
+	);
+
+	if (state.sent) {
+		return (
+			<div className="flex flex-col gap-6">
+				<Notice>{LINK_SENT}</Notice>
+				<Link href="/login" className="text-center text-sm text-matcha underline">
+					Retour à la connexion
+				</Link>
+			</div>
+		);
+	}
+
+	return (
+		<form action={action} className="flex flex-col gap-5">
 			<TextField
 				id="email"
 				label="Adresse e-mail"
 				type="email"
 				autoComplete="email"
+				defaultValue={state.values.email}
+				error={fieldError(state, "email")}
 			/>
 
-			<p role="status" className="text-xs text-muted empty:hidden">
-				{notice}
-			</p>
+			<GlobalAlert state={state} />
 
-			<ActionButton type="submit" tone="primary" className="mt-1">
-				Envoyer le lien
+			<ActionButton
+				type="submit"
+				tone="primary"
+				className="mt-1"
+				disabled={pending}
+			>
+				{pending ? "Envoi…" : "Envoyer le lien"}
+			</ActionButton>
+		</form>
+	);
+}
+
+export function ResetPasswordForm({ token }: { token: string }) {
+	const router = useRouter();
+
+	const [state, action, pending] = useActionState(
+		async (_previous: FormState, formData: FormData): Promise<FormState> => {
+			const password = read(formData, "password");
+			const result = await resetPassword({ token, password });
+			if (!result.ok) {
+				return { errors: result.errors, values: { password } };
+			}
+
+			router.push("/login?reset=1");
+			return CLEAN;
+		},
+		CLEAN,
+	);
+
+	if (token.length === 0) {
+		return (
+			<div className="flex flex-col gap-6">
+				<Alert>
+					Ce lien est incomplet. Demandez un nouvel e-mail de réinitialisation.
+				</Alert>
+				<Link
+					href="/forgot-password"
+					className="text-center text-sm text-matcha underline"
+				>
+					Demander un nouveau lien
+				</Link>
+			</div>
+		);
+	}
+
+	return (
+		<form action={action} className="flex flex-col gap-6">
+			<PasswordField
+				label="Nouveau mot de passe"
+				defaultValue={state.values.password}
+				error={fieldError(state, "password")}
+			/>
+
+			<GlobalAlert state={state} />
+
+			<ActionButton
+				type="submit"
+				tone="primary"
+				className="mt-1"
+				disabled={pending}
+			>
+				{pending ? "Enregistrement…" : "Changer mon mot de passe"}
 			</ActionButton>
 		</form>
 	);

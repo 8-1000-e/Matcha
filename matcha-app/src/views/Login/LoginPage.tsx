@@ -1,8 +1,18 @@
 import Link from "next/link";
 import { LoginForm, OauthGroup } from "@/components/Form/AuthForms";
+import { Notice } from "@/components/Form/Notice";
 import { FlowScreen } from "@/components/Layout/Screen";
 
-export function LoginPage({ created = false }: { created?: boolean }) {
+const NOTICES = {
+	created:
+		"Compte créé. Un lien de vérification vient de partir : ouvrez-le avant de vous connecter.",
+	verified: "Adresse vérifiée. Vous pouvez vous connecter.",
+	reset: "Mot de passe changé. Connectez-vous avec le nouveau.",
+} as const;
+
+export type LoginNotice = keyof typeof NOTICES;
+
+export function LoginPage({ notice }: { notice?: LoginNotice }) {
 	return (
 		<FlowScreen
 			back="/"
@@ -17,14 +27,7 @@ export function LoginPage({ created = false }: { created?: boolean }) {
 			}
 		>
 			<div className="flex flex-col gap-6">
-				{created ? (
-					<p
-						role="status"
-						className="popup rounded-xl bg-leaf/70 px-3 py-2.5 text-xs leading-snug ring-1 ring-matcha/20"
-					>
-						Compte créé. Connectez-vous pour continuer.
-					</p>
-				) : null}
+				{notice ? <Notice>{NOTICES[notice]}</Notice> : null}
 
 				<OauthGroup />
 				<LoginForm />
