@@ -1,4 +1,4 @@
-import { checkPassWord } from "./passwordPolicy";
+import { checkPassWord, type PasswordError } from "./passwordPolicy";
 
 export interface RegisterInput {
     email: string;
@@ -14,6 +14,15 @@ const BIRTH_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const USERNAME_RE = /^[A-Za-z0-9._-]+$/;
 const NAME_RE = /^\p{L}+(?:[ '-]\p{L}+)*$/u;
 const CONTROL_RE = /\p{Cc}/u;
+
+const PASSWORD_MESSAGES: Record<NonNullable<PasswordError>, string> = {
+	too_short: "password is too short",
+	too_long: "password is too long",
+	control_char: "password contains control characters",
+	english_word: "password contains a common english word",
+	no_number: "password must contain a digit",
+	no_special_char: "password must contain a special character",
+};
 
 const MINIMUM_AGE = 18;
 
@@ -181,7 +190,7 @@ export function validateRegister(body: unknown):
 		const passwordError = checkPassWord(body.password);
 		if (passwordError)
 		{
-			errors.push(passwordError);
+			errors.push(PASSWORD_MESSAGES[passwordError]);
 		}
 		password = body.password;
 	}

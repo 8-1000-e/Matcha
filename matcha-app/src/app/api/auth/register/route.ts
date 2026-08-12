@@ -5,12 +5,32 @@ import { ConstraintError, createUser, isEmailTaken, isUsernameTaken } from "@/li
 export const runtime = "nodejs";
 
 const TAKEN = "email or username is already in use";
+const MAX_BODY_BYTES = 8 * 1024;
 
 export async function POST(request: Request)
 {
+	const declared = Number(request.headers.get("content-length") ?? 0);
+	if (declared > MAX_BODY_BYTES)
+	{
+		return Response.json({ errors: ["request body is too large"] }, { status: 413 });
+	}
+
+	let raw: string;
+	try {
+		raw = await request.text();
+	}
+	catch {
+		return Response.json({ errors: ["invalid request body"] }, { status: 400 });
+	}
+
+	if (Buffer.byteLength(raw, "utf8") > MAX_BODY_BYTES)
+	{
+		return Response.json({ errors: ["request body is too large"] }, { status: 413 });
+	}
+
 	let body: unknown;
 	try {
-		body = await request.json();
+		body = JSON.parse(raw);
 	}
 	catch {
 		return Response.json({ errors: ["invalid json body"] }, { status: 400 });

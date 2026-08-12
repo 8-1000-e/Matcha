@@ -10,7 +10,7 @@ const WORDS = new Set(
 );
 
 const MIN_LENGTH = 8;
-const MAX_BYTES = 72;
+const MAX_BYTES = 71;
 const CONTROL_RE = /\p{Cc}/u;
 
 export type PasswordError =
