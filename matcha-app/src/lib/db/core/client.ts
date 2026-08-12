@@ -13,7 +13,7 @@ function rethrow(fragment: SqlFragment, cause: unknown): never {
 	if (code.startsWith("SQLITE_CONSTRAINT")) {
 		throw new ConstraintError(message, code, { cause });
 	}
-	throw new DatabaseError(`${message} — while running: ${fragment.text}`, {
+	throw new DatabaseError(`${message} - while running: ${fragment.text}`, {
 		cause,
 	});
 }
