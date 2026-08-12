@@ -1,0 +1,117 @@
+import { execute, queryScalar, transaction } from "../core/client";
+import { DatabaseError } from "../core/errors";
+import { createRepository } from "../core/repository";
+import { sql } from "../core/sql";
+import { createId } from "../core/values";
+import {
+	MAX_PHOTOS_PER_USER,
+	type PhotoInsert,
+	type PhotoRow,
+} from "../types";
+
+export const photos = createRepository<PhotoRow, PhotoInsert>({
+	table: "photos",
+	columns: ["id", "user_id", "path", "is_profile", "position", "created_at"],
+	defaultOrder: [{ column: "position", direction: "asc" }],
+});
+
+export function listPhotos(userId: string): PhotoRow[] {
+	return photos.find({ user_id: userId });
+}
+
+export function findProfilePhoto(userId: string): PhotoRow | undefined {
+	return photos.findOne({ user_id: userId, is_profile: 1 });
+}
+
+export function hasProfilePhoto(userId: string): boolean {
+	return photos.exists({ user_id: userId, is_profile: 1 });
+}
+
+export function addPhoto(userId: string, path: string): PhotoRow {
+	return transaction(() => {
+		const used
+			= queryScalar<number>(
+				sql`SELECT COUNT(*) FROM photos WHERE user_id = ${userId}`,
+			) ?? 0;
+		if (used >= MAX_PHOTOS_PER_USER) {
+			throw new DatabaseError("photo_limit_reached");
+		}
+		const nextPosition
+			= queryScalar<number>(
+				sql`SELECT COALESCE(MAX(position) + 1, 0) FROM photos
+					WHERE user_id = ${userId}`,
+			) ?? 0;
+		return photos.insert({
+			id: createId(),
+			user_id: userId,
+			path,
+			position: nextPosition,
+			is_profile: used === 0 ? 1 : 0,
+		});
+	});
+}
+
+export function setProfilePhoto(userId: string, photoId: string): PhotoRow {
+	return transaction(() => {
+		const target = photos.findOne({ id: photoId, user_id: userId });
+		if (target === undefined) {
+			throw new DatabaseError("photo_not_found");
+		}
+		execute(
+			sql`UPDATE photos SET is_profile = 0
+				WHERE user_id = ${userId} AND is_profile = 1`,
+		);
+		const updated = photos.updateById(photoId, { is_profile: 1 });
+		if (updated === undefined) {
+			throw new DatabaseError("photo_not_found");
+		}
+		return updated;
+	});
+}
+
+export function removePhoto(userId: string, photoId: string): boolean {
+	return transaction(() => {
+		const target = photos.findOne({ id: photoId, user_id: userId });
+		if (target === undefined) {
+			return false;
+		}
+		photos.removeById(photoId);
+		execute(
+			sql`UPDATE photos SET position = position - 1
+				WHERE user_id = ${userId} AND position > ${target.position}`,
+		);
+		if (target.is_profile === 1) {
+			execute(
+				sql`UPDATE photos SET is_profile = 1
+					WHERE id = (
+						SELECT id FROM photos WHERE user_id = ${userId}
+						ORDER BY position LIMIT 1
+					)`,
+			);
+		}
+		return true;
+	});
+}
+
+export function reorderPhotos(userId: string, orderedIds: string[]): PhotoRow[] {
+	return transaction(() => {
+		const owned = photos.find({ user_id: userId });
+		if (
+			owned.length !== orderedIds.length
+			|| orderedIds.some((id) => !owned.some((photo) => photo.id === id))
+		) {
+			throw new DatabaseError("photo_order_mismatch");
+		}
+		orderedIds.forEach((id, index) => {
+			execute(
+				sql`UPDATE photos SET position = ${index - orderedIds.length}
+					WHERE id = ${id} AND user_id = ${userId}`,
+			);
+		});
+		execute(
+			sql`UPDATE photos SET position = position + ${orderedIds.length}
+				WHERE user_id = ${userId}`,
+		);
+		return photos.find({ user_id: userId });
+	});
+}
