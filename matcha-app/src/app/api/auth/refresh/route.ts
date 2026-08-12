@@ -1,7 +1,13 @@
 import { cookies } from "next/headers";
 import { setAuthCookies } from "@/lib/auth/session";
 import { hashToken } from "@/lib/auth/tokens";
-import { findUsableRefreshToken, revokeRefreshToken, users } from "@/lib/db";
+import {
+	findUsableRefreshToken,
+	refreshTokens,
+	revokeAllRefreshTokens,
+	revokeRefreshToken,
+	users,
+} from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -13,10 +19,21 @@ export async function POST()
 		return Response.json({ errors: ["refresh token is required"] }, { status: 401 });
 	}
 
-	const tokenFound = findUsableRefreshToken(hashToken(cookie));
+	const hash = hashToken(cookie);
+	const tokenFound = findUsableRefreshToken(hash);
 	if (!tokenFound)
 	{
-		return Response.json({ errors: ["refresh token is required"] }, { status: 401 });
+		// Le jeton est inconnu, expire, ou DEJA REVOQUE. Ce dernier cas est
+		// suspect : un jeton revoque a soit ete rejoue par erreur, soit vole
+		// avant que le client legitime ne le renouvelle. On coupe toutes les
+		// sessions de l'utilisateur plutot que de laisser tourner celle du
+		// voleur.
+		const known = refreshTokens.findOne({ token_hash: hash });
+		if (known)
+		{
+			revokeAllRefreshTokens(known.user_id);
+		}
+		return Response.json({ errors: ["invalid session"] }, { status: 401 });
 	}
 
 	const user = users.findById(tokenFound.user_id);

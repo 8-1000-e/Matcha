@@ -27,29 +27,28 @@ export async function POST(request: Request)
 	}
 
 	const user = findUserByEmail(email.trim().toLowerCase());
-
-	if (!user || user.is_verified === 1)
+	if (!user)
 	{
 		return Response.json(SENT);
 	}
 
-	revokeEmailTokens(user.id, "email_verification");
-
+	revokeEmailTokens(user.id, "password_reset");
 	const verification = createEmailToken();
 	issueEmailToken({
 		user_id: user.id,
 		token_hash: verification.hash,
-		type: "email_verification",
+		type: "password_reset",
 		expires_at: verification.expiresAt,
 	});
 
-	const link = `${process.env.APP_URL}/api/auth/verify?token=${verification.token}`;
+	const link = `${process.env.APP_URL}/reset-password?token=${verification.token}`;
 	await sendMail(
 		user.email,
-		"Verify your address — Matcha",
-		`<p>Welcome ${user.username},</p>
-		 <p><a href="${link}">Verify your address</a></p>
-		 <p>This link expires in ${Math.round(EMAIL_TTL / 60)} minutes.</p>`,
+		"Reset your password — Matcha",
+		`<p>Hi ${user.username},</p>
+		 <p><a href="${link}">Choose a new password</a></p>
+		 <p>This link expires in ${Math.round(EMAIL_TTL / 60)} minutes.</p>
+		 <p>If you did not ask for this, ignore this message: your password stays unchanged.</p>`,
 	);
 
 	return Response.json(SENT);

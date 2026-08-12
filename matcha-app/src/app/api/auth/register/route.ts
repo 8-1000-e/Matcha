@@ -2,43 +2,22 @@ import { hashPassword } from "@/lib/auth/password";
 import { createEmailToken, EMAIL_TTL } from "@/lib/auth/tokens";
 import { validateRegister } from "@/lib/auth/validation";
 import { ConstraintError, createUser, isEmailTaken, issueEmailToken, isUsernameTaken } from "@/lib/db";
+import { readJsonBody } from "@/lib/http/body";
 import { sendMail } from "@/lib/mail/mailer";
 
 export const runtime = "nodejs";
 
 const TAKEN = "email or username is already in use";
-const MAX_BODY_BYTES = 8 * 1024;
 
 export async function POST(request: Request)
 {
-	const declared = Number(request.headers.get("content-length") ?? 0);
-	if (declared > MAX_BODY_BYTES)
+	const body = await readJsonBody(request);
+	if (!body.ok)
 	{
-		return Response.json({ errors: ["request body is too large"] }, { status: 413 });
+		return body.response;
 	}
 
-	let raw: string;
-	try {
-		raw = await request.text();
-	}
-	catch {
-		return Response.json({ errors: ["invalid request body"] }, { status: 400 });
-	}
-
-	if (Buffer.byteLength(raw, "utf8") > MAX_BODY_BYTES)
-	{
-		return Response.json({ errors: ["request body is too large"] }, { status: 413 });
-	}
-
-	let body: unknown;
-	try {
-		body = JSON.parse(raw);
-	}
-	catch {
-		return Response.json({ errors: ["invalid json body"] }, { status: 400 });
-	}
-
-	const result = validateRegister(body);
+	const result = validateRegister(body.value);
 	if (!result.ok)
 	{
 		return Response.json({ errors: result.errors }, { status: 400 });
