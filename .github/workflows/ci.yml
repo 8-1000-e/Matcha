@@ -37,6 +37,11 @@ jobs:
       - name: Lint
         run: npm run lint -- --max-warnings=0
 
+      # Next genere les types de routes (LayoutProps, PageProps...) dans
+      # .next/types. Sans cette etape, tsc ne les trouve pas.
+      - name: Generate route types
+        run: npx next typegen
+
       - name: Typecheck
         run: npm run typecheck
 
