@@ -33,16 +33,16 @@ export async function setAuthCookies(userId: string): Promise<void>
 
 export async function clearAuthCookies(): Promise<void>
 {
-	const refreshToken = (await cookies()).get("refresh")?.value;
+	const store = await cookies();
+
+	const refreshToken = store.get("refresh")?.value;
 	if (refreshToken)
 	{
-		const refreshHash = hashRefreshToken(refreshToken);
-		revokeRefreshToken(refreshHash);
+		revokeRefreshToken(hashRefreshToken(refreshToken));
 	}
 
-	const store = await cookies();
-	store.delete("access");
-	store.delete("refresh");
+	store.set("access", "", { ...COOKIE_OPTIONS, maxAge: 0 });
+	store.set("refresh", "", { ...COOKIE_OPTIONS, maxAge: 0 });
 }
 
 export async function getSession(): Promise<AccessPayload | null>
