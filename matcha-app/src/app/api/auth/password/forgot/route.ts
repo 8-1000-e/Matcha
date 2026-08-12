@@ -44,7 +44,7 @@ export async function POST(request: Request)
 	const link = `${process.env.APP_URL}/reset-password?token=${verification.token}`;
 	await sendMail(
 		user.email,
-		"Reset your password — Matcha",
+		"Reset your password - Matcha",
 		`<p>Hi ${user.username},</p>
 		 <p><a href="${link}">Choose a new password</a></p>
 		 <p>This link expires in ${Math.round(EMAIL_TTL / 60)} minutes.</p>

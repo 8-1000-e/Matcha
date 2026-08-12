@@ -72,14 +72,15 @@ et insensible à la casse.
 
 | Code | Corps | Cas |
 | --- | --- | --- |
-| `200` | `{ "ok": true, "user": { "id", "username" } }` | + cookies `access` et `refresh` |
+| `200` | `{ "ok": true, "user": { "id", "username", "is_verified" } }` | + cookies `access` et `refresh` |
 | `400` | `{ "errors": ["username and password are required"] }` | champ absent ou mauvais type |
 | `401` | `{ "errors": ["invalid username or password"] }` | identifiants faux **ou** compte inexistant — réponse identique dans les deux cas |
-| `403` | `{ "errors": ["email address not verified"], "code": "email_not_verified" }` | mot de passe correct mais e-mail non vérifié |
 | `415` | | |
 
-Le **403** n'apparaît qu'après validation du mot de passe : un inconnu ne peut
-pas s'en servir pour savoir si un compte existe.
+**Un compte non vérifié reçoit quand même sa session**, avec
+`is_verified: false`. Le front lit ce drapeau (ou celui de `/auth/me`) et
+affiche la page de renvoi du lien. Le blocage réel se fait sur les routes de
+fonctionnalité, pas ici — même logique que pour un profil incomplet.
 
 ---
 
