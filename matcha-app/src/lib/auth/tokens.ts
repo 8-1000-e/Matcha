@@ -23,8 +23,8 @@ function readTtl(name: string, fallback: number): number {
 	return parsed;
 }
 
-const ACCESS_TTL = readTtl("ACCESS_TOKEN_TTL", 900);
-const REFRESH_TTL = readTtl("REFRESH_TOKEN_TTL", 2592000);
+export const ACCESS_TTL = readTtl("ACCESS_TOKEN_TTL", 900);
+export const REFRESH_TTL = readTtl("REFRESH_TOKEN_TTL", 2592000);
 
 const ALGORITHM = "HS256";
 
