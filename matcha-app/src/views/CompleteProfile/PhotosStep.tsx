@@ -13,6 +13,17 @@ import {
 import { Errors, type StepProps } from "./StepBase";
 
 const MAXIMUM = 5;
+/**
+ * Largeur d'un emplacement, marges comprises. Les voisines sont reduites a
+ * SIDE_SCALE, ce qui les fait tenir entierement dans la colonne au lieu d'etre
+ * coupees par ses bords.
+ */
+const SLIDE_PX = 160;
+const SIDE_SCALE = "scale-[0.78]";
+
+function modulo(value: number, size: number) {
+	return ((value % size) + size) % size;
+}
 
 function Chevron({ back }: { back: boolean }) {
 	return (
@@ -32,7 +43,11 @@ export function PhotosStep({ profile, onSaved, onNext }: StepProps) {
 	const input = useRef<HTMLInputElement>(null);
 	const [errors, setErrors] = useState<AuthError[]>([]);
 	const [pending, startTransition] = useTransition();
+	// Compteur non borne : depasser les extremites est ce qui permet d'animer le
+	// passage de la derniere photo a la premiere. Il revient dans l'intervalle
+	// une fois l'animation terminee.
 	const [slide, setSlide] = useState(0);
+	const [sliding, setSliding] = useState(true);
 
 	function run(call: () => Promise<ProfileResult>) {
 		startTransition(async () => {
@@ -61,13 +76,32 @@ export function PhotosStep({ profile, onSaved, onNext }: StepProps) {
 
 	const photos = profile.photos;
 	const count = photos.length;
-	// Une suppression peut rendre l'index courant hors limites : on le borne au
-	// rendu plutot que de le corriger dans un effet, qui rendrait deux fois.
-	const current = count === 0 ? 0 : Math.min(slide, count - 1);
+	// Une suppression peut laisser l'index hors limites : il est ramene au rendu
+	// plutot que corrige dans un effet, qui rendrait deux fois.
+	const current = count === 0 ? 0 : modulo(slide, count);
 	const photo = photos[current];
 
+	// La galerie est rendue en trois exemplaires et centree sur celui du milieu :
+	// il y a donc toujours une photo de chaque cote, y compris aux extremites.
+	const strip = count === 0 ? [] : [...photos, ...photos, ...photos];
+	const position = count + slide;
+
 	function move(step: number) {
-		setSlide((current + step + count) % count);
+		setSlide(slide + step);
+	}
+
+	/**
+	 * Une fois l'animation finie, le compteur revient dans l'intervalle et la
+	 * piste saute d'un exemplaire a l'autre. Le saut se fait sans transition,
+	 * donc a l'ecran rien ne bouge ; la frame suivante la reactive.
+	 */
+	function settle() {
+		const normalized = modulo(slide, count);
+		if (normalized !== slide) {
+			setSliding(false);
+			setSlide(normalized);
+			requestAnimationFrame(() => setSliding(true));
+		}
 	}
 
 	return (
@@ -83,87 +117,121 @@ export function PhotosStep({ profile, onSaved, onNext }: StepProps) {
 
 			{photo ? (
 				<div className="flex flex-col gap-3">
-					<div className="flex items-center gap-3">
-						<button
-							type="button"
-							onClick={() => move(-1)}
-							disabled={count < 2}
-							aria-label="Photo précédente"
-							className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted transition-colors duration-200 ease-out hover:bg-leaf/40 hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
-						>
-							<Chevron back />
-						</button>
-
-						<div
-							className={`relative aspect-square w-full max-w-56 overflow-hidden rounded-2xl ${
-								photo.is_profile ? "ring-2 ring-matcha" : "ring-1 ring-edge"
-							}`}
-						>
-							<Image
-								src={photo.url}
-								alt=""
-								fill
-								unoptimized
-								sizes="224px"
-								className="object-cover"
-							/>
-
-							{photo.is_profile ? (
-								<span className="absolute bottom-0 left-0 rounded-tr-xl bg-matcha px-2.5 py-1 text-[11px] font-medium text-white">
-									Photo de profil
-								</span>
-							) : null}
-
-							<button
-								type="button"
-								onClick={() => run(() => removePhoto(photo.id))}
-								disabled={pending}
-								aria-label="Supprimer cette photo"
-								className="absolute top-2 right-2 flex size-8 cursor-pointer items-center justify-center rounded-full bg-white/90 text-ink backdrop-blur-sm transition-colors duration-200 ease-out hover:bg-white hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-60"
+					<div className="relative">
+						<div className="overflow-hidden">
+							{/* left-1/2 se calcule sur le conteneur, contrairement a un
+							    pourcentage de translation qui porterait sur la piste
+							    elle-meme : c'est lui qui centre la photo courante. */}
+							<div
+								onTransitionEnd={settle}
+								className={`relative left-1/2 flex ${
+									sliding ? "transition-transform duration-300 ease-out" : ""
+								}`}
+								style={{
+									transform: `translateX(-${(position + 0.5) * SLIDE_PX}px)`,
+								}}
 							>
-								<svg viewBox="0 0 14 14" className="size-3.5" fill="none">
-									<path
-										d="M3.5 3.5l7 7M10.5 3.5l-7 7"
-										stroke="currentColor"
-										strokeWidth="1.75"
-										strokeLinecap="round"
-									/>
-								</svg>
-							</button>
+								{strip.map((entry, index) => (
+									<div
+										key={`${entry.id}-${index}`}
+										style={{ width: SLIDE_PX }}
+										className="shrink-0 px-1.5 py-1"
+									>
+										<div
+											className={`relative aspect-square overflow-hidden rounded-2xl transition-all duration-300 ease-out ${
+												index === position
+													? "scale-100 opacity-100"
+													: `${SIDE_SCALE} opacity-45`
+											} ${
+												entry.is_profile
+													? "ring-2 ring-matcha"
+													: "ring-1 ring-edge"
+											}`}
+										>
+											<Image
+												src={entry.url}
+												alt=""
+												fill
+												unoptimized
+												sizes="160px"
+												className="object-cover"
+											/>
+
+											{entry.is_profile ? (
+												<span className="absolute bottom-0 left-0 rounded-tr-xl bg-matcha px-2.5 py-1 text-[11px] font-medium text-white">
+													Photo de profil
+												</span>
+											) : null}
+										</div>
+									</div>
+								))}
+							</div>
 						</div>
 
+						{/* Posee dans le coin de la photo courante, dont le bord droit
+						    tombe a 74px du centre de la piste. */}
 						<button
 							type="button"
-							onClick={() => move(1)}
-							disabled={count < 2}
-							aria-label="Photo suivante"
-							className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted transition-colors duration-200 ease-out hover:bg-leaf/40 hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
+							onClick={() => run(() => removePhoto(photo.id))}
+							disabled={pending}
+							aria-label="Supprimer cette photo"
+							className="absolute top-2.5 left-1/2 ml-12 flex size-6 cursor-pointer items-center justify-center rounded-full bg-white/80 text-red-700 backdrop-blur-sm transition-colors duration-200 ease-out hover:bg-red-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
 						>
-							<Chevron back={false} />
+							<svg viewBox="0 0 12 12" className="size-2.5" fill="none">
+								<path
+									d="M3 3l6 6M9 3l-6 6"
+									stroke="currentColor"
+									strokeWidth="2"
+									strokeLinecap="round"
+								/>
+							</svg>
 						</button>
-					</div>
 
-					<ol className="flex justify-center gap-1.5">
-						{photos.map((entry, index) => (
-							<li key={entry.id}>
-								{/* La pastille reste petite, mais la zone cliquable tient
-								    compte du doigt. */}
+						{count > 1 ? (
+							<>
 								<button
 									type="button"
-									onClick={() => setSlide(index)}
-									aria-label={`Photo ${index + 1}`}
-									aria-current={index === current ? "true" : undefined}
-									className="flex cursor-pointer p-2"
+									onClick={() => move(-1)}
+									aria-label="Photo précédente"
+									className="absolute top-1/2 left-0 flex size-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/90 text-ink shadow-[0_2px_8px_rgba(38,48,28,0.15)] backdrop-blur-sm transition-colors duration-200 ease-out hover:bg-white"
 								>
-									<span
-										className={`size-1.5 rounded-full transition-colors duration-200 ${
-											index === current ? "bg-matcha" : "bg-edge"
-										}`}
-									/>
+									<Chevron back />
 								</button>
-							</li>
-						))}
-					</ol>
+								<button
+									type="button"
+									onClick={() => move(1)}
+									aria-label="Photo suivante"
+									className="absolute top-1/2 right-0 flex size-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/90 text-ink shadow-[0_2px_8px_rgba(38,48,28,0.15)] backdrop-blur-sm transition-colors duration-200 ease-out hover:bg-white"
+								>
+									<Chevron back={false} />
+								</button>
+							</>
+						) : null}
+					</div>
+
+					{count > 1 ? (
+						<ol className="flex justify-center">
+							{photos.map((entry, index) => (
+								<li key={entry.id}>
+									{/* La pastille reste discrete, mais la zone cliquable
+									    tient compte du doigt. */}
+									<button
+										type="button"
+										onClick={() => setSlide(index)}
+										aria-label={`Photo ${index + 1}`}
+										aria-current={index === current ? "true" : undefined}
+										className="flex cursor-pointer p-2"
+									>
+										<span
+											className={`h-1.5 rounded-full transition-all duration-300 ease-out ${
+												index === current ? "w-5 bg-matcha" : "w-1.5 bg-edge"
+											}`}
+										/>
+									</button>
+								</li>
+							))}
+						</ol>
+					) : null}
 
 					{photo.is_profile ? (
 						<p className="text-center text-xs text-muted">
