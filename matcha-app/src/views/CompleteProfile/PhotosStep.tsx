@@ -81,16 +81,20 @@ export function PhotosStep({ profile, onSaved, onNext }: StepProps) {
 	const current = count === 0 ? 0 : modulo(slide, count);
 	const photo = photos[current];
 
-	// Au-dela d'une photo, la galerie est rendue en trois exemplaires et centree
-	// sur celui du milieu : il y a donc toujours une voisine de chaque cote, y
-	// compris aux extremites. Une seule photo n'est evidemment pas triplee, sinon
-	// elle aurait l'air d'en etre trois.
-	const looping = count > 1;
+	// A partir de trois photos, la galerie est rendue en trois exemplaires et
+	// centree sur celui du milieu : il y a toujours une voisine de chaque cote, y
+	// compris aux extremites. En dessous, la boucle afficherait la meme photo
+	// deux fois a l'ecran, donc la piste s'arrete a ses bords.
+	const looping = count > 2;
 	const strip = looping ? [...photos, ...photos, ...photos] : photos;
-	const position = looping ? count + slide : 0;
+	const position = looping ? count + slide : current;
 
 	function move(step: number) {
-		setSlide(slide + step);
+		setSlide(
+			looping
+				? slide + step
+				: Math.min(Math.max(current + step, 0), count - 1),
+		);
 	}
 
 	/**
@@ -175,7 +179,7 @@ export function PhotosStep({ profile, onSaved, onNext }: StepProps) {
 													onClick={() => run(() => removePhoto(entry.id))}
 													disabled={pending}
 													aria-label="Supprimer cette photo"
-													className="absolute top-1.5 right-1.5 cursor-pointer p-1.5 text-red-600 drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)] transition-colors duration-200 ease-out hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+													className="absolute top-0 right-0 cursor-pointer rounded-tr-2xl rounded-bl-xl bg-red-600 p-1.5 text-white transition-colors duration-200 ease-out hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
 												>
 													<svg viewBox="0 0 12 12" className="size-3" fill="none">
 														<path
@@ -198,16 +202,18 @@ export function PhotosStep({ profile, onSaved, onNext }: StepProps) {
 								<button
 									type="button"
 									onClick={() => move(-1)}
+									disabled={!looping && current === 0}
 									aria-label="Photo précédente"
-									className="absolute top-1/2 left-0 flex size-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/90 text-ink shadow-[0_2px_8px_rgba(38,48,28,0.15)] backdrop-blur-sm transition-colors duration-200 ease-out hover:bg-white"
+									className="absolute top-1/2 left-0 flex size-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/90 text-ink shadow-[0_2px_8px_rgba(38,48,28,0.15)] backdrop-blur-sm transition-colors duration-200 ease-out hover:bg-white disabled:cursor-not-allowed disabled:opacity-30"
 								>
 									<Chevron back />
 								</button>
 								<button
 									type="button"
 									onClick={() => move(1)}
+									disabled={!looping && current === count - 1}
 									aria-label="Photo suivante"
-									className="absolute top-1/2 right-0 flex size-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/90 text-ink shadow-[0_2px_8px_rgba(38,48,28,0.15)] backdrop-blur-sm transition-colors duration-200 ease-out hover:bg-white"
+									className="absolute top-1/2 right-0 flex size-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/90 text-ink shadow-[0_2px_8px_rgba(38,48,28,0.15)] backdrop-blur-sm transition-colors duration-200 ease-out hover:bg-white disabled:cursor-not-allowed disabled:opacity-30"
 								>
 									<Chevron back={false} />
 								</button>
@@ -239,7 +245,10 @@ export function PhotosStep({ profile, onSaved, onNext }: StepProps) {
 						</ol>
 					) : null}
 
-					{photo.is_profile ? (
+					{/* Une photo seule est forcement la photo de profil : le serveur la
+					    designe a l'envoi et en promeut une autre a la suppression. Rien
+					    a proposer, donc. */}
+					{photo.is_profile || count === 1 ? (
 						<p className="text-center text-xs text-muted">
 							{count} photo{count > 1 ? "s" : ""} sur {MAXIMUM}.
 						</p>
