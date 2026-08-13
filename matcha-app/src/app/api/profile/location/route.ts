@@ -36,6 +36,16 @@ export async function PUT(request: Request)
 			consent: true,
 		});
 	}
+	else if (result.value.mode === "picked")
+	{
+		setLocation(session.user.id, {
+			latitude: result.value.latitude,
+			longitude: result.value.longitude,
+			city: result.value.city,
+			neighborhood: result.value.neighborhood,
+			consent: false,
+		});
+	}
 	else
 	{
 		const place = await forwardGeocode(result.value.city);

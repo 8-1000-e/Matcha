@@ -5,7 +5,15 @@ import { TAG_LABELS } from "./tags";
 import { TRIGGERS } from "./triggers";
 import { VIEWS } from "./views";
 
-export const SCHEMA_VERSION = 1;
+/**
+ * A incrementer des qu'une table, un index ou un declencheur est ajoute :
+ * sans ca, les bases deja creees gardent leur ancien schema et l'objet neuf
+ * n'apparait jamais. Toutes les instructions etant en IF NOT EXISTS, les
+ * rejouer sur une base remplie ne detruit rien.
+ *
+ * 2 — table cities (referentiel GeoNames)
+ */
+export const SCHEMA_VERSION = 2;
 
 function seedTags(database: Database.Database): void {
 	const insert = database.prepare(

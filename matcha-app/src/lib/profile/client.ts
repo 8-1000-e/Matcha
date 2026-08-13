@@ -43,7 +43,30 @@ export interface ProfileFields {
 
 export type LocationFields =
 	| { latitude: number; longitude: number }
-	| { city: string };
+	| { city: string }
+	| {
+		city: string;
+		neighborhood: string | null;
+		latitude: number;
+		longitude: number;
+	};
+
+export interface Place {
+	city: string;
+	neighborhood: string | null;
+	region: string | null;
+	country: string | null;
+	latitude: number;
+	longitude: number;
+}
+
+export async function searchPlaces(query: string): Promise<Place[]> {
+	const result = await request<{ places: Place[] }>(
+		`/api/profile/location/search?q=${encodeURIComponent(query)}`,
+		{ method: "GET" },
+	);
+	return result.ok ? result.data.places : [];
+}
 
 type Payload = { profile: Profile };
 

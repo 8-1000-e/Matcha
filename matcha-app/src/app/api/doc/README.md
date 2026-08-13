@@ -347,14 +347,22 @@ la réutilisabilité vient de ce catalogue partagé, pas de la saisie libre.
 
 ## `PUT /api/profile/location`
 
-Deux formes exclusives :
+Trois formes, distinguées par les champs présents :
 
 | Corps | Effet |
 | --- | --- |
 | `{ "latitude": 48.8566, "longitude": 2.3522 }` | `location_consent = 1`, puis reverse geocoding pour remplir `city` et `neighborhood` |
 | `{ "city": "Lyon" }` | `location_consent = 0`, puis geocoding direct pour obtenir les coordonnées, nécessaires au tri par distance |
+| `{ "city": "Bordeaux", "neighborhood": "Bordeaux Centre", "latitude": 44.84, "longitude": -0.58 }` | `location_consent = 0`, tout est déjà connu : c'est une suggestion choisie dans `GET /api/profile/location/search`, donc aucun géocodage |
 
-Le géocodage essaie trois services dans l'ordre, aucun ne demandant de clé :
+Les coordonnées **seules** viennent du navigateur, d'où le consentement ; les
+mêmes coordonnées **accompagnées d'un nom** viennent d'un choix dans une liste,
+qui ne partage aucune position réelle.
+
+Le géocodage direct interroge d'abord le référentiel local (voir
+`/api/profile/location/search`) : une ville saisie à la main a ainsi toujours ses
+coordonnées, même réseau coupé. Sans elles, le profil sortirait du tri par
+proximité. Sinon on essaie trois services dans l'ordre, aucun ne demandant de clé :
 **Photon** (`PHOTON_URL`, noms de quartiers), la **BAN**
 (`BAN_URL`, données officielles françaises, 50 requêtes/s) puis **Nominatim**
 (`NOMINATIM_URL`, une requête/s). Timeout de 3 s chacun. En reverse, on s'arrête
@@ -372,7 +380,46 @@ fourni et on laisse le reste à `NULL`. La complétion n'exige que des coordonn�
 | Code | Cas |
 | --- | --- |
 | `200` | enregistré |
-| `400` | `["coordinates are invalid"]`, `["city is empty"]`, `["city is too long"]`, `["city is invalid"]`, `["coordinates or a city are required"]` |
+| `400` | `["coordinates are invalid"]`, `["city is invalid"]`, `["neighborhood is invalid"]`, `["coordinates or a city are required"]` |
+
+## `GET /api/profile/location/search?q=`
+
+Suggestions de villes pour la saisie manuelle. Moins de 2 caractères renvoie une
+liste vide.
+
+```json
+{
+  "places": [
+    {
+      "city": "Bordeaux",
+      "neighborhood": null,
+      "region": "New Aquitaine",
+      "country": "France",
+      "latitude": 44.84044,
+      "longitude": -0.5805
+    }
+  ]
+}
+```
+
+Les villes viennent de la table `cities`, alimentée par le jeu de données
+**GeoNames `cities500`** (235 285 communes de plus de 500 habitants, monde
+entier) via `npm run db:seed:cities`. Une recherche ne coûte donc **aucune
+requête réseau** et ne dépend d'aucun quota, ce qui rend viable la recherche à la
+frappe. Le tri est `population DESC` : sur un préfixe court, ce sont les grandes
+villes qui sont attendues en tête.
+
+**Photon complète, il ne double pas** : ses résultats ne sont retenus que
+lorsqu'ils descendent sous la ville (quartier, arrondissement), niveau que
+GeoNames ne couvre pas. Six suggestions au maximum.
+
+Le référentiel n'est pas versionné (13 Mo) : `data/geonames/` est ignoré par git
+et le script retélécharge à la demande.
+
+| Code | Cas |
+| --- | --- |
+| `200` | `{ "places": [...] }`, éventuellement vide |
+| `401` | pas de session |
 
 ## `POST /api/profile/photos`
 

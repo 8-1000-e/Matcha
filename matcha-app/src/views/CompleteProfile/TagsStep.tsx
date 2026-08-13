@@ -64,33 +64,39 @@ export function TagsStep({ profile, onSaved }: StepProps) {
 				/>
 			</div>
 
-			<div className="flex max-h-72 flex-wrap gap-2 overflow-y-auto rounded-xl border border-edge/60 bg-white/40 p-3">
-				{visible.map((label) => {
-					const active = selected.includes(label);
+			<div className="relative">
+				<div className="flex max-h-56 flex-wrap gap-1.5 overflow-y-auto pb-6">
+					{visible.map((label) => {
+						const active = selected.includes(label);
 
-					return (
-						<button
-							key={label}
-							type="button"
-							onClick={() => toggle(label)}
-							aria-pressed={active}
-							disabled={!active && selected.length >= MAXIMUM}
-							className={`cursor-pointer rounded-lg border px-3 py-1.5 text-sm transition-colors duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-40 ${
-								active
-									? "border-matcha bg-leaf/80 font-medium"
-									: "border-edge bg-white/70 hover:bg-leaf/40"
-							}`}
-						>
+						return (
+							<button
+								key={label}
+								type="button"
+								onClick={() => toggle(label)}
+								aria-pressed={active}
+								disabled={!active && selected.length >= MAXIMUM}
+								className={`cursor-pointer rounded-full border px-3 py-1.5 text-sm transition-colors duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-40 ${
+									active
+										? "border-matcha bg-matcha font-medium text-white"
+										: "border-edge/60 bg-white/70 hover:border-matcha/50 hover:bg-leaf/40"
+								}`}
+							>
 							#{label}
-						</button>
-					);
-				})}
+							</button>
+						);
+					})}
 
-				{visible.length === 0 ? (
-					<p className="px-1 py-2 text-xs text-muted">
+					{visible.length === 0 ? (
+						<p className="px-1 py-2 text-xs text-muted">
 						Aucun centre d’intérêt ne correspond.
-					</p>
-				) : null}
+						</p>
+					) : null}
+				</div>
+				<div
+					aria-hidden="true"
+					className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-linear-to-t from-cream to-transparent"
+				/>
 			</div>
 
 			<Errors errors={errors} />

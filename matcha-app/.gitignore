@@ -52,3 +52,6 @@ next-env.d.ts
 
 # Photos envoyees par les utilisateurs
 /data/uploads/
+
+# Referentiel GeoNames telecharge a la demande
+/data/geonames/

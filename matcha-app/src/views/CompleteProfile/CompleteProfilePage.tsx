@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { PrivateScreen } from "@/components/Layout/Screen";
 import { ProfilePreview } from "@/components/Profile/ProfilePreview";
-import { Stepper, StepperItem } from "@/components/Stepper/Stepper";
 import type { Profile } from "@/lib/profile/client";
 import { AboutStep } from "./AboutStep";
 import { BiographyStep } from "./BiographyStep";
@@ -12,6 +11,7 @@ import { LocationStep } from "./LocationStep";
 import { PhotosStep } from "./PhotosStep";
 import { ReviewStep } from "./ReviewStep";
 import type { StepProps } from "./StepBase";
+import { StepProgress } from "./StepProgress";
 import { TagsStep } from "./TagsStep";
 
 type Step = {
@@ -20,6 +20,8 @@ type Step = {
 	title: string;
 	intro: string;
 	Body: (props: StepProps) => React.ReactNode;
+	/** Reste affichee apres l'enregistrement, pour laisser verifier le resultat. */
+	hold?: true;
 };
 
 const STEPS: readonly Step[] = [
@@ -50,6 +52,7 @@ const STEPS: readonly Step[] = [
 		title: "Où êtes-vous ?",
 		intro: "La proximité compte autant que les affinités.",
 		Body: LocationStep,
+		hold: true,
 	},
 	{
 		key: "profile_photo",
@@ -85,7 +88,7 @@ export function CompleteProfilePage({ initial }: { initial: Profile }) {
 		// On avance vers ce qui manque encore, ou vers la relecture si tout est
 		// rempli. On ne quitte jamais la page tout seul : la derniere etape
 		// existe justement pour laisser corriger avant de valider.
-		if (step && !next.missing.includes(step.key))
+		if (step && !step.hold && !next.missing.includes(step.key))
 		{
 			setIndex(firstMissing(next.missing));
 		}
@@ -101,72 +104,31 @@ export function CompleteProfilePage({ initial }: { initial: Profile }) {
 	return (
 		<PrivateScreen
 			width="wide"
-			title={step ? step.title : "Votre profil"}
-			intro={
-				step ? step.intro : "Un dernier coup d’œil avant de vous lancer."
-			}
+			center
 			footer={
 				reviewing ? (
 					<span className="block text-center">
 						Vous pourrez tout modifier plus tard depuis votre profil.
 					</span>
-				) : (
-					<div className="flex items-center justify-between gap-4">
-						<button
-							type="button"
-							onClick={() => setIndex(index - 1)}
-							disabled={index === 0}
-							className="cursor-pointer underline transition-colors duration-200 ease-out hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
-						>
-							Précédent
-						</button>
-
-						<span>
-							Étape {index + 1} sur {STEPS.length}
-						</span>
-
-						<button
-							type="button"
-							onClick={() => setIndex(index + 1)}
-							disabled={profile.missing.includes(STEPS[index].key)}
-							className="cursor-pointer underline transition-colors duration-200 ease-out hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
-						>
-							Suivant
-						</button>
-					</div>
-				)
+				) : null
 			}
 		>
-			<div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-14">
-				<div className="flex flex-col gap-8">
-					<Stepper activeStep={index} onStepChange={setIndex}>
-						{STEPS.map((entry, position) => (
-							<StepperItem
-								key={entry.key}
-								step={position}
-								title={entry.label}
-								state={
-									profile.missing.includes(entry.key)
-										? position === index
-											? "active"
-											: "inactive"
-										: "completed"
-								}
-								// On ne saute pas vers une etape encore inaccessible :
-								// seules celles deja remplies, ou celle en cours, le sont.
-								reachable={
-									!profile.missing.includes(entry.key) || position <= index
-								}
-							/>
-						))}
-						<StepperItem
-							step={REVIEW}
-							title="Relecture"
-							state={reviewing ? "active" : "inactive"}
-							reachable={profile.missing.length === 0}
-							last
-						/>
-					</Stepper>
+			<div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-0">
+				<div className="min-w-0 lg:max-w-md">
+					<h1 className="text-xl font-semibold tracking-tight">
+						{step ? step.title : "Votre profil"}
+					</h1>
+					<p className="mt-1.5 mb-6 text-sm text-muted">
+						{step ? step.intro : "Un dernier coup d’œil avant de vous lancer."}
+					</p>
+
+					<StepProgress
+						steps={STEPS}
+						index={index}
+						missing={profile.missing}
+						onBack={() => setIndex(index - 1)}
+						onNext={() => setIndex(index + 1)}
+					/>
 
 					{StepBody ? (
 						<StepBody profile={profile} onSaved={handleSaved} />
@@ -180,8 +142,8 @@ export function CompleteProfilePage({ initial }: { initial: Profile }) {
 					)}
 				</div>
 
-				<aside className="lg:sticky lg:top-8 lg:self-start">
-					<p className="mb-3 text-xs tracking-wide text-muted uppercase">
+				<aside className="lg:sticky lg:top-6 lg:self-start lg:border-l lg:border-edge/25 lg:pl-12">
+					<p className="mb-3.5 text-[11px] leading-5 tracking-wide text-muted uppercase">
 						Aperçu de votre profil
 					</p>
 					<ProfilePreview profile={profile} />
