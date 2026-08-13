@@ -9,8 +9,7 @@ const transporter = nodemailer.createTransport({
 		pass: process.env.SMTP_PASS,
 	},
 });
-
-export async function sendMail(to: string, subject: string, html: string): Promise<void>
+export async function sendMail(to: string, subject: string, html: string, text?: string): Promise<boolean>
 {
 	try
 	{
@@ -19,10 +18,13 @@ export async function sendMail(to: string, subject: string, html: string): Promi
 			to,
 			subject,
 			html,
+			text,
 		});
+		return true;
 	}
 	catch (error)
 	{
 		console.error("sendMail failed", error);
+		return false;
 	}
 }

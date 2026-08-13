@@ -79,9 +79,6 @@ export function signAccessToken(userId: string): string
 		sub: userId,
 		iat: now,
 		exp: now + ACCESS_TTL,
-		// iat n'a qu'une precision d'une seconde : sans jti, deux jetons
-		// emis dans la meme seconde seraient identiques, et un refresh
-		// immediat ne prolongerait rien.
 		jti: randomBytes(9).toString("base64url"),
 	})).toString("base64url");
 	return `${header}.${payload}.${sign(`${header}.${payload}`)}`;

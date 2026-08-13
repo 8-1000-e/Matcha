@@ -142,4 +142,15 @@ export const TABLES: readonly string[] = [
 		read_at TEXT,
 		CHECK (actor_id IS NULL OR actor_id <> recipient_id)
 	) STRICT`,
+	`CREATE TABLE IF NOT EXISTS cities (
+		id INTEGER PRIMARY KEY,
+		name TEXT NOT NULL,
+		search_name TEXT NOT NULL,
+		region TEXT,
+		country TEXT NOT NULL,
+		country_code TEXT NOT NULL,
+		latitude REAL NOT NULL,
+		longitude REAL NOT NULL,
+		population INTEGER NOT NULL DEFAULT 0
+	) STRICT`,
 ];

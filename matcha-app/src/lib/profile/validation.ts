@@ -33,7 +33,14 @@ export interface ProfilePatch {
 
 export type LocationInput =
 	| { mode: "gps"; latitude: number; longitude: number }
-	| { mode: "manual"; city: string };
+	| { mode: "manual"; city: string }
+	| {
+		mode: "picked";
+		city: string;
+		neighborhood: string | null;
+		latitude: number;
+		longitude: number;
+	};
 
 export type Validated<Value> =
 	| { ok: true; value: Value }
@@ -236,42 +243,72 @@ export function validateLocation(body: unknown): Validated<LocationInput>
 		return { ok: false, errors: ["invalid request body"] };
 	}
 
-	if (body.latitude !== undefined || body.longitude !== undefined)
+	const hasPoint = body.latitude !== undefined || body.longitude !== undefined;
+	const point = hasPoint ? readPoint(body) : null;
+	if (hasPoint && point === null)
 	{
-		const { latitude, longitude } = body;
-		if (typeof latitude !== "number" || typeof longitude !== "number"
-			|| !Number.isFinite(latitude) || !Number.isFinite(longitude)
-			|| Math.abs(latitude) > LATITUDE_MAX
-			|| Math.abs(longitude) > LONGITUDE_MAX)
-		{
-			return { ok: false, errors: ["coordinates are invalid"] };
-		}
-		return { ok: true, value: { mode: "gps", latitude, longitude } };
+		return { ok: false, errors: ["coordinates are invalid"] };
+	}
+	if (point !== null && body.city === undefined)
+	{
+		return { ok: true, value: { mode: "gps", ...point } };
 	}
 
 	if (body.city !== undefined)
 	{
-		if (typeof body.city !== "string")
+		const city = readPlaceName(body.city);
+		if (city === null || city.length === 0)
 		{
 			return { ok: false, errors: ["city is invalid"] };
 		}
-		const city = body.city.trim();
-		if (city.length === 0)
+
+		if (point === null)
 		{
-			return { ok: false, errors: ["city is empty"] };
+			return { ok: true, value: { mode: "manual", city } };
 		}
-		if (city.length > CITY_MAX)
+
+		let neighborhood: string | null = null;
+		if (body.neighborhood !== undefined && body.neighborhood !== null)
 		{
-			return { ok: false, errors: ["city is too long"] };
+			neighborhood = readPlaceName(body.neighborhood);
+			if (neighborhood === null || neighborhood.length === 0)
+			{
+				return { ok: false, errors: ["neighborhood is invalid"] };
+			}
 		}
-		if (CONTROL_RE.test(city))
-		{
-			return { ok: false, errors: ["city is invalid"] };
-		}
-		return { ok: true, value: { mode: "manual", city } };
+
+		return { ok: true, value: { mode: "picked", city, neighborhood, ...point } };
 	}
 
 	return { ok: false, errors: ["coordinates or a city are required"] };
+}
+
+function readPoint(
+	body: Record<string, unknown>,
+): { latitude: number; longitude: number } | null
+{
+	const { latitude, longitude } = body;
+	if (typeof latitude !== "number" || typeof longitude !== "number"
+		|| !Number.isFinite(latitude) || !Number.isFinite(longitude)
+		|| Math.abs(latitude) > LATITUDE_MAX
+		|| Math.abs(longitude) > LONGITUDE_MAX)
+	{
+		return null;
+	}
+	return { latitude, longitude };
+}
+function readPlaceName(value: unknown): string | null
+{
+	if (typeof value !== "string")
+	{
+		return null;
+	}
+	const name = value.trim();
+	if (name.length > CITY_MAX || CONTROL_RE.test(name))
+	{
+		return null;
+	}
+	return name;
 }
 
 export function validatePhotoOrder(body: unknown): Validated<string[]>

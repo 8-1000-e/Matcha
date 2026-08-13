@@ -1,7 +1,9 @@
+import { after } from "next/server";
 import { createEmailToken, EMAIL_TTL } from "@/lib/auth/tokens";
 import { findUserByEmail, issueEmailToken, revokeEmailTokens } from "@/lib/db";
 import { readJsonBody } from "@/lib/http/body";
 import { sendMail } from "@/lib/mail/mailer";
+import { resetPasswordMail } from "@/lib/mail/templates";
 
 const SENT = { ok: true, message: "if the address exists, a link has been sent" };
 
@@ -25,29 +27,26 @@ export async function POST(request: Request)
 	}
 
 	const user = findUserByEmail(email.trim().toLowerCase());
-	if (!user)
+	if (user)
 	{
-		return Response.json(SENT);
+		after(async () => {
+			revokeEmailTokens(user.id, "password_reset");
+			const verification = createEmailToken();
+			issueEmailToken({
+				user_id: user.id,
+				token_hash: verification.hash,
+				type: "password_reset",
+				expires_at: verification.expiresAt,
+			});
+
+			const link = `${process.env.APP_URL}/reset-password?token=${verification.token}`;
+			const mail = resetPasswordMail({ username: user.username, link, ttlSeconds: EMAIL_TTL });
+			if (!await sendMail(user.email, mail.subject, mail.html, mail.text))
+			{
+				console.error("password reset mail not delivered", { user_id: user.id });
+			}
+		});
 	}
-
-	revokeEmailTokens(user.id, "password_reset");
-	const verification = createEmailToken();
-	issueEmailToken({
-		user_id: user.id,
-		token_hash: verification.hash,
-		type: "password_reset",
-		expires_at: verification.expiresAt,
-	});
-
-	const link = `${process.env.APP_URL}/reset-password?token=${verification.token}`;
-	await sendMail(
-		user.email,
-		"Reset your password - Matcha",
-		`<p>Hi ${user.username},</p>
-		 <p><a href="${link}">Choose a new password</a></p>
-		 <p>This link expires in ${Math.round(EMAIL_TTL / 60)} minutes.</p>
-		 <p>If you did not ask for this, ignore this message: your password stays unchanged.</p>`,
-	);
 
 	return Response.json(SENT);
 }

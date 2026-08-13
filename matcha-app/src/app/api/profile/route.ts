@@ -1,4 +1,4 @@
-import { requireSession } from "@/lib/auth/guards";
+import { requireAnySession, requireSession } from "@/lib/auth/guards";
 import { createEmailToken, EMAIL_TTL } from "@/lib/auth/tokens";
 import {
 	isEmailTaken,
@@ -37,10 +37,9 @@ async function sendVerification(
 		 <p>This link expires in ${Math.round(EMAIL_TTL / 60)} minutes.</p>`,
 	);
 }
-
 export async function GET()
 {
-	const session = await requireSession();
+	const session = await requireAnySession();
 	if (!session.ok)
 	{
 		return session.response;

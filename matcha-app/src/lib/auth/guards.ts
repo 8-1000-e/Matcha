@@ -4,8 +4,7 @@ import { requireUser } from "./session";
 export type SessionResult =
 	| { ok: true; user: UserRow }
 	| { ok: false; response: Response };
-
-export async function requireSession(): Promise<SessionResult>
+export async function requireAnySession(): Promise<SessionResult>
 {
 	const user = await requireUser();
 	if (!user)
@@ -16,4 +15,16 @@ export async function requireSession(): Promise<SessionResult>
 		};
 	}
 	return { ok: true, user };
+}
+export async function requireSession(): Promise<SessionResult>
+{
+	const session = await requireAnySession();
+	if (session.ok && session.user.is_verified !== 1)
+	{
+		return {
+			ok: false,
+			response: Response.json({ errors: ["email_not_verified"] }, { status: 403 }),
+		};
+	}
+	return session;
 }

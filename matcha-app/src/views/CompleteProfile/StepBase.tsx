@@ -5,6 +5,8 @@ import type { Profile } from "@/lib/profile/client";
 export type StepProps = {
 	profile: Profile;
 	onSaved: (profile: Profile) => void;
+	
+	onNext: () => void;
 };
 
 export function fieldError(errors: AuthError[], field: AuthField) {

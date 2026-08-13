@@ -21,7 +21,8 @@ export function LogoutButton() {
 			type="button"
 			onClick={handleClick}
 			disabled={pending}
-			className="-mr-2 inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2 py-2 text-sm font-medium text-muted transition-colors duration-200 ease-out hover:bg-leaf/60 hover:text-ink disabled:cursor-not-allowed disabled:opacity-60"
+			aria-busy={pending || undefined}
+			className="-mr-2 inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-muted transition-colors duration-200 ease-out hover:bg-leaf/60 hover:text-ink disabled:cursor-progress"
 		>
 			<svg
 				viewBox="0 0 16 16"

@@ -6,6 +6,7 @@ import {
 	consumeEmailToken,
 	findUsableEmailToken,
 	revokeAllRefreshTokens,
+	transaction,
 	updatePassword,
 } from "@/lib/db";
 import { readJsonBody } from "@/lib/http/body";
@@ -40,15 +41,22 @@ export async function POST(request: Request)
 	{
 		return Response.json({ errors: [PASSWORD_MESSAGES[passwordError]] }, { status: 400 });
 	}
+	const passwordHash = await hashPassword(password);
 
-	if (!consumeEmailToken(tokenFound.id))
+	const applied = transaction(() => {
+		if (!consumeEmailToken(tokenFound.id))
+		{
+			return false;
+		}
+		updatePassword(tokenFound.user_id, passwordHash);
+		revokeAllRefreshTokens(tokenFound.user_id);
+		return true;
+	});
+
+	if (!applied)
 	{
 		return Response.json({ errors: ["invalid or expired token"] }, { status: 400 });
 	}
-
-	updatePassword(tokenFound.user_id, await hashPassword(password));
-
-	revokeAllRefreshTokens(tokenFound.user_id);
 
 	return Response.json({ ok: true });
 }

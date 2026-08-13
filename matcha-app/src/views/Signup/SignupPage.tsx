@@ -11,7 +11,7 @@ export function SignupPage() {
 			footer={
 				<>
 					Déjà inscrit ?{" "}
-					<Link href="/login" className="font-medium text-matcha underline">
+					<Link href="/login" className="inline-block py-2 font-medium text-matcha underline decoration-matcha/40 underline-offset-4 transition-colors duration-200 ease-out hover:decoration-matcha">
 						Se connecter
 					</Link>
 				</>

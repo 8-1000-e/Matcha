@@ -42,6 +42,7 @@ export {
 	type Flag,
 	type SqlValue,
 } from "./core/values";
+export { foldCity, searchCities, type CityRow } from "./queries/cities";
 export {
 	countCandidates,
 	findCandidates,

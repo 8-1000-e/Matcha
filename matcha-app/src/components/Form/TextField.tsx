@@ -9,7 +9,13 @@ type TextFieldProps = {
 	name?: string;
 	type?: "text" | "email" | "password" | "date";
 	autoComplete?: string;
+	autoCapitalize?: "none" | "sentences" | "words";
+	spellCheck?: boolean;
+	inputMode?: "text" | "email" | "numeric";
 	minLength?: number;
+	maxLength?: number;
+	min?: string;
+	max?: string;
 	pattern?: string;
 	patternMessage?: string;
 	hint?: string;
@@ -20,6 +26,10 @@ type TextFieldProps = {
 	reveal?: boolean;
 	onValue?: (value: string) => void;
 };
+
+function plural(count: number, word: string) {
+	return `${count} ${word}${count > 1 ? "s" : ""}`;
+}
 
 function describe(input: HTMLInputElement, patternMessage?: string) {
 	const { validity } = input;
@@ -34,7 +44,17 @@ function describe(input: HTMLInputElement, patternMessage?: string) {
 	}
 	if (validity.tooShort) {
 		const missing = input.minLength - input.value.length;
-		return `Il manque ${missing} caractère${missing > 1 ? "s" : ""}.`;
+		return `Il manque ${plural(missing, "caractère")}.`;
+	}
+	if (validity.tooLong) {
+		const extra = input.value.length - input.maxLength;
+		return `Retirez ${plural(extra, "caractère")}.`;
+	}
+	if (validity.rangeUnderflow) {
+		return "Cette date n’est pas plausible.";
+	}
+	if (validity.rangeOverflow) {
+		return "Vous devez avoir 18 ans ou plus.";
 	}
 	if (validity.badInput) {
 		return "Ce format n’est pas valide.";
@@ -86,7 +106,8 @@ export function TextField({
 		setMessage(error ?? "");
 	}
 
-	const hintId = hint ? `${id}-hint` : undefined;
+	const showHint = Boolean(hint) && !message;
+	const hintId = showHint ? `${id}-hint` : undefined;
 	const errorId = message ? `${id}-error` : undefined;
 	const described =
 		[errorId, hintId, describedBy].filter(Boolean).join(" ") || undefined;
@@ -104,7 +125,7 @@ export function TextField({
 	}
 
 	return (
-		<div>
+		<div className="min-w-0">
 			<div className="flex items-baseline justify-between gap-3">
 				<label htmlFor={id} className="text-sm font-medium">
 					{label}
@@ -129,8 +150,8 @@ export function TextField({
 					}}
 					aria-invalid={message ? true : undefined}
 					aria-describedby={described}
-					className={`mt-2 w-full rounded-xl border border-edge bg-white/70 py-3 pl-4 text-base transition-colors duration-200 ease-out aria-invalid:border-red-700 aria-invalid:bg-red-50/60 focus-visible:border-matcha ${
-						reveal ? "pr-12" : "pr-4"
+					className={`mt-2 block min-h-12 w-full min-w-0 rounded-xl border border-edge bg-white/70 py-3 pl-4 text-base transition-colors duration-200 ease-out hover:border-matcha/60 focus-visible:border-matcha aria-invalid:border-red-700 aria-invalid:bg-red-50/60 ${
+						reveal ? "pr-14" : "pr-4"
 					}`}
 				/>
 
@@ -139,10 +160,11 @@ export function TextField({
 						type="button"
 						onClick={() => setVisible(!visible)}
 						aria-pressed={visible}
+						aria-controls={id}
 						aria-label={
 							visible ? "Masquer le mot de passe" : "Afficher le mot de passe"
 						}
-						className="absolute inset-y-0 right-0 mt-2 flex cursor-pointer items-center rounded-r-xl px-4 text-muted transition-colors duration-200 ease-out hover:text-ink"
+						className="absolute inset-y-0 right-0 mt-2 flex w-12 cursor-pointer items-center justify-center rounded-r-xl text-muted transition-colors duration-200 ease-out hover:text-ink"
 					>
 						<EyeIcon crossed={visible} />
 					</button>
@@ -155,7 +177,7 @@ export function TextField({
 				</Alert>
 			) : null}
 
-			{hint && !message ? (
+			{showHint ? (
 				<p id={hintId} className="mt-2 text-xs text-muted">
 					{hint}
 				</p>

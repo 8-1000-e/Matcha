@@ -11,7 +11,14 @@ type ScreenProps = {
 	footer: ReactNode;
 	center?: boolean;
 	centerTop?: boolean;
+	
+	width?: "narrow" | "wide";
 };
+
+const WIDTHS = {
+	narrow: "max-w-sm",
+	wide: "max-w-4xl",
+} as const;
 
 export function Screen({
 	top,
@@ -19,13 +26,16 @@ export function Screen({
 	footer,
 	center = false,
 	centerTop = false,
+	width = "narrow",
 }: ScreenProps) {
+	const max = WIDTHS[width];
+
 	return (
 		<>
 			<Backdrop />
 
 			<header
-				className={`mx-auto flex w-full max-w-sm px-6 pt-6 ${
+				className={`mx-auto flex w-full ${max} px-6 pt-6 ${
 					centerTop ? "justify-center" : ""
 				}`}
 			>
@@ -33,15 +43,15 @@ export function Screen({
 			</header>
 
 			<main
-				className={`mx-auto flex w-full max-w-sm flex-1 flex-col px-6 py-10 ${
-					center ? "justify-center" : ""
-				}`}
+				className={`mx-auto flex w-full ${max} flex-1 flex-col px-6 ${
+					width === "wide" ? "py-6" : "py-10"
+				} ${center ? "justify-center" : ""}`}
 			>
 				{children}
 			</main>
 
 			<footer
-				className={`mx-auto w-full max-w-sm px-6 pb-8 text-sm text-muted ${
+				className={`mx-auto w-full ${max} px-6 pb-8 text-sm text-muted ${
 					centerTop ? "text-center" : ""
 				}`}
 			>
@@ -52,10 +62,12 @@ export function Screen({
 }
 
 type PrivateScreenProps = {
-	title: string;
+	title?: string;
 	intro?: string;
 	children: ReactNode;
 	footer: ReactNode;
+	width?: "narrow" | "wide";
+	center?: boolean;
 };
 
 export function PrivateScreen({
@@ -63,9 +75,13 @@ export function PrivateScreen({
 	intro,
 	children,
 	footer,
+	width = "narrow",
+	center = false,
 }: PrivateScreenProps) {
 	return (
 		<Screen
+			width={width}
+			center={center}
 			top={
 				<div className="flex w-full items-center justify-between gap-3">
 					<BrandLockup />
@@ -74,10 +90,24 @@ export function PrivateScreen({
 			}
 			footer={footer}
 		>
-			<h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-			{intro ? <p className="mt-3 text-sm text-muted">{intro}</p> : null}
+			{title ? (
+				<h1
+					className={`font-semibold tracking-tight ${
+						width === "wide" ? "text-xl" : "text-2xl"
+					}`}
+				>
+					{title}
+				</h1>
+			) : null}
+			{intro ? (
+				<p className={`text-sm text-muted ${width === "wide" ? "mt-1.5" : "mt-3"}`}>
+					{intro}
+				</p>
+			) : null}
 
-			<div className="mt-8">{children}</div>
+			<div className={title || intro ? (width === "wide" ? "mt-6" : "mt-8") : ""}>
+				{children}
+			</div>
 		</Screen>
 	);
 }

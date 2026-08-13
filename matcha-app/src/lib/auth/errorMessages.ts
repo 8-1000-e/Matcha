@@ -183,6 +183,11 @@ const TRANSLATIONS: Record<string, AuthError> = {
 	unauthorized: { field: null, message: EXPIRED },
 	"refresh token is required": { field: null, message: EXPIRED },
 	"invalid session": { field: null, message: EXPIRED },
+	refresh_retry: { field: null, message: EXPIRED },
+	email_not_verified: {
+		field: null,
+		message: "Vérifiez votre adresse e-mail pour continuer.",
+	},
 	"request body is too large": { field: null, message: GENERIC_ERROR },
 	"invalid request body": { field: null, message: GENERIC_ERROR },
 	"invalid json body": { field: null, message: GENERIC_ERROR },

@@ -87,6 +87,11 @@ export function findUsableRefreshToken(
 		expires_at: gt(nowIso()),
 	});
 }
+export function findRefreshTokenByHash(
+	tokenHash: string,
+): RefreshTokenRow | undefined {
+	return refreshTokens.findOne({ token_hash: tokenHash });
+}
 
 export function revokeRefreshToken(tokenHash: string): boolean {
 	return (

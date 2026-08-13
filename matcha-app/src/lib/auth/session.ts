@@ -52,7 +52,6 @@ export async function getSession(): Promise<AccessPayload | null>
 	{return null;}
 	return verifyAccessToken(token);
 }
-
 export async function requireUser(): Promise<UserRow | null>
 {
 	const session = await getSession();
@@ -60,6 +59,4 @@ export async function requireUser(): Promise<UserRow | null>
 	{return null;}
 	const user = users.findOne({ id: session.sub });
 	return user ?? null;
-
 }
-

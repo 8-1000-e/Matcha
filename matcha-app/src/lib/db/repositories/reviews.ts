@@ -37,7 +37,11 @@ export function upsertReview(values: ReviewInsert): ReviewRow {
 			if (updated === undefined) {
 				throw new DatabaseError("review_update_failed");
 			}
-			return updated;
+			const refreshed = reviews.findById(existing.id);
+			if (refreshed === undefined) {
+				throw new DatabaseError("review_update_failed");
+			}
+			return refreshed;
 		}
 		return reviews.insert({ ...values, id: values.id ?? createId() });
 	});

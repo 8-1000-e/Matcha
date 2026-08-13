@@ -1,3 +1,5 @@
+import { foldCity, searchCities } from "@/lib/db";
+
 const PHOTON_URL = process.env.PHOTON_URL ?? "https://photon.komoot.io";
 const BAN_URL = process.env.BAN_URL ?? "https://api-adresse.data.gouv.fr";
 const NOMINATIM_URL = process.env.NOMINATIM_URL ?? "https://nominatim.openstreetmap.org";
@@ -251,6 +253,19 @@ export async function forwardGeocode(
 	query: string,
 ): Promise<(Place & Point) | null>
 {
+	const exact = searchCities(query, 1).find(
+		(row) => foldCity(row.name) === foldCity(query),
+	);
+	if (exact !== undefined)
+	{
+		return {
+			latitude: exact.latitude,
+			longitude: exact.longitude,
+			city: exact.name,
+			neighborhood: null,
+		};
+	}
+
 	for (const provider of PROVIDERS)
 	{
 		const found = await provider.forward(query);
@@ -261,4 +276,111 @@ export async function forwardGeocode(
 	}
 
 	return null;
+}
+
+export interface Suggestion extends Point {
+	city: string;
+	neighborhood: string | null;
+	region: string | null;
+	country: string | null;
+}
+
+const PHOTON_REGION = ["state", "county"];
+const PHOTON_COUNTRY = ["country"];
+const SUGGESTION_LIMIT = 6;
+export async function searchPlaces(query: string): Promise<Suggestion[]>
+{
+	const trimmed = query.trim();
+	if (trimmed.length < 2)
+	{
+		return [];
+	}
+
+	const local: Suggestion[] = searchCities(trimmed, SUGGESTION_LIMIT).map((row) => ({
+		latitude: row.latitude,
+		longitude: row.longitude,
+		city: row.name,
+		neighborhood: null,
+		region: row.region,
+		country: row.country,
+	}));
+
+	const remote = await searchPhoton(trimmed);
+	const seen = new Set(local.map((entry) => `${fold(entry.city)}|`));
+	const merged = [...local];
+
+	for (const entry of remote)
+	{
+		if (entry.neighborhood === null)
+		{
+			continue;
+		}
+		const key = `${fold(entry.city)}|${fold(entry.neighborhood)}`;
+		if (seen.has(key))
+		{
+			continue;
+		}
+		seen.add(key);
+		merged.push(entry);
+	}
+
+	return merged.slice(0, SUGGESTION_LIMIT);
+}
+
+async function searchPhoton(trimmed: string): Promise<Suggestion[]>
+{
+	const payload = await ask(
+		`${PHOTON_URL}/api?limit=${SUGGESTION_LIMIT}&q=${encodeURIComponent(trimmed)}`,
+	);
+	if (typeof payload !== "object" || payload === null)
+	{
+		return [];
+	}
+
+	const features = (payload as { features?: unknown }).features;
+	if (!Array.isArray(features))
+	{
+		return [];
+	}
+
+	const seen = new Set<string>();
+	const results: Suggestion[] = [];
+
+	for (const entry of features)
+	{
+		const feature = entry as { properties?: unknown; geometry?: unknown };
+		const geometry = feature.geometry as { coordinates?: unknown } | undefined;
+		if (!Array.isArray(geometry?.coordinates))
+		{
+			continue;
+		}
+
+		const longitude = readNumber(geometry.coordinates[0]);
+		const latitude = readNumber(geometry.coordinates[1]);
+		const city = pick(feature.properties, PHOTON_CITY)
+			?? pick(feature.properties, ["name"]);
+		if (latitude === null || longitude === null || city === null)
+		{
+			continue;
+		}
+
+		const neighborhood = pick(feature.properties, PHOTON_AREA);
+		const key = `${fold(city)}|${fold(neighborhood ?? "")}`;
+		if (seen.has(key))
+		{
+			continue;
+		}
+		seen.add(key);
+
+		results.push({
+			latitude,
+			longitude,
+			city,
+			neighborhood,
+			region: pick(feature.properties, PHOTON_REGION),
+			country: pick(feature.properties, PHOTON_COUNTRY),
+		});
+	}
+
+	return results;
 }

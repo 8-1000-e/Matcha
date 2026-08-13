@@ -1,5 +1,5 @@
 import { requireSession } from "@/lib/auth/guards";
-import { photos } from "@/lib/db";
+import { isBlockedEitherWay, photos } from "@/lib/db";
 import { readPhotoFile } from "@/lib/profile/storage";
 
 interface Context {
@@ -20,6 +20,13 @@ export async function GET(_request: Request, context: Context)
 	{
 		return Response.json({ errors: ["photo not found"] }, { status: 404 });
 	}
+	if (
+		photo.user_id !== session.user.id
+		&& isBlockedEitherWay(session.user.id, photo.user_id)
+	)
+	{
+		return Response.json({ errors: ["photo not found"] }, { status: 404 });
+	}
 
 	const file = await readPhotoFile(photo.path);
 	if (!file)
@@ -32,6 +39,7 @@ export async function GET(_request: Request, context: Context)
 			"content-type": file.mime,
 			"content-length": String(file.bytes.byteLength),
 			"cache-control": "private, max-age=3600",
+			"x-content-type-options": "nosniff",
 		},
 	});
 }

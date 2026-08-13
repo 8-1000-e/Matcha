@@ -7,7 +7,7 @@ export function ResetPasswordPage({ token }: { token: string }) {
 			back="/login"
 			title="Nouveau mot de passe"
 			intro="Choisissez un nouveau mot de passe. Vos autres sessions seront déconnectées."
-			footer={''}
+			footer={null}
 		>
 			<ResetPasswordForm token={token} />
 		</FlowScreen>

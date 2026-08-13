@@ -27,4 +27,6 @@ export const INDEXES: readonly string[] = [
 	"CREATE INDEX IF NOT EXISTS reports_reported_idx ON reports (reported_id)",
 	`CREATE INDEX IF NOT EXISTS notifications_recipient_idx
 		ON notifications (recipient_id, read_at)`,
+	`CREATE INDEX IF NOT EXISTS cities_search
+		ON cities (search_name, population DESC)`,
 ];

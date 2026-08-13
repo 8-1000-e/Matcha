@@ -1,9 +1,11 @@
 import { hashPassword } from "@/lib/auth/password";
+import { setAuthCookies } from "@/lib/auth/session";
 import { createEmailToken, EMAIL_TTL } from "@/lib/auth/tokens";
 import { validateRegister } from "@/lib/auth/validation";
 import { ConstraintError, createUser, isEmailTaken, issueEmailToken, isUsernameTaken } from "@/lib/db";
 import { readJsonBody } from "@/lib/http/body";
 import { sendMail } from "@/lib/mail/mailer";
+import { verifyEmailMail } from "@/lib/mail/templates";
 
 const TAKEN = "email or username is already in use";
 
@@ -46,8 +48,6 @@ export async function POST(request: Request)
 		}
 		throw error;
 	}
-
-
 	const verification = createEmailToken();
 	issueEmailToken({
 		user_id: user.id,
@@ -57,16 +57,17 @@ export async function POST(request: Request)
 	});
 
 	const link = `${process.env.APP_URL}/api/auth/verify?token=${verification.token}`;
-	await sendMail(
-		result.value.email,
-		"Verify your address - BrewMance",
-		`<p>Welcome ${user.username},</p>
-		 <p><a href="${link}">Verify your address</a></p>
-		 <p>This link expires in ${Math.round(EMAIL_TTL / 60)} minutes.</p>`,
-	);
+	const mail = verifyEmailMail({ username: user.username, link, ttlSeconds: EMAIL_TTL });
+	const verificationEmailSent = await sendMail(result.value.email, mail.subject, mail.html, mail.text);
+	await setAuthCookies(user.id);
 
 	return Response.json(
-		{ id: user.id, username: user.username },
+		{
+			id: user.id,
+			username: user.username,
+			is_verified: user.is_verified === 1,
+			verification_email_sent: verificationEmailSent,
+		},
 		{ status: 201 },
 	);
 }

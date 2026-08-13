@@ -1,6 +1,7 @@
 import { queryOne } from "../core/client";
-import { sql } from "../core/sql";
+import { raw, sql } from "../core/sql";
 import type { Flag } from "../core/values";
+import { ageYears } from "../schema/views";
 import type { UserRow } from "../types";
 
 export interface ProfileRelationship {
@@ -38,9 +39,7 @@ export function findPublicProfile(
 				target.latitude, target.longitude, target.city, target.neighborhood,
 				target.location_consent, target.is_online, target.last_seen_at,
 				target.created_at,
-				CAST(
-					(julianday('now') - julianday(target.birth_date)) / 365.25 AS INTEGER
-				) AS age,
+				${raw(ageYears("target.birth_date"))} AS age,
 				distance_km(
 					${viewer.latitude}, ${viewer.longitude},
 					target.latitude, target.longitude

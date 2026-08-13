@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LoginForm, OauthGroup } from "@/components/Form/AuthForms";
+import { TextLink } from "@/components/Form/Button";
 import { Notice } from "@/components/Form/Notice";
 import { FlowScreen } from "@/components/Layout/Screen";
 
@@ -20,7 +21,7 @@ export function LoginPage({ notice }: { notice?: LoginNotice }) {
 			footer={
 				<span className="block text-center">
 					Pas de compte ?{" "}
-					<Link href="/signup" className="font-medium text-matcha underline">
+					<Link href="/signup" className="inline-block py-2 font-medium text-matcha underline decoration-matcha/40 underline-offset-4 transition-colors duration-200 ease-out hover:decoration-matcha">
 						Créer un compte
 					</Link>
 				</span>
@@ -31,12 +32,9 @@ export function LoginPage({ notice }: { notice?: LoginNotice }) {
 
 				<OauthGroup />
 				<LoginForm />
-				<Link
-					href="/forgot-password"
-					className="text-center text-sm text-muted underline"
-				>
+				<TextLink href="/forgot-password" className="self-center text-muted">
 					Mot de passe oublié ?
-				</Link>
+				</TextLink>
 			</div>
 		</FlowScreen>
 	);

@@ -22,7 +22,7 @@ const ORIENTATIONS = [
 	{ value: "other", label: "Autre" },
 ] as const;
 
-export function AboutStep({ profile, onSaved }: StepProps) {
+export function AboutStep({ profile, onSaved, onNext }: StepProps) {
 	const [errors, action, pending] = useActionState(
 		async (_previous: AuthError[], formData: FormData): Promise<AuthError[]> => {
 			const result = await saveProfile({
@@ -35,6 +35,7 @@ export function AboutStep({ profile, onSaved }: StepProps) {
 			}
 
 			onSaved(result.data.profile);
+			onNext();
 			return [];
 		},
 		[],

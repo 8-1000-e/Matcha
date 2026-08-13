@@ -9,7 +9,7 @@ import { Errors, fieldError, type StepProps } from "./StepBase";
 
 const MAX_LENGTH = 500;
 
-export function BiographyStep({ profile, onSaved }: StepProps) {
+export function BiographyStep({ profile, onSaved, onNext }: StepProps) {
 	const [errors, action, pending] = useActionState(
 		async (_previous: AuthError[], formData: FormData): Promise<AuthError[]> => {
 			const result = await saveProfile({
@@ -21,6 +21,7 @@ export function BiographyStep({ profile, onSaved }: StepProps) {
 			}
 
 			onSaved(result.data.profile);
+			onNext();
 			return [];
 		},
 		[],

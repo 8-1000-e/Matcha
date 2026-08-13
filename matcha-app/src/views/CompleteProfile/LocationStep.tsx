@@ -1,40 +1,52 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { ActionButton } from "@/components/Form/Button";
 import { Notice } from "@/components/Form/Notice";
-import { TextField } from "@/components/Form/TextField";
 import type { AuthError } from "@/lib/auth/errorMessages";
-import { saveLocation } from "@/lib/profile/client";
+import { type Place, saveLocation } from "@/lib/profile/client";
+import { CityPicker } from "./CityPicker";
 import { Errors, fieldError, type StepProps } from "./StepBase";
 
-const DENIED = "Position refusée. Saisissez votre ville juste en dessous.";
+const DENIED = "Position refusée. Choisissez votre ville juste en dessous.";
 const UNAVAILABLE
-	= "Votre navigateur ne partage pas votre position. Saisissez votre ville.";
+	= "Votre navigateur ne partage pas votre position. Choisissez votre ville.";
+const NO_SIGNAL
+	= "Votre position n’a pas pu être déterminée. Choisissez votre ville juste en dessous.";
+const TIMED_OUT
+	= "La localisation a pris trop de temps. Réessayez ou choisissez votre ville.";
 
-export function LocationStep({ profile, onSaved }: StepProps) {
+function geolocationMessage(error: GeolocationPositionError) {
+	if (error.code === error.PERMISSION_DENIED) {
+		return DENIED;
+	}
+	return error.code === error.TIMEOUT ? TIMED_OUT : NO_SIGNAL;
+}
+
+export function LocationStep({ profile, onSaved, onNext }: StepProps) {
 	const [notice, setNotice] = useState("");
 	const [errors, setErrors] = useState<AuthError[]>([]);
-	const [locating, startLocating] = useTransition();
+	const [pending, startSaving] = useTransition();
+	const [locating, setLocating] = useState(false);
 
-	const [formErrors, action, pending] = useActionState(
-		async (_previous: AuthError[], formData: FormData): Promise<AuthError[]> => {
-			const result = await saveLocation({
-				city: String(formData.get("city") ?? ""),
-			});
-
+	function save(fields: Parameters<typeof saveLocation>[0]) {
+		setErrors([]);
+		startSaving(async () => {
+			const result = await saveLocation(fields);
 			if (!result.ok) {
-				return result.errors;
+				setErrors(result.errors);
+				return;
 			}
-
 			setNotice("");
 			onSaved(result.data.profile);
-			return [];
-		},
-		[],
-	);
+		});
+	}
 
 	function locate() {
+		if (locating || pending) {
+			return;
+		}
+
 		setErrors([]);
 		setNotice("");
 
@@ -43,43 +55,69 @@ export function LocationStep({ profile, onSaved }: StepProps) {
 			return;
 		}
 
+		setLocating(true);
 		navigator.geolocation.getCurrentPosition(
 			(position) => {
-				startLocating(async () => {
-					const result = await saveLocation({
-						latitude: position.coords.latitude,
-						longitude: position.coords.longitude,
-					});
-
-					if (!result.ok) {
-						setErrors(result.errors);
-						return;
-					}
-
-					onSaved(result.data.profile);
+				setLocating(false);
+				save({
+					latitude: position.coords.latitude,
+					longitude: position.coords.longitude,
 				});
 			},
-			() => setNotice(DENIED),
+			(error) => {
+				setLocating(false);
+				setNotice(geolocationMessage(error));
+			},
 		);
 	}
 
+	function pick(place: Place) {
+		save({
+			city: place.city,
+			neighborhood: place.neighborhood,
+			latitude: place.latitude,
+			longitude: place.longitude,
+		});
+	}
+
+	const located = profile.city !== null;
+
 	return (
 		<div className="flex flex-col gap-6">
-			{profile.city ? (
-				<Notice>
-					Position actuelle : {profile.city}
-					{profile.neighborhood ? `, ${profile.neighborhood}` : ""}.
-				</Notice>
+			{located ? (
+				<div className="rounded-2xl bg-leaf/40 p-4 ring-1 ring-matcha/15">
+					<p className="text-xs tracking-wide text-matcha-dark uppercase">
+						Position enregistrée
+					</p>
+					<p className="mt-1 text-lg font-semibold tracking-tight">
+						{profile.city}
+						{profile.neighborhood ? (
+							<span className="font-normal text-muted">
+								{" "}
+								· {profile.neighborhood}
+							</span>
+						) : null}
+					</p>
+					<p className="mt-2 text-xs text-muted">
+						Ce n’est pas la bonne ? Choisissez-en une autre ci-dessous.
+					</p>
+				</div>
 			) : null}
 
 			<div className="flex flex-col gap-3">
 				<ActionButton
 					type="button"
-					tone="primary"
+					tone={located ? "secondary" : "primary"}
 					onClick={locate}
-					disabled={locating}
+					disabled={pending || locating}
 				>
-					{locating ? "Localisation…" : "Utiliser ma position"}
+					{locating
+						? "Localisation en cours…"
+						: pending
+							? "Enregistrement…"
+							: located
+								? "Relancer la localisation"
+								: "Utiliser ma position"}
 				</ActionButton>
 				<p className="text-xs text-muted">
 					Votre position sert à vous proposer des profils proches. Elle n’est
@@ -92,25 +130,25 @@ export function LocationStep({ profile, onSaved }: StepProps) {
 
 			<div className="flex items-center gap-3 text-xs text-muted">
 				<span className="h-px flex-1 bg-edge/40" />
-				ou
+				{located ? "ou corriger à la main" : "ou"}
 				<span className="h-px flex-1 bg-edge/40" />
 			</div>
 
-			<form action={action} className="flex flex-col gap-5">
-				<TextField
-					id="city"
-					label="Votre ville"
-					autoComplete="address-level2"
-					defaultValue={profile.city ?? ""}
-					error={fieldError(formErrors, "city")}
-				/>
+			<CityPicker
+				key={profile.city ?? "none"}
+				defaultValue={profile.city ?? ""}
+				error={fieldError(errors, "city")}
+				onPick={pick}
+			/>
 
-				<Errors errors={formErrors} only={["city"]} />
-
-				<ActionButton type="submit" tone="secondary" disabled={pending}>
-					{pending ? "Enregistrement…" : "Enregistrer ma ville"}
-				</ActionButton>
-			</form>
+			<ActionButton
+				type="button"
+				tone="primary"
+				onClick={onNext}
+				disabled={!located || pending || locating}
+			>
+				Continuer
+			</ActionButton>
 		</div>
 	);
 }

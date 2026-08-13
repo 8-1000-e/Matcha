@@ -4,9 +4,6 @@ export type BodyResult =
 
 export async function readJsonBody(request: Request): Promise<BodyResult>
 {
-	// Un formulaire HTML ne peut envoyer que text/plain, multipart ou
-	// urlencoded. Exiger application/json interdit donc la requete
-	// cross-site "simple", celle qui part sans preflight CORS.
 	const contentType = request.headers.get("content-type") ?? "";
 	if (!contentType.toLowerCase().startsWith("application/json"))
 	{

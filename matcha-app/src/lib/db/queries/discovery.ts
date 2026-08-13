@@ -8,6 +8,7 @@ import {
 } from "../core/identifiers";
 import { startsWith } from "../core/operators";
 import { every, join, raw, sql, when, type SqlFragment } from "../core/sql";
+import { ageYears } from "../schema/views";
 import { GENDERS, type Gender, type UserRow } from "../types";
 
 const SORT_COLUMNS = {
@@ -227,9 +228,7 @@ export function findCandidates(
 	return queryAll<DiscoveryRow>(
 		sql`SELECT
 				candidate.*,
-				CAST(
-					(julianday('now') - julianday(candidate.birth_date)) / 365.25 AS INTEGER
-				) AS age,
+				${raw(ageYears("candidate.birth_date"))} AS age,
 				distance_km(
 					${viewer.latitude}, ${viewer.longitude},
 					candidate.latitude, candidate.longitude

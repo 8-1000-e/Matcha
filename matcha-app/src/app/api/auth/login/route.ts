@@ -1,7 +1,10 @@
-import { verifyPassword } from "@/lib/auth/password";
+import { randomBytes } from "node:crypto";
+import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { setAuthCookies } from "@/lib/auth/session";
 import { findUserByUsername, purgeIfDue } from "@/lib/db";
 import { readJsonBody } from "@/lib/http/body";
+const DECOY_HASH = hashPassword(randomBytes(32).toString("base64url"));
+DECOY_HASH.catch(() => undefined);
 
 export async function POST(request: Request)
 {
@@ -27,7 +30,9 @@ export async function POST(request: Request)
 	const username = rawUsername.trim();
 
 	const user = findUserByUsername(username);
-	if (!user || !(await verifyPassword(password, user.password_hash)))
+	const stored = user?.password_hash ?? await DECOY_HASH;
+	const passwordOk = await verifyPassword(password, stored);
+	if (!user || !passwordOk)
 	{
 		return Response.json({ errors: ["invalid username or password"] }, { status: 401 });
 	}
@@ -41,5 +46,4 @@ export async function POST(request: Request)
 			is_verified: user.is_verified === 1,
 		},
 	});
-
 }

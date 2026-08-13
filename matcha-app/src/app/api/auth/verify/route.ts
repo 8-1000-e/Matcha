@@ -1,5 +1,5 @@
 import { hashToken } from "@/lib/auth/tokens";
-import { consumeEmailToken, findUsableEmailToken, markUserVerified } from "@/lib/db";
+import { consumeEmailToken, findUsableEmailToken, markUserVerified, transaction } from "@/lib/db";
 
 function expired(): Response
 {
@@ -17,13 +17,17 @@ export async function GET(request: Request)
 	const tokenFound = findUsableEmailToken(hashToken(token), "email_verification");
 	if (!tokenFound)
 	{return expired();}
+	const verified = transaction(() => {
+		if (!consumeEmailToken(tokenFound.id))
+		{
+			return false;
+		}
+		markUserVerified(tokenFound.user_id);
+		return true;
+	});
 
-	const consumed = consumeEmailToken(tokenFound.id);
-	if (!consumed)
+	if (!verified)
 	{return expired();}
-
-
-	await markUserVerified(tokenFound.user_id);
 
 	return Response.redirect(new URL("/login?verified=1", process.env.APP_URL));
 }
