@@ -118,42 +118,56 @@ export function CompleteProfilePage({ initial }: { initial: Profile }) {
 				) : null
 			}
 		>
-			<div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-0">
-				<div className="min-w-0 lg:max-w-md">
-					<h1 className="text-xl font-semibold tracking-tight">
-						{step ? step.title : "Votre profil"}
+			{/* A la relecture, l'apercu n'est plus un a-cote : il devient la page.
+			    Plus de barre d'etapes ni de colonne laterale, les corrections se
+			    font sous la fiche. */}
+			{reviewing ? (
+				<div className="mx-auto w-full max-w-lg">
+					<h1 className="text-center text-xl font-semibold tracking-tight">
+						Votre profil
 					</h1>
-					<p className="mt-1.5 mb-6 text-sm text-muted">
-						{step ? step.intro : "Un dernier coup d’œil avant de vous lancer."}
+					<p className="mx-auto mt-1.5 mb-8 max-w-sm text-center text-sm text-muted">
+						C’est exactement ce que les autres verront. Ouvrez une section pour
+						la corriger.
 					</p>
 
-					<StepProgress
+					<ReviewStep
 						steps={STEPS}
-						index={index}
-						missing={profile.missing}
-						onBack={() => setIndex(index - 1)}
-						onNext={() => setIndex(index + 1)}
+						profile={profile}
+						onSaved={setProfile}
+						onFinish={finish}
+						pending={leaving}
 					/>
-
-					{StepBody ? (
-						<StepBody profile={profile} onSaved={handleSaved} onNext={advance} />
-					) : (
-						<ReviewStep
-							steps={STEPS}
-							onEdit={setIndex}
-							onFinish={finish}
-							pending={leaving}
-						/>
-					)}
 				</div>
+			) : (
+				<div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-0">
+					<div className="min-w-0 lg:max-w-md">
+						<h1 className="text-xl font-semibold tracking-tight">
+							{step?.title}
+						</h1>
+						<p className="mt-1.5 mb-6 text-sm text-muted">{step?.intro}</p>
 
-				<aside className="lg:sticky lg:top-6 lg:self-start lg:border-l lg:border-edge/25 lg:pl-12">
-					<p className="mb-3.5 text-[11px] leading-5 tracking-wide text-muted uppercase">
-						Aperçu de votre profil
-					</p>
-					<ProfilePreview profile={profile} />
-				</aside>
-			</div>
+						<StepProgress
+							steps={STEPS}
+							index={index}
+							missing={profile.missing}
+							onBack={() => setIndex(index - 1)}
+							onNext={() => setIndex(index + 1)}
+						/>
+
+						{StepBody ? (
+							<StepBody profile={profile} onSaved={handleSaved} onNext={advance} />
+						) : null}
+					</div>
+
+					<aside className="lg:sticky lg:top-6 lg:self-start lg:border-l lg:border-edge/25 lg:pl-12">
+						<p className="mb-3.5 text-[11px] leading-5 tracking-wide text-muted uppercase">
+							Aperçu de votre profil
+						</p>
+						<ProfilePreview profile={profile} />
+					</aside>
+				</div>
+			)}
 		</PrivateScreen>
 	);
 }
