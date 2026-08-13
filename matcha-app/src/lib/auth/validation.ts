@@ -9,11 +9,11 @@ export interface RegisterInput {
     password: string;
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const BIRTH_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const USERNAME_RE = /^[A-Za-z0-9._-]+$/;
-const NAME_RE = /^\p{L}+(?:[ '-]\p{L}+)*$/u;
-const CONTROL_RE = /\p{Cc}/u;
+export const NAME_RE = /^\p{L}+(?:[ '-]\p{L}+)*$/u;
+export const CONTROL_RE = /\p{Cc}/u;
 
 export const PASSWORD_MESSAGES: Record<NonNullable<PasswordError>, string> = {
 	too_short: "password is too short",
@@ -26,11 +26,11 @@ export const PASSWORD_MESSAGES: Record<NonNullable<PasswordError>, string> = {
 
 const MINIMUM_AGE = 18;
 
-const EMAIL_MIN = 3;
-const EMAIL_MAX = 254;
+export const EMAIL_MIN = 3;
+export const EMAIL_MAX = 254;
 const USERNAME_MIN = 3;
 const USERNAME_MAX = 32;
-const NAME_MAX = 50;
+export const NAME_MAX = 50;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);

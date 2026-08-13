@@ -10,8 +10,6 @@ import {
 	users,
 } from "@/lib/db";
 
-export const runtime = "nodejs";
-
 export async function POST()
 {
 	purgeIfDue();

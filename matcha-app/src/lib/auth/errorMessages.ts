@@ -4,7 +4,13 @@ export type AuthField =
 	| "first_name"
 	| "last_name"
 	| "birth_date"
-	| "password";
+	| "password"
+	| "gender"
+	| "orientation"
+	| "biography"
+	| "tags"
+	| "city"
+	| "photo";
 
 export interface AuthError {
 	field: AuthField | null;
@@ -79,6 +85,74 @@ const TRANSLATIONS: Record<string, AuthError> = {
 		field: "password",
 		message: "Ajoutez au moins un caractère spécial.",
 	},
+
+	"gender is invalid": { field: "gender", message: "Choisissez un genre dans la liste." },
+	"orientation is invalid": {
+		field: "orientation",
+		message: "Choisissez une orientation dans la liste.",
+	},
+
+	"biography is empty": { field: "biography", message: REQUIRED },
+	"biography is too long": {
+		field: "biography",
+		message: "Cinq cents caractères maximum.",
+	},
+	"biography is invalid": {
+		field: "biography",
+		message: "Cette biographie contient des caractères interdits.",
+	},
+
+	"tags must be a list of labels": { field: "tags", message: GENERIC_ERROR },
+	"at least 3 tags are required": {
+		field: "tags",
+		message: "Choisissez au moins trois centres d’intérêt.",
+	},
+	"at most 10 tags are allowed": {
+		field: "tags",
+		message: "Dix centres d’intérêt maximum.",
+	},
+	"one or more tags do not exist": {
+		field: "tags",
+		message: "Un de ces centres d’intérêt n’existe pas.",
+	},
+
+	"coordinates are invalid": {
+		field: "city",
+		message: "Ces coordonnées ne sont pas valides.",
+	},
+	"coordinates or a city are required": {
+		field: "city",
+		message: "Partagez votre position ou saisissez votre ville.",
+	},
+	"city is empty": { field: "city", message: REQUIRED },
+	"city is too long": { field: "city", message: "Cent caractères maximum." },
+	"city is invalid": { field: "city", message: "Ce nom de ville n’est pas valide." },
+
+	"photo is required": { field: "photo", message: "Choisissez une image." },
+	"photo must be a jpeg, png or webp image": {
+		field: "photo",
+		message: "Formats acceptés : JPEG, PNG et WebP.",
+	},
+	"photo is too large": { field: "photo", message: "Cette image dépasse 5 Mo." },
+	"photo limit reached": {
+		field: "photo",
+		message: "Cinq photos maximum, supprimez-en une d’abord.",
+	},
+	"photo not found": { field: "photo", message: "Cette photo n’existe plus." },
+	"is_profile must be true": { field: "photo", message: GENERIC_ERROR },
+	"photo order must be a list of ids": { field: "photo", message: GENERIC_ERROR },
+	"photo order contains duplicates": { field: "photo", message: GENERIC_ERROR },
+	"photo order does not match your photos": {
+		field: "photo",
+		message: "L’ordre des photos a changé, rechargez la page.",
+	},
+
+	"email is already in use": {
+		field: "email",
+		message: "Cette adresse est déjà utilisée.",
+	},
+	"no field to update": { field: null, message: "Aucune modification à enregistrer." },
+	"content-type must be multipart/form-data": { field: null, message: GENERIC_ERROR },
 
 	"email or username is already in use": {
 		field: null,

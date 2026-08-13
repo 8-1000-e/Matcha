@@ -5,8 +5,6 @@ import { ConstraintError, createUser, isEmailTaken, issueEmailToken, isUsernameT
 import { readJsonBody } from "@/lib/http/body";
 import { sendMail } from "@/lib/mail/mailer";
 
-export const runtime = "nodejs";
-
 const TAKEN = "email or username is already in use";
 
 export async function POST(request: Request)

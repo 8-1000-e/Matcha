@@ -118,6 +118,7 @@ export {
 } from "./repositories/reviews";
 export {
 	findTagByLabel,
+	findTagsByLabels,
 	listTags,
 	listUserTags,
 	resolveTagIds,

@@ -1,7 +1,7 @@
 # API — documentation des endpoints
 
 Toutes les routes sont sous `/api`. Les réponses sont en JSON, sauf
-`GET /auth/verify` qui redirige.
+`GET /auth/verify` qui redirige et `GET /photos/[id]` qui renvoie une image.
 
 ## Conventions communes
 
@@ -29,7 +29,9 @@ jamais lus par le JavaScript du client :
 `OPTIONS` renvoie `204`.
 
 **Ce qui n'est jamais renvoyé** : `password_hash`, l'adresse e-mail d'un
-utilisateur, et la valeur en clair d'un jeton stocké.
+utilisateur, et la valeur en clair d'un jeton stocké. Seule exception :
+`GET /profile` renvoie l'adresse du **connecté**, pour préremplir son propre
+formulaire.
 
 ---
 
@@ -117,8 +119,8 @@ porte l'information, et le blocage se fera sur les routes de fonctionnalité
 (suggestions, recherche, like), pas ici.
 
 Les critères de `missing` sont ceux de `refreshProfileCompletion` en base :
-genre, biographie non vide, au moins un tag, une photo de profil, et une
-localisation (GPS **ou** ville).
+genre, biographie non vide, au moins `MINIMUM_TAGS` tags (3), une photo de
+profil, et une localisation (GPS **ou** ville).
 
 ---
 
@@ -164,9 +166,11 @@ Le lien reçu par mail. Le jeton est à usage unique.
 | Code | Réponse | Cas |
 | --- | --- | --- |
 | `302` | redirection vers `/login?verified=1` | vérifié |
-| `400` | `{ "errors": ["token is required"] }` | paramètre absent |
-| `400` | `{ "errors": ["invalid or expired token"] }` | inconnu, expiré, déjà utilisé, ou de type `password_reset` |
-| `400` | `{ "errors": ["token has already been used"] }` | consommé entre-temps par une requête concurrente |
+| `302` | redirection vers `/link-expired?type=verification` | paramètre absent, jeton inconnu, expiré, déjà utilisé, de type `password_reset`, ou consommé entre-temps par une requête concurrente |
+
+Cette route est ouverte dans un navigateur, jamais en `fetch` : un JSON d'erreur
+y serait illisible. Tous les échecs mènent donc à une page du front, qui propose
+de redemander un lien.
 
 Passe `is_verified` à 1. La base ne contient que le **SHA-256** du jeton : la
 valeur en clair n'existe que dans le mail.
@@ -235,3 +239,196 @@ en redemander un à chaque tentative ratée.
 `revokeAllRefreshTokens` est appelé en fin de parcours : si le compte était
 compromis, changer le mot de passe déconnecte l'attaquant au lieu de le laisser
 30 jours avec son refresh token.
+
+---
+
+# Profil
+
+Toutes les routes de cette section exigent une **session valide** (cookie
+`access`, ou `refresh` renouvelé par le proxy). Sans session : `401
+{ "errors": ["unauthorized"] }`.
+
+Elles **n'exigent pas** que le compte soit vérifié. Un compte non vérifié peut
+donc remplir son profil ; le blocage se fait sur les routes de fonctionnalité
+(suggestions, recherche, like), comme pour `profile_completed`. Sans quoi
+changer d'adresse — qui remet `is_verified` à 0 — enfermerait l'utilisateur
+dans un profil qu'il ne peut plus corriger.
+
+Chaque écriture recalcule `profile_completed` et **renvoie le profil complet**,
+pour que le front n'ait pas à refetcher :
+
+```json
+{ "ok": true, "profile": { ... } }
+```
+
+## `GET /api/profile`
+
+Le profil **éditable** du connecté. À ne pas confondre avec `/auth/me`, qui
+reste le gardien léger du routage.
+
+```json
+{
+  "ok": true,
+  "profile": {
+    "id": "uuid",
+    "email": "ana@example.com",
+    "username": "ana",
+    "first_name": "Ana",
+    "last_name": "Bob",
+    "birth_date": "1995-04-12",
+    "gender": "woman",
+    "orientation": "bi",
+    "biography": "Je bois du matcha.",
+    "city": "Paris",
+    "neighborhood": "Quartier des Halles",
+    "latitude": 48.8566,
+    "longitude": 2.3522,
+    "location_consent": true,
+    "tags": ["books", "cats", "tea"],
+    "photos": [
+      { "id": "uuid", "url": "/api/photos/uuid", "is_profile": true, "position": 0 }
+    ],
+    "is_verified": true,
+    "profile_completed": true,
+    "missing": []
+  }
+}
+```
+
+C'est la **seule** route qui renvoie une adresse e-mail, et uniquement celle du
+connecté : le formulaire d'édition doit pouvoir la préremplir.
+
+## `PATCH /api/profile`
+
+Modification partielle. Une clé absente est laissée telle quelle ; `null` n'est
+jamais accepté. Aucune clé connue = `400 ["no field to update"]`.
+
+| Champ | Contraintes |
+| --- | --- |
+| `first_name`, `last_name` | ≤ 50, lettres avec `'` et `-` comme séparateurs simples |
+| `email` | mêmes règles qu'à l'inscription |
+| `gender` | `woman`, `man`, `non_binary`, `other` |
+| `orientation` | `hetero`, `homo`, `bi`, `pan`, `other` |
+| `biography` | 1 à 500 caractères, retours à la ligne autorisés, autres caractères de contrôle refusés |
+
+`birth_date` et `username` ne sont pas modifiables.
+
+**Changement d'adresse** : `is_verified` repasse à 0, les liens de vérification
+en cours sont révoqués, un nouveau part par mail, et la réponse porte
+`email_verification_sent: true`. Le front rebascule alors sur `/verify-email`.
+Même adresse qu'avant (casse comprise) = aucun mail. Les sessions ne sont pas
+coupées : ce n'est pas un changement de mot de passe.
+
+| Code | Cas |
+| --- | --- |
+| `200` | modifié |
+| `400` | validation, ou aucun champ connu |
+| `409` | `["email is already in use"]` |
+| `415` | |
+
+## `PUT /api/profile/tags`
+
+**Corps** : `{ "tags": ["vegan", "coffee", "gaming"] }`
+
+Remplace la liste. 3 minimum (`MINIMUM_TAGS`), 10 maximum. Les labels sont
+trimés et dédoublonnés sans tenir compte de la casse — `Vegan` et `vegan` sont
+le même tag, la colonne est en `COLLATE NOCASE`.
+
+Seuls les labels de la table `tags` (`TAG_LABELS`, 100 entrées) sont acceptés :
+la réutilisabilité vient de ce catalogue partagé, pas de la saisie libre.
+
+| Code | Cas |
+| --- | --- |
+| `200` | enregistré |
+| `400` | `["tags must be a list of labels"]`, `["at least 3 tags are required"]`, `["at most 10 tags are allowed"]`, `["one or more tags do not exist"]` |
+
+## `PUT /api/profile/location`
+
+Deux formes exclusives :
+
+| Corps | Effet |
+| --- | --- |
+| `{ "latitude": 48.8566, "longitude": 2.3522 }` | `location_consent = 1`, puis reverse geocoding pour remplir `city` et `neighborhood` |
+| `{ "city": "Lyon" }` | `location_consent = 0`, puis geocoding direct pour obtenir les coordonnées, nécessaires au tri par distance |
+
+Le géocodage essaie trois services dans l'ordre, aucun ne demandant de clé :
+**Photon** (`PHOTON_URL`, noms de quartiers), la **BAN**
+(`BAN_URL`, données officielles françaises, 50 requêtes/s) puis **Nominatim**
+(`NOMINATIM_URL`, une requête/s). Timeout de 3 s chacun. En reverse, on s'arrête
+dès que ville **et** quartier sont trouvés, en complétant l'un par l'autre au
+besoin.
+
+En geocoding direct, la réponse est **rejetée si le nom rendu ne correspond pas
+à la saisie** — accents et ponctuation ignorés. Photon fait de la correspondance
+approximative : sans ce garde-fou, `"zzzqqqxxxvvv"` atterrissait à Doullens.
+
+**Un échec ne fait pas échouer la requête** : on garde ce que l'utilisateur a
+fourni et on laisse le reste à `NULL`. La complétion n'exige que des coordonnées
+**ou** une ville.
+
+| Code | Cas |
+| --- | --- |
+| `200` | enregistré |
+| `400` | `["coordinates are invalid"]`, `["city is empty"]`, `["city is too long"]`, `["city is invalid"]`, `["coordinates or a city are required"]` |
+
+## `POST /api/profile/photos`
+
+`multipart/form-data`, champ `photo`. 5 photos par compte, la première devient
+automatiquement la photo de profil.
+
+Le type est déterminé par les **octets d'en-tête** du fichier, jamais par son
+`content-type` ni son extension : JPEG, PNG, WebP. Le nom du client est jeté,
+le fichier est stocké sous un uuid dans `UPLOAD_DIR` (`./data/uploads`), en
+dehors de `public/` — rien n'y est donc servi statiquement.
+
+| Code | Cas |
+| --- | --- |
+| `201` | ajoutée |
+| `400` | `["photo is required"]`, `["photo must be a jpeg, png or webp image"]` |
+| `409` | `["photo limit reached"]` |
+| `413` | `["photo is too large"]` — 5 Mo |
+| `415` | `["content-type must be multipart/form-data"]` |
+
+## `PATCH /api/profile/photos/[id]`
+
+**Corps** : `{ "is_profile": true }` — désigne la photo de profil. L'ancienne
+est démise dans la même transaction : l'index `photos_single_profile_idx`
+garantit qu'il n'y en a jamais deux.
+
+`400 ["is_profile must be true"]` sinon, `404 ["photo not found"]` si la photo
+n'existe pas **ou** n'appartient pas au connecté — un seul message, pour ne pas
+révéler l'existence des photos des autres.
+
+## `DELETE /api/profile/photos/[id]`
+
+Supprime la ligne **et** le fichier. Les positions restantes sont resserrées et
+la photo de profil est réattribuée à la suivante s'il le faut. Supprimer la
+dernière photo repasse donc `profile_completed` à 0.
+
+| Code | Cas |
+| --- | --- |
+| `200` | supprimée |
+| `404` | `["photo not found"]` |
+
+## `PUT /api/profile/photos/order`
+
+**Corps** : `{ "ids": ["uuid", "uuid", ...] }` — la liste **complète** des
+photos du connecté, dans l'ordre voulu.
+
+| Code | Cas |
+| --- | --- |
+| `200` | réordonné |
+| `400` | `["photo order must be a list of ids"]`, `["photo order contains duplicates"]`, `["photo order does not match your photos"]` |
+
+## `GET /api/photos/[id]`
+
+Sert le fichier, `Cache-Control: private`. Session requise — les photos ne sont
+pas des URL publiques devinables. L'id d'URL sert à lire le chemin **en base** :
+il ne touche jamais le système de fichiers, et le nom stocké est revalidé avant
+lecture. Une traversée de répertoire est donc impossible.
+
+| Code | Cas |
+| --- | --- |
+| `200` | l'image, avec son vrai `content-type` |
+| `401` | pas de session |
+| `404` | id inconnu, ou fichier absent du disque |

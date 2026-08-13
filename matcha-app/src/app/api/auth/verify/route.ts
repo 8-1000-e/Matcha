@@ -1,8 +1,6 @@
 import { hashToken } from "@/lib/auth/tokens";
 import { consumeEmailToken, findUsableEmailToken, markUserVerified } from "@/lib/db";
 
-export const runtime = "nodejs";
-
 function expired(): Response
 {
 	return Response.redirect(

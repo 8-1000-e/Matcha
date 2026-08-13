@@ -3,8 +3,6 @@ import { setAuthCookies } from "@/lib/auth/session";
 import { findUserByUsername, purgeIfDue } from "@/lib/db";
 import { readJsonBody } from "@/lib/http/body";
 
-export const runtime = "nodejs";
-
 export async function POST(request: Request)
 {
 	purgeIfDue();
