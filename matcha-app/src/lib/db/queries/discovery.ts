@@ -52,7 +52,8 @@ export interface DiscoveryOptions {
 	respectOrientation?: boolean;
 }
 
-export interface DiscoveryRow extends UserRow {
+export interface DiscoveryRow
+	extends Omit<UserRow, "email" | "password_hash"> {
 	age: number;
 	distance_km: number | null;
 	common_tags: number;
@@ -62,6 +63,31 @@ export interface DiscoveryRow extends UserRow {
 	photo_count: number;
 	profile_photo_path: string | null;
 }
+
+const PUBLIC_COLUMNS = raw(
+	[
+		"id",
+		"username",
+		"first_name",
+		"last_name",
+		"birth_date",
+		"gender",
+		"orientation",
+		"biography",
+		"is_verified",
+		"profile_completed",
+		"latitude",
+		"longitude",
+		"city",
+		"neighborhood",
+		"location_consent",
+		"is_online",
+		"last_seen_at",
+		"created_at",
+	]
+		.map((column) => `candidate.${column}`)
+		.join(", "),
+);
 
 const DEFAULT_SORT: readonly DiscoverySort[] = [
 	{ key: "distance", direction: "asc" },
@@ -227,7 +253,7 @@ export function findCandidates(
 	const conditions = discoveryConditions(viewer, options);
 	return queryAll<DiscoveryRow>(
 		sql`SELECT
-				candidate.*,
+				${PUBLIC_COLUMNS},
 				${raw(ageYears("candidate.birth_date"))} AS age,
 				distance_km(
 					${viewer.latitude}, ${viewer.longitude},
