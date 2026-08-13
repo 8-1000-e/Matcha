@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { fetchCurrentUser } from "@/lib/auth/serverUser";
+import { fetchProfile } from "@/lib/profile/serverProfile";
 import { CompleteProfilePage } from "@/views/CompleteProfile/CompleteProfilePage";
 
 export const metadata: Metadata = {
@@ -9,16 +9,16 @@ export const metadata: Metadata = {
 };
 
 export default async function Page() {
-	const user = await fetchCurrentUser();
-	if (!user) {
+	const profile = await fetchProfile();
+	if (!profile) {
 		redirect("/login");
 	}
-	if (!user.is_verified) {
+	if (!profile.is_verified) {
 		redirect("/verify-email");
 	}
-	if (user.missing.length === 0) {
+	if (profile.missing.length === 0) {
 		redirect("/me");
 	}
 
-	return <CompleteProfilePage missing={user.missing} />;
+	return <CompleteProfilePage initial={profile} />;
 }

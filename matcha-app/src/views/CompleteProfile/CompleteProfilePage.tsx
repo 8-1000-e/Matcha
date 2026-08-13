@@ -1,71 +1,132 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { PrivateScreen } from "@/components/Layout/Screen";
+import type { Profile } from "@/lib/profile/client";
+import { AboutStep } from "./AboutStep";
+import { BiographyStep } from "./BiographyStep";
+import { LocationStep } from "./LocationStep";
+import { PhotosStep } from "./PhotosStep";
+import type { StepProps } from "./StepBase";
+import { TagsStep } from "./TagsStep";
 
-const STEPS = {
-	gender: "Votre genre et vos préférences",
-	biography: "Une biographie",
-	tags: "Au moins trois centres d’intérêt",
-	profile_photo: "Une photo de profil",
-	location: "Votre localisation",
-} as const;
+type Step = {
+	key: string;
+	title: string;
+	intro: string;
+	Body: (props: StepProps) => React.ReactNode;
+};
 
-const ORDER = [
-	"gender",
-	"biography",
-	"tags",
-	"profile_photo",
-	"location",
-] as const;
+const STEPS: readonly Step[] = [
+	{
+		key: "gender",
+		title: "Qui êtes-vous ?",
+		intro: "Ces deux réponses déterminent les profils qui vous seront proposés.",
+		Body: AboutStep,
+	},
+	{
+		key: "biography",
+		title: "Présentez-vous",
+		intro: "Quelques lignes suffisent, elles seront visibles sur votre profil.",
+		Body: BiographyStep,
+	},
+	{
+		key: "tags",
+		title: "Ce que vous aimez",
+		intro: "Les centres d’intérêt partagés font remonter les profils proches.",
+		Body: TagsStep,
+	},
+	{
+		key: "location",
+		title: "Où êtes-vous ?",
+		intro: "La proximité compte autant que les affinités.",
+		Body: LocationStep,
+	},
+	{
+		key: "profile_photo",
+		title: "Vos photos",
+		intro: "Une photo de profil est nécessaire pour aimer et être aimé.",
+		Body: PhotosStep,
+	},
+];
 
-export function CompleteProfilePage({ missing }: { missing: string[] }) {
+function firstMissing(missing: string[]) {
+	const index = STEPS.findIndex((step) => missing.includes(step.key));
+	return index === -1 ? 0 : index;
+}
+
+export function CompleteProfilePage({ initial }: { initial: Profile }) {
+	const router = useRouter();
+	const [profile, setProfile] = useState(initial);
+	const [index, setIndex] = useState(() => firstMissing(initial.missing));
+
+	const step = STEPS[index];
+	const done = !profile.missing.includes(step.key);
+
+	function handleSaved(next: Profile) {
+		setProfile(next);
+
+		if (next.missing.length === 0) {
+			router.push("/me");
+			router.refresh();
+			return;
+		}
+
+		if (!next.missing.includes(step.key)) {
+			setIndex(firstMissing(next.missing));
+		}
+	}
+
 	return (
 		<PrivateScreen
-			title="Complétez votre profil"
-			intro="Ces informations sont nécessaires avant de voir des profils et d’être vu."
+			title={step.title}
+			intro={step.intro}
 			footer={
-				<span className="block text-center">
-					{missing.length} élément{missing.length > 1 ? "s" : ""} restant
-					{missing.length > 1 ? "s" : ""}.
-				</span>
+				<div className="flex items-center justify-between gap-4">
+					<button
+						type="button"
+						onClick={() => setIndex(index - 1)}
+						disabled={index === 0}
+						className="cursor-pointer underline transition-colors duration-200 ease-out hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+					>
+						Précédent
+					</button>
+
+					<span>
+						Étape {index + 1} sur {STEPS.length}
+					</span>
+
+					<button
+						type="button"
+						onClick={() => setIndex(index + 1)}
+						disabled={!done || index === STEPS.length - 1}
+						className="cursor-pointer underline transition-colors duration-200 ease-out hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+					>
+						Suivant
+					</button>
+				</div>
 			}
 		>
-			<ul className="flex flex-col gap-3">
-				{ORDER.map((step) => {
-					const done = !missing.includes(step);
-
-					return (
+			<div className="flex flex-col gap-6">
+				<ol className="flex gap-1.5" aria-label="Progression">
+					{STEPS.map((entry, position) => (
 						<li
-							key={step}
-							className={`flex items-center gap-3 rounded-xl border px-4 py-3.5 text-sm ${
-								done
-									? "border-matcha/30 bg-leaf/40 text-muted"
-									: "border-edge bg-white/70"
+							key={entry.key}
+							aria-current={position === index ? "step" : undefined}
+							className={`h-1.5 flex-1 rounded-full ${
+								profile.missing.includes(entry.key)
+									? position === index
+										? "bg-matcha/50"
+										: "bg-edge/30"
+									: "bg-matcha"
 							}`}
-						>
-							<svg
-								viewBox="0 0 16 16"
-								aria-hidden="true"
-								className={`size-4 shrink-0 ${done ? "text-matcha" : "text-edge"}`}
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="1.8"
-								strokeLinecap="round"
-								strokeLinejoin="round"
-							>
-								{done ? (
-									<path d="M3 8.5 6.2 11.7 13 5" />
-								) : (
-									<circle cx="8" cy="8" r="5.5" />
-								)}
-							</svg>
-							{STEPS[step]}
-						</li>
-					);
-				})}
-			</ul>
+						/>
+					))}
+				</ol>
 
-			<p className="mt-6 text-xs text-muted">
-				Les formulaires arrivent avec les routes de profil du back-end.
-			</p>
+				<step.Body profile={profile} onSaved={handleSaved} />
+			</div>
 		</PrivateScreen>
 	);
 }
