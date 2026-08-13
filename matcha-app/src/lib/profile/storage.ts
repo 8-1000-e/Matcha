@@ -1,7 +1,13 @@
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
+import sharp from "sharp";
 
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+export const STORED_EXTENSION = "webp";
+
+const MAX_SIDE = 1200;
+const MAX_INPUT_PIXELS = 50_000_000;
+const QUALITY = 82;
 
 const DIRECTORY = resolve(process.env.UPLOAD_DIR ?? "./data/uploads");
 const FILE_NAME_RE = /^[A-Za-z0-9_-]+\.(jpg|png|webp)$/;
@@ -46,6 +52,27 @@ export function detectImage(bytes: Uint8Array): ImageKind | null
 		return { extension: "webp", mime: MIME_TYPES.webp };
 	}
 	return null;
+}
+
+export async function normalizeImage(bytes: Uint8Array): Promise<Buffer | null>
+{
+	try
+	{
+		return await sharp(bytes, { limitInputPixels: MAX_INPUT_PIXELS })
+			.rotate()
+			.resize({
+				width: MAX_SIDE,
+				height: MAX_SIDE,
+				fit: "inside",
+				withoutEnlargement: true,
+			})
+			.webp({ quality: QUALITY })
+			.toBuffer();
+	}
+	catch
+	{
+		return null;
+	}
 }
 
 function locate(name: string): string | null

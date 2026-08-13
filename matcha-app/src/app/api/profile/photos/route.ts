@@ -7,7 +7,14 @@ import {
 	photos,
 } from "@/lib/db";
 import { profileResponse } from "@/lib/profile/profile";
-import { detectImage, MAX_PHOTO_BYTES, removePhotoFile, writePhotoFile } from "@/lib/profile/storage";
+import {
+	detectImage,
+	MAX_PHOTO_BYTES,
+	normalizeImage,
+	removePhotoFile,
+	STORED_EXTENSION,
+	writePhotoFile,
+} from "@/lib/profile/storage";
 
 export async function POST(request: Request)
 {
@@ -58,8 +65,7 @@ export async function POST(request: Request)
 	}
 
 	const bytes = new Uint8Array(await file.arrayBuffer());
-	const kind = detectImage(bytes);
-	if (!kind)
+	if (!detectImage(bytes))
 	{
 		return Response.json(
 			{ errors: ["photo must be a jpeg, png or webp image"] },
@@ -67,8 +73,17 @@ export async function POST(request: Request)
 		);
 	}
 
-	const name = `${createId()}.${kind.extension}`;
-	await writePhotoFile(name, bytes);
+	const normalized = await normalizeImage(bytes);
+	if (!normalized)
+	{
+		return Response.json(
+			{ errors: ["photo could not be processed"] },
+			{ status: 400 },
+		);
+	}
+
+	const name = `${createId()}.${STORED_EXTENSION}`;
+	await writePhotoFile(name, normalized);
 
 	try
 	{

@@ -381,10 +381,17 @@ Le type est déterminé par les **octets d'en-tête** du fichier, jamais par son
 le fichier est stocké sous un uuid dans `UPLOAD_DIR` (`./data/uploads`), en
 dehors de `public/` — rien n'y est donc servi statiquement.
 
+L'image est ensuite **ré-encodée en WebP** par sharp : l'orientation EXIF est
+appliquée puis toutes les métadonnées disparaissent — une photo de téléphone
+porte les coordonnées GPS du domicile. Le grand côté est ramené à 1 200 px et
+l'entrée est plafonnée à 50 mégapixels, ce qu'un simple contrôle d'en-tête ne
+verrait pas passer. Un fichier dont l'en-tête est correct mais les données
+illisibles échoue ici, d'où `photo could not be processed`.
+
 | Code | Cas |
 | --- | --- |
 | `201` | ajoutée |
-| `400` | `["photo is required"]`, `["photo must be a jpeg, png or webp image"]` |
+| `400` | `["photo is required"]`, `["photo must be a jpeg, png or webp image"]`, `["photo could not be processed"]` |
 | `409` | `["photo limit reached"]` |
 | `413` | `["photo is too large"]` — 5 Mo |
 | `415` | `["content-type must be multipart/form-data"]` |

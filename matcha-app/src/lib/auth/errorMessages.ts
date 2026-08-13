@@ -134,6 +134,10 @@ const TRANSLATIONS: Record<string, AuthError> = {
 		message: "Formats acceptés : JPEG, PNG et WebP.",
 	},
 	"photo is too large": { field: "photo", message: "Cette image dépasse 5 Mo." },
+	"photo could not be processed": {
+		field: "photo",
+		message: "Cette image est illisible, essayez-en une autre.",
+	},
 	"photo limit reached": {
 		field: "photo",
 		message: "Cinq photos maximum, supprimez-en une d’abord.",
