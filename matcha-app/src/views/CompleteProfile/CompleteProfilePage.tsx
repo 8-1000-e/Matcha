@@ -60,6 +60,7 @@ const STEPS: readonly Step[] = [
 		title: "Vos photos",
 		intro: "Une photo de profil est nécessaire pour aimer et être aimé.",
 		Body: PhotosStep,
+		hold: true,
 	},
 ];
 

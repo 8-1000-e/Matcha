@@ -14,7 +14,7 @@ import { Errors, type StepProps } from "./StepBase";
 
 const MAXIMUM = 5;
 
-export function PhotosStep({ profile, onSaved }: StepProps) {
+export function PhotosStep({ profile, onSaved, onNext }: StepProps) {
 	const input = useRef<HTMLInputElement>(null);
 	const [errors, setErrors] = useState<AuthError[]>([]);
 	const [pending, startTransition] = useTransition();
@@ -128,6 +128,18 @@ export function PhotosStep({ profile, onSaved }: StepProps) {
 					fichiers sont retirées à l’envoi.
 				</p>
 			</div>
+
+			{/* Chaque envoi est enregistre aussitot : l'etape ne se quitte que
+			    quand l'utilisateur le decide, sinon la premiere photo mettrait fin
+			    a l'etape avant qu'il ait pu en ajouter d'autres. */}
+			<ActionButton
+				type="button"
+				tone="primary"
+				onClick={onNext}
+				disabled={profile.photos.length === 0 || pending}
+			>
+				Continuer
+			</ActionButton>
 		</div>
 	);
 }
