@@ -67,23 +67,25 @@ export function StepProgress({
 					const filled = !missing.includes(step.key);
 					const current = position === index;
 
-					// Une etape deja remplie garde sa couleur quand on y revient : sans
-					// la hauteur et le ton fonces, revenir en arriere ne se verrait pas.
+					// Le ton depend d'abord de la position : l'etape courante est la plus
+					// foncee, ce qui est derriere reste franc, ce qui reste a faire
+					// s'efface. Sans ca, revenir en arriere ne changeait rien puisque
+					// les etapes deja remplies gardaient toutes la meme couleur.
+					const tone = current
+						? "bg-matcha-dark"
+						: position < index
+							? "bg-matcha"
+							: filled
+								? "bg-matcha/35"
+								: "bg-edge/20";
+
 					return (
 						<li
 							key={step.key}
 							aria-current={current ? "step" : undefined}
 							className={`flex-1 rounded-full transition-all duration-300 ${
 								current ? "h-1.5" : "h-1"
-							} ${
-								current
-									? filled
-										? "bg-matcha-dark"
-										: "bg-matcha/50"
-									: filled
-										? "bg-matcha"
-										: "bg-edge/20"
-							}`}
+							} ${tone}`}
 						/>
 					);
 				})}
