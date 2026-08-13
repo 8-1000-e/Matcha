@@ -2,12 +2,19 @@
 
 import { useState } from "react";
 import { MatchaBowl } from "@/components/Brand/Brand";
+import {
+	PASSWORD_MESSAGE,
+	PASSWORD_MIN,
+	PASSWORD_PATTERN,
+	PASSWORD_STRONG,
+} from "@/components/Form/constraints";
 import { TextField } from "@/components/Form/TextField";
 
-export const PASSWORD_PATTERN = "(?=.*\\d)(?=.*[^A-Za-z0-9]).{8,}";
-
 const RULES = [
-	{ label: "8 caractères", test: (value: string) => value.length >= 8 },
+	{
+		label: `${PASSWORD_MIN} caractères`,
+		test: (value: string) => value.length >= PASSWORD_MIN,
+	},
 	{ label: "un chiffre", test: (value: string) => /\d/.test(value) },
 	{
 		label: "un caractère spécial",
@@ -26,17 +33,20 @@ const STAGES = [
 function grade(value: string) {
 	const passed = RULES.map((rule) => rule.test(value));
 	const met = passed.filter(Boolean).length;
-	const score = met === RULES.length && value.length >= 12 ? 4 : met;
+	const score =
+		met === RULES.length && value.length >= PASSWORD_STRONG ? 4 : met;
 	return { passed, score };
 }
 
 type PasswordFieldProps = {
+	id?: string;
 	label?: string;
 	defaultValue?: string;
 	error?: string;
 };
 
 export function PasswordField({
+	id = "password",
 	label = "Mot de passe",
 	defaultValue,
 	error,
@@ -46,18 +56,21 @@ export function PasswordField({
 	const { passed, score } = grade(value);
 	const empty = value.length === 0;
 	const stage = STAGES[score];
+	const strengthId = `${id}-strength`;
+	const rulesId = `${id}-rules`;
 
 	return (
 		<div>
 			<TextField
-				id="password"
+				id={id}
+				name="password"
 				label={label}
 				type="password"
 				autoComplete="new-password"
-				minLength={8}
+				minLength={PASSWORD_MIN}
 				pattern={PASSWORD_PATTERN}
-				patternMessage="Ajoutez un chiffre et un caractère spécial."
-				describedBy="password-strength password-rules"
+				patternMessage={PASSWORD_MESSAGE}
+				describedBy={`${strengthId} ${rulesId}`}
 				defaultValue={defaultValue}
 				error={error}
 				reveal
@@ -65,12 +78,12 @@ export function PasswordField({
 			/>
 
 			<div className="mt-3 flex items-center gap-2.5">
-				<span aria-hidden="true" className="flex flex-1 gap-1.5">
+				<span aria-hidden="true" className="flex min-w-0 flex-1 gap-1.5">
 					{STAGES.slice(1).map((step, index) => (
 						<span
 							key={step.label}
 							className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ease-out ${
-								!empty && index < score ? stage.fill : "bg-edge/20"
+								!empty && index < score ? stage.fill : "bg-edge/25"
 							}`}
 						/>
 					))}
@@ -79,8 +92,7 @@ export function PasswordField({
 				{score === 4 ? <MatchaBowl className="size-4 shrink-0" /> : null}
 
 				<span
-					id="password-strength"
-					role="status"
+					id={strengthId}
 					className={`shrink-0 text-xs font-medium ${
 						empty ? "text-muted" : stage.text
 					}`}
@@ -89,7 +101,7 @@ export function PasswordField({
 				</span>
 			</div>
 
-			<ul id="password-rules" className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+			<ul id={rulesId} className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
 				{RULES.map((rule, index) => (
 					<li
 						key={rule.label}
@@ -113,6 +125,9 @@ export function PasswordField({
 								<circle cx="6" cy="6" r="1.6" fill="currentColor" stroke="none" />
 							)}
 						</svg>
+						<span className="sr-only">
+							{passed[index] ? "Validé :" : "Manquant :"}
+						</span>
 						{rule.label}
 					</li>
 				))}

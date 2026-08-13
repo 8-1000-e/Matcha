@@ -20,7 +20,7 @@ export function LinkExpiredPage({ kind }: { kind?: ExpiredLinkKind }) {
 			back="/login"
 			title="Ce lien a expiré"
 			intro={kind ? INTRO[kind] : GENERIC}
-			footer={''}
+			footer={null}
 		>
 			<div className="flex flex-col gap-8">
 				{kind !== "reset" ? <ResendVerificationForm /> : null}

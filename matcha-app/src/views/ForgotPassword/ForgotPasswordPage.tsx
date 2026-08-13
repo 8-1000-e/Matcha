@@ -7,7 +7,7 @@ export function ForgotPasswordPage() {
 			back="/login"
 			title="Mot de passe oublié"
 			intro="Indiquez l’adresse de votre compte : vous recevrez un lien pour en choisir un nouveau."
-			footer={''}
+			footer={null}
 		>
 			<ForgotPasswordForm />
 		</FlowScreen>

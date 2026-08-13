@@ -39,7 +39,7 @@ export function Backdrop() {
 					key={leaf.key}
 					viewBox="0 0 24 24"
 					fill="none"
-					className={`sway absolute ${leaf.position} ${leaf.size} text-matcha/25`}
+					className={`sway absolute ${leaf.position} ${leaf.size} text-matcha/15`}
 					style={{ animationDuration: leaf.duration }}
 				>
 					<path d="M12 2c5 4 5 12 0 20-5-8-5-16 0-20Z" fill="currentColor" />

@@ -8,7 +8,7 @@ export function HomePage() {
 			center
 			centerTop
 			top={<BrandLockup />}
-			footer={``}
+			footer={null}
 		>
 			<div className="stagger flex flex-col">
 				<div className="mx-auto flex size-44 items-center justify-center rounded-full bg-white/50 ring-1 ring-matcha/15">

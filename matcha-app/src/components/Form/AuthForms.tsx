@@ -1,11 +1,23 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useState } from "react";
 import { GoogleIcon, Intra42Icon } from "@/components/Brand/ProviderLogos";
 import { Alert } from "@/components/Form/Alert";
-import { ActionButton } from "@/components/Form/Button";
+import { ActionButton, TextLink } from "@/components/Form/Button";
+import {
+	birthDateBounds,
+	EMAIL_MAX,
+	isOldEnough,
+	MINIMUM_AGE,
+	NAME_MAX,
+	NAME_MESSAGE,
+	NAME_PATTERN,
+	USERNAME_MAX,
+	USERNAME_MESSAGE,
+	USERNAME_MIN,
+	USERNAME_PATTERN,
+} from "@/components/Form/constraints";
 import { Notice } from "@/components/Form/Notice";
 import { PasswordField } from "@/components/Form/PasswordField";
 import { TextField } from "@/components/Form/TextField";
@@ -22,8 +34,6 @@ const PROVIDERS = [
 	{ id: "google", name: "Google", Icon: GoogleIcon },
 	{ id: "intra42", name: "Intra 42", Icon: Intra42Icon },
 ] as const;
-
-const MINIMUM_AGE = 18;
 
 const LINK_SENT
 	= "Si cette adresse correspond à un compte, un lien vient d’être envoyé. Il expire dans quinze minutes.";
@@ -45,19 +55,6 @@ function fieldError(state: FormState, field: AuthField) {
 	return state.errors.find((entry) => entry.field === field)?.message;
 }
 
-function isOldEnough(birthDate: string) {
-	const birth = new Date(`${birthDate}T00:00:00Z`);
-	if (Number.isNaN(birth.getTime())) {
-		return false;
-	}
-
-	const limit = new Date();
-	limit.setUTCFullYear(limit.getUTCFullYear() - MINIMUM_AGE);
-	limit.setUTCHours(0, 0, 0, 0);
-
-	return birth <= limit;
-}
-
 function GlobalAlert({ state }: { state: FormState }) {
 	const messages = state.errors
 		.filter((entry) => entry.field === null)
@@ -69,6 +66,34 @@ function GlobalAlert({ state }: { state: FormState }) {
 
 	return <Alert>{messages.join(" ")}</Alert>;
 }
+
+/** Champs communs aux écrans qui demandent une adresse e-mail. */
+const EMAIL_INPUT = {
+	type: "email",
+	autoComplete: "email",
+	inputMode: "email",
+	autoCapitalize: "none",
+	spellCheck: false,
+	maxLength: EMAIL_MAX,
+} as const;
+
+const USERNAME_INPUT = {
+	autoComplete: "username",
+	autoCapitalize: "none",
+	spellCheck: false,
+	minLength: USERNAME_MIN,
+	maxLength: USERNAME_MAX,
+	pattern: USERNAME_PATTERN,
+	patternMessage: USERNAME_MESSAGE,
+} as const;
+
+const NAME_INPUT = {
+	autoCapitalize: "words",
+	spellCheck: false,
+	maxLength: NAME_MAX,
+	pattern: NAME_PATTERN,
+	patternMessage: NAME_MESSAGE,
+} as const;
 
 export function OauthGroup() {
 	const [notice, setNotice] = useState("");
@@ -96,6 +121,7 @@ export function OauthGroup() {
 
 export function SignupForm() {
 	const router = useRouter();
+	const bounds = birthDateBounds();
 
 	const [state, action, pending] = useActionState(
 		async (_previous: FormState, formData: FormData): Promise<FormState> => {
@@ -125,20 +151,21 @@ export function SignupForm() {
 				return { errors: result.errors, values: fields };
 			}
 
-			router.push("/login?created=1");
+			router.push("/verify-email");
 			return CLEAN;
 		},
 		CLEAN,
 	);
 
 	return (
-		<form action={action} className="flex flex-col gap-6">
-			<div className="grid grid-cols-2 gap-3">
+		<form action={action} className="flex flex-col gap-5">
+			<div className="grid grid-cols-1 gap-5 min-[22rem]:grid-cols-2 min-[22rem]:gap-3">
 				<TextField
 					id="firstName"
 					name="first_name"
 					label="Prénom"
 					autoComplete="given-name"
+					{...NAME_INPUT}
 					defaultValue={state.values.first_name}
 					error={fieldError(state, "first_name")}
 				/>
@@ -147,6 +174,7 @@ export function SignupForm() {
 					name="last_name"
 					label="Nom"
 					autoComplete="family-name"
+					{...NAME_INPUT}
 					defaultValue={state.values.last_name}
 					error={fieldError(state, "last_name")}
 				/>
@@ -155,8 +183,8 @@ export function SignupForm() {
 			<TextField
 				id="username"
 				label="Nom d’utilisateur"
-				autoComplete="username"
-				minLength={3}
+				{...USERNAME_INPUT}
+				hint={`De ${USERNAME_MIN} à ${USERNAME_MAX} caractères : lettres, chiffres, point, tiret et tiret bas.`}
 				defaultValue={state.values.username}
 				error={fieldError(state, "username")}
 			/>
@@ -164,8 +192,7 @@ export function SignupForm() {
 			<TextField
 				id="email"
 				label="Adresse e-mail"
-				type="email"
-				autoComplete="email"
+				{...EMAIL_INPUT}
 				hint="Un lien de vérification y sera envoyé."
 				defaultValue={state.values.email}
 				error={fieldError(state, "email")}
@@ -177,6 +204,8 @@ export function SignupForm() {
 				label="Date de naissance"
 				type="date"
 				autoComplete="bday"
+				min={bounds.min}
+				max={bounds.max}
 				hint={`Vous devez avoir ${MINIMUM_AGE} ans ou plus.`}
 				defaultValue={state.values.birth_date}
 				error={fieldError(state, "birth_date")}
@@ -189,12 +218,7 @@ export function SignupForm() {
 
 			<GlobalAlert state={state} />
 
-			<ActionButton
-				type="submit"
-				tone="primary"
-				className="mt-2"
-				disabled={pending}
-			>
+			<ActionButton type="submit" tone="primary" className="mt-1" busy={pending}>
 				{pending ? "Création du compte…" : "Créer mon compte"}
 			</ActionButton>
 		</form>
@@ -229,7 +253,9 @@ export function LoginForm() {
 				id="username"
 				label="Nom d’utilisateur"
 				autoComplete="username"
-				minLength={3}
+				autoCapitalize="none"
+				spellCheck={false}
+				maxLength={USERNAME_MAX}
 				defaultValue={state.values.username}
 				error={fieldError(state, "username")}
 			/>
@@ -245,12 +271,7 @@ export function LoginForm() {
 
 			<GlobalAlert state={state} />
 
-			<ActionButton
-				type="submit"
-				tone="primary"
-				className="mt-1"
-				disabled={pending}
-			>
+			<ActionButton type="submit" tone="primary" className="mt-1" busy={pending}>
 				{pending ? "Connexion…" : "Se connecter"}
 			</ActionButton>
 		</form>
@@ -276,7 +297,7 @@ export function ResendVerificationForm() {
 	}
 
 	return (
-		<form action={action} className="flex flex-col gap-4">
+		<form action={action} className="flex flex-col gap-5">
 			<p className="text-xs text-muted">
 				Indiquez l’adresse du compte pour recevoir un nouveau lien de
 				vérification.
@@ -286,15 +307,14 @@ export function ResendVerificationForm() {
 				id="resendEmail"
 				name="email"
 				label="Adresse e-mail"
-				type="email"
-				autoComplete="email"
+				{...EMAIL_INPUT}
 				defaultValue={state.values.email}
 				error={fieldError(state, "email")}
 			/>
 
 			<GlobalAlert state={state} />
 
-			<ActionButton type="submit" tone="secondary" disabled={pending}>
+			<ActionButton type="submit" tone="secondary" className="mt-1" busy={pending}>
 				{pending ? "Envoi…" : "Renvoyer le lien"}
 			</ActionButton>
 		</form>
@@ -317,11 +337,11 @@ export function ForgotPasswordForm() {
 
 	if (state.sent) {
 		return (
-			<div className="flex flex-col gap-6">
-				<Notice>{LINK_SENT}</Notice>
-				<Link href="/login" className="text-center text-sm text-matcha underline">
+			<div className="flex flex-col items-center gap-4">
+				<Notice className="w-full">{LINK_SENT}</Notice>
+				<TextLink href="/login" className="text-matcha">
 					Retour à la connexion
-				</Link>
+				</TextLink>
 			</div>
 		);
 	}
@@ -331,20 +351,14 @@ export function ForgotPasswordForm() {
 			<TextField
 				id="email"
 				label="Adresse e-mail"
-				type="email"
-				autoComplete="email"
+				{...EMAIL_INPUT}
 				defaultValue={state.values.email}
 				error={fieldError(state, "email")}
 			/>
 
 			<GlobalAlert state={state} />
 
-			<ActionButton
-				type="submit"
-				tone="primary"
-				className="mt-1"
-				disabled={pending}
-			>
+			<ActionButton type="submit" tone="primary" className="mt-1" busy={pending}>
 				{pending ? "Envoi…" : "Envoyer le lien"}
 			</ActionButton>
 		</form>
@@ -370,22 +384,19 @@ export function ResetPasswordForm({ token }: { token: string }) {
 
 	if (token.length === 0) {
 		return (
-			<div className="flex flex-col gap-6">
-				<Alert>
+			<div className="flex flex-col items-center gap-4">
+				<Alert className="w-full">
 					Ce lien est incomplet. Demandez un nouvel e-mail de réinitialisation.
 				</Alert>
-				<Link
-					href="/forgot-password"
-					className="text-center text-sm text-matcha underline"
-				>
+				<TextLink href="/forgot-password" className="text-matcha">
 					Demander un nouveau lien
-				</Link>
+				</TextLink>
 			</div>
 		);
 	}
 
 	return (
-		<form action={action} className="flex flex-col gap-6">
+		<form action={action} className="flex flex-col gap-5">
 			<PasswordField
 				label="Nouveau mot de passe"
 				defaultValue={state.values.password}
@@ -394,12 +405,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
 
 			<GlobalAlert state={state} />
 
-			<ActionButton
-				type="submit"
-				tone="primary"
-				className="mt-1"
-				disabled={pending}
-			>
+			<ActionButton type="submit" tone="primary" className="mt-1" busy={pending}>
 				{pending ? "Enregistrement…" : "Changer mon mot de passe"}
 			</ActionButton>
 		</form>
