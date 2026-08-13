@@ -1,22 +1,9 @@
 const REVIEW_CONFIDENCE = "8.0";
 const NEUTRAL_SCORE = "3.0";
-
-/**
- * Age calendaire : la difference des dates compactees YYYYMMDD, divisee par
- * 10000, ne bascule que le jour anniversaire. Un ecart en jours rapporte a
- * 365.25 se decale d'un an autour de l'anniversaire et contredit alors le
- * filtre d'age de la decouverte, lui aussi calendaire.
- */
 export function ageYears(birthDateColumn: string): string {
 	return `(CAST(strftime('%Y%m%d','now') AS INT)
 		- CAST(strftime('%Y%m%d', ${birthDateColumn}) AS INT)) / 10000`;
 }
-
-/**
- * Les vues sont sans etat : chaque entree se recree entierement pour que la
- * base suive la definition du code, un CREATE ... IF NOT EXISTS seul laissant
- * une ancienne definition en place indefiniment.
- */
 export const VIEWS: readonly string[] = [
 	`DROP VIEW IF EXISTS user_popularity;
 	CREATE VIEW user_popularity AS

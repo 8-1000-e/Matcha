@@ -47,12 +47,6 @@ function Chevron({ open }: { open: boolean }) {
 		</svg>
 	);
 }
-
-/**
- * Derniere etape : la fiche prend toute la place et les corrections se font
- * sur place. Renvoyer vers les etapes ferait perdre de vue le rendu, qui est
- * justement ce qu'on vient verifier.
- */
 export function ReviewStep({
 	steps,
 	profile,
@@ -61,9 +55,6 @@ export function ReviewStep({
 	pending,
 }: ReviewProps) {
 	const [open, setOpen] = useState<string | null>(null);
-
-	// On peut vider une section depuis la relecture : sans ce garde-fou, /me
-	// renverrait aussitot ici sans dire pourquoi.
 	const missing = profile.missing.map((key) => LABELS[key] ?? key);
 
 	return (

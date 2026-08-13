@@ -249,10 +249,6 @@ export function validateLocation(body: unknown): Validated<LocationInput>
 	{
 		return { ok: false, errors: ["coordinates are invalid"] };
 	}
-
-	// Les coordonnees seules viennent du navigateur : c'est un partage de
-	// position. Accompagnees d'un nom, elles viennent d'une suggestion choisie
-	// dans la liste, donc pas de consentement de geolocalisation a enregistrer.
 	if (point !== null && body.city === undefined)
 	{
 		return { ok: true, value: { mode: "gps", ...point } };
@@ -301,8 +297,6 @@ function readPoint(
 	}
 	return { latitude, longitude };
 }
-
-/** Renvoie null si ce n'est pas un nom exploitable, "" si le nom est vide. */
 function readPlaceName(value: unknown): string | null
 {
 	if (typeof value !== "string")

@@ -41,10 +41,6 @@ export async function POST(request: Request)
 	{
 		return Response.json({ errors: [PASSWORD_MESSAGES[passwordError]] }, { status: 400 });
 	}
-
-	// Le hachage (~200 ms) est fait avant la transaction : consomme en premier,
-	// le jeton serait brule sans que le mot de passe change si le hachage
-	// echouait. Consommation et ecriture reussissent ou echouent ensemble.
 	const passwordHash = await hashPassword(password);
 
 	const applied = transaction(() => {

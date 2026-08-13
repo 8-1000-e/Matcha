@@ -37,9 +37,6 @@ async function sendVerification(
 		 <p>This link expires in ${Math.round(EMAIL_TTL / 60)} minutes.</p>`,
 	);
 }
-
-// Lire son propre profil reste ouvert a un compte non verifie : la page de
-// completion en a besoin pour savoir qu'elle doit rediriger vers /verify-email.
 export async function GET()
 {
 	const session = await requireAnySession();

@@ -1,9 +1,3 @@
-// Templates des e-mails transactionnels.
-//
-// Contraintes propres à l'e-mail : tableaux HTML (pas de flex ni de grid),
-// styles inline uniquement (les <style> sont souvent retirés), 600px de large,
-// aucune image distante (la plupart des clients les bloquent par défaut).
-
 const CREAM = "#f4f8ee";
 const LEAF = "#d7e8bf";
 const MATCHA = "#4c7a2f";
@@ -21,8 +15,6 @@ const ESCAPES: Record<string, string> = {
 	'"': "&quot;",
 	"'": "&#39;",
 };
-
-// Le username vient de l'utilisateur : sans échappement, c'est une injection HTML.
 export function escapeHtml(value: string): string
 {
 	return value.replace(/[&<>"']/g, (character) => ESCAPES[character] ?? character);
@@ -46,8 +38,6 @@ type Section = {
 
 function button(label: string, link: string): string
 {
-	// Un bouton = une cellule de tableau : les <button> et les paddings sur <a>
-	// ne survivent pas à Outlook.
 	return `<table role="presentation" border="0" cellpadding="0" cellspacing="0" style="border-collapse:separate;">
 			<tr>
 				<td align="center" bgcolor="${MATCHA}" style="border-radius:999px;">

@@ -3,11 +3,6 @@ import type { ComponentProps, ReactNode } from "react";
 
 const ACTION =
 	"inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl px-5 py-3 text-center text-base font-medium transition-colors duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-60";
-
-/**
- * En attente le libellé reste une information utile : on garde le contraste
- * plein plutôt que de l’estomper comme un vrai bouton désactivé.
- */
 const BUSY = "cursor-progress disabled:opacity-100";
 
 const TONES = {
@@ -74,8 +69,6 @@ export function ActionButton({
 		</button>
 	);
 }
-
-/** Lien texte discret, dimensionné pour rester touchable au doigt. */
 export function TextLink({
 	className,
 	children,

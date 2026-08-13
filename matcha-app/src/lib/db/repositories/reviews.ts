@@ -37,8 +37,6 @@ export function upsertReview(values: ReviewInsert): ReviewRow {
 			if (updated === undefined) {
 				throw new DatabaseError("review_update_failed");
 			}
-			// RETURNING capture la ligne avant les triggers AFTER : il faut la
-			// relire pour obtenir l'updated_at pose par reviews_touch_before_update.
 			const refreshed = reviews.findById(existing.id);
 			if (refreshed === undefined) {
 				throw new DatabaseError("review_update_failed");

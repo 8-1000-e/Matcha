@@ -87,11 +87,6 @@ export function findUsableRefreshToken(
 		expires_at: gt(nowIso()),
 	});
 }
-
-// Contrairement a findUsableRefreshToken, ne filtre ni sur revoked_at ni sur
-// expires_at : c'est la lecture qui permet de dater une revocation (revoked_at
-// est un ISO 8601 UTC, cf. nowIso) et donc de distinguer une course entre deux
-// refresh simultanes d'un vrai rejeu.
 export function findRefreshTokenByHash(
 	tokenHash: string,
 ): RefreshTokenRow | undefined {

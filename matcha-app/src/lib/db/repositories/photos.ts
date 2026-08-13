@@ -26,8 +26,6 @@ export function findProfilePhoto(userId: string): PhotoRow | undefined {
 export function hasProfilePhoto(userId: string): boolean {
 	return photos.exists({ user_id: userId, is_profile: 1 });
 }
-
-/** Retourne null quand la limite de photos est atteinte. */
 export function addPhoto(userId: string, path: string): PhotoRow | null {
 	try {
 		return transaction(() => {
@@ -52,8 +50,6 @@ export function addPhoto(userId: string, path: string): PhotoRow | null {
 			});
 		});
 	} catch (error) {
-		// Le trigger photos_limit_before_insert rattrape les insertions
-		// concurrentes : c'est un refus metier, pas une panne.
 		if (
 			error instanceof ConstraintError
 			&& error.message.includes("photo_limit_reached")
@@ -63,8 +59,6 @@ export function addPhoto(userId: string, path: string): PhotoRow | null {
 		throw error;
 	}
 }
-
-/** Retourne null quand la photo n'appartient pas a l'utilisateur. */
 export function setProfilePhoto(
 	userId: string,
 	photoId: string,
@@ -118,8 +112,6 @@ export function removePhoto(userId: string, photoId: string): boolean {
 		return true;
 	});
 }
-
-/** Retourne null quand l'ordre recu ne correspond pas aux photos possedees. */
 export function reorderPhotos(
 	userId: string,
 	orderedIds: string[],

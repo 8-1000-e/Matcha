@@ -20,7 +20,7 @@ type Step = {
 	title: string;
 	intro: string;
 	Body: (props: StepProps) => React.ReactNode;
-	/** Reste affichee apres l'enregistrement, pour laisser verifier le resultat. */
+	
 	hold?: true;
 };
 
@@ -76,23 +76,15 @@ export function CompleteProfilePage({ initial }: { initial: Profile }) {
 	const [profile, setProfile] = useState(initial);
 	const [index, setIndex] = useState(() => firstMissing(initial.missing));
 	const [leaving, startLeaving] = useTransition();
-	// Une etape enregistre puis demande a avancer dans la foulee : `profile` vaut
-	// encore l'ancien profil a cet instant, la reference porte le dernier connu.
 	const saved = useRef(initial);
 
 	const reviewing = index === REVIEW;
 	const step = reviewing ? null : STEPS[index];
-	// Une balise JSX exige un identifiant capitalise : on ne peut pas ecrire
-	// <step.Body /> directement.
 	const StepBody = step?.Body;
 
 	function handleSaved(next: Profile) {
 		saved.current = next;
 		setProfile(next);
-
-		// On avance vers ce qui manque encore, ou vers la relecture si tout est
-		// rempli. On ne quitte jamais la page tout seul : la derniere etape
-		// existe justement pour laisser corriger avant de valider.
 		if (step && !step.hold && !next.missing.includes(step.key))
 		{
 			setIndex(firstMissing(next.missing));
@@ -122,9 +114,6 @@ export function CompleteProfilePage({ initial }: { initial: Profile }) {
 				) : null
 			}
 		>
-			{/* A la relecture, l'apercu n'est plus un a-cote : il devient la page.
-			    Plus de barre d'etapes ni de colonne laterale, les corrections se
-			    font sous la fiche. */}
 			{reviewing ? (
 				<div className="mx-auto w-full max-w-lg">
 					<h1 className="text-center text-xl font-semibold tracking-tight">

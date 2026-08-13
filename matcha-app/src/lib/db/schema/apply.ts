@@ -4,20 +4,6 @@ import { TABLES } from "./tables";
 import { TAG_LABELS } from "./tags";
 import { TRIGGERS } from "./triggers";
 import { VIEWS } from "./views";
-
-/**
- * A incrementer des qu'une table, un index ou un declencheur est ajoute :
- * sans ca, les bases deja creees gardent leur ancien schema et l'objet neuf
- * n'apparait jamais. Toutes les instructions etant en IF NOT EXISTS, les
- * rejouer sur une base remplie ne detruit rien.
- *
- * Les vues font exception : chacune est precedee de son DROP, donc rejouer le
- * schema suffit a les remettre a niveau. Une modification de vue reste
- * invisible tant que la version ne change pas, d'ou l'increment ci-dessous.
- *
- * 2 — table cities (referentiel GeoNames)
- * 3 — age calendaire dans la vue user_profiles
- */
 export const SCHEMA_VERSION = 3;
 
 function seedTags(database: Database.Database): void {

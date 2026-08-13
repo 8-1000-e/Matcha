@@ -48,8 +48,6 @@ export async function POST(request: Request)
 		}
 		throw error;
 	}
-
-
 	const verification = createEmailToken();
 	issueEmailToken({
 		user_id: user.id,
@@ -60,14 +58,7 @@ export async function POST(request: Request)
 
 	const link = `${process.env.APP_URL}/api/auth/verify?token=${verification.token}`;
 	const mail = verifyEmailMail({ username: user.username, link, ttlSeconds: EMAIL_TTL });
-	// Le compte reste cree meme si le SMTP est injoignable, mais le front doit
-	// savoir qu'aucun lien n'est parti pour proposer un renvoi plutot que de
-	// laisser l'utilisateur attendre un mail qui n'arrivera jamais. Pas d'oracle
-	// ici : /register expose deja l'existence d'un compte via son 409.
 	const verificationEmailSent = await sendMail(result.value.email, mail.subject, mail.html, mail.text);
-
-	// L'inscription ouvre la session : redemander les identifiants juste apres
-	// les avoir choisis n'a aucun interet.
 	await setAuthCookies(user.id);
 
 	return Response.json(

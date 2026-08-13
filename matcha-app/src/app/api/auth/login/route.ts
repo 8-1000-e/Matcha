@@ -3,14 +3,7 @@ import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { setAuthCookies } from "@/lib/auth/session";
 import { findUserByUsername, purgeIfDue } from "@/lib/db";
 import { readJsonBody } from "@/lib/http/body";
-
-// Hash bcrypt d'un secret aleatoire jamais conserve : il ne peut correspondre
-// a aucun mot de passe. Le comparer quand le pseudo est inconnu fait payer le
-// meme cout bcrypt (~250 ms) que pour un compte existant, sinon le temps de
-// reponse suffit a enumerer les pseudos. Calcule une seule fois au chargement.
 const DECOY_HASH = hashPassword(randomBytes(32).toString("base64url"));
-// Sans ce handler, un rejet survenant avant la premiere requete remonterait en
-// unhandledRejection ; le `await` plus bas le verra quand meme.
 DECOY_HASH.catch(() => undefined);
 
 export async function POST(request: Request)
@@ -53,5 +46,4 @@ export async function POST(request: Request)
 			is_verified: user.is_verified === 1,
 		},
 	});
-
 }

@@ -5,7 +5,7 @@ import type { Profile } from "@/lib/profile/client";
 export type StepProps = {
 	profile: Profile;
 	onSaved: (profile: Profile) => void;
-	/** Pour les etapes qui enregistrent sans avancer d'elles-memes. */
+	
 	onNext: () => void;
 };
 

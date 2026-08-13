@@ -1,12 +1,3 @@
-/**
- * Charge le referentiel GeoNames (cities500) dans la table `cities`.
- *
- *   npm run db:seed:cities
- *
- * Les archives ne sont pas versionnees : elles sont telechargees a la demande
- * dans data/geonames/, ignore par git. La base non plus n'est pas versionnee,
- * donc chaque poste rejoue ce script une fois.
- */
 import { createWriteStream } from "node:fs";
 import { mkdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
@@ -17,8 +8,6 @@ import { applySchema } from "../src/lib/db/schema/apply";
 const BASE = "https://download.geonames.org/export/dump";
 const CACHE = join(process.cwd(), "data", "geonames");
 const DATABASE = process.env.DATABASE_PATH ?? join(process.cwd(), "matcha.db");
-
-// Seuls les lieux habites nous interessent, pas les batiments ni les reliefs.
 const PLACE_CLASS = "P";
 
 async function download(name: string)
@@ -32,7 +21,6 @@ async function download(name: string)
 	}
 	catch
 	{
-		// pas encore telecharge
 	}
 
 	console.log(`telechargement de ${name}...`);
@@ -47,8 +35,6 @@ async function download(name: string)
 
 async function unzip(zipPath: string, entry: string)
 {
-	// L'archive .zip de GeoNames ne contient qu'un fichier : on passe par
-	// unzip plutot que d'embarquer une dependance pour ca.
 	const { execFile } = await import("node:child_process");
 	const { promisify } = await import("node:util");
 	await promisify(execFile)("unzip", ["-o", "-q", zipPath, "-d", CACHE]);
@@ -98,8 +84,6 @@ async function main()
 
 	const database = new Database(DATABASE);
 	database.pragma("journal_mode = WAL");
-	// Le schema vient du meme endroit que l'application : pas de DDL duplique
-	// ici, donc pas de derive possible entre les deux.
 	applySchema(database);
 	database.exec("DELETE FROM cities");
 

@@ -27,9 +27,6 @@ export function LocationStep({ profile, onSaved, onNext }: StepProps) {
 	const [notice, setNotice] = useState("");
 	const [errors, setErrors] = useState<AuthError[]>([]);
 	const [pending, startSaving] = useTransition();
-	// L'acquisition GPS peut durer une vingtaine de secondes, bien avant que la
-	// transition d'enregistrement ne demarre : sans cet etat, le bouton reste
-	// inerte et l'utilisateur relance la demande.
 	const [locating, setLocating] = useState(false);
 
 	function save(fields: Parameters<typeof saveLocation>[0]) {
@@ -138,16 +135,12 @@ export function LocationStep({ profile, onSaved, onNext }: StepProps) {
 			</div>
 
 			<CityPicker
-				// Le champ suit la ville enregistree quand le geocodage en renvoie
-				// une autre, sinon il garderait la valeur precedente.
 				key={profile.city ?? "none"}
 				defaultValue={profile.city ?? ""}
 				error={fieldError(errors, "city")}
 				onPick={pick}
 			/>
 
-			{/* L'etape enregistre des qu'une position est choisie : ce bouton ne
-			    sauvegarde rien, il sert a passer a la suite une fois verifie. */}
 			<ActionButton
 				type="button"
 				tone="primary"

@@ -9,12 +9,7 @@ import {
 	transaction,
 	users,
 } from "@/lib/db";
-// Non reexporte par @/lib/db (fichier hors perimetre de cette correction).
 import { findRefreshTokenByHash } from "@/lib/db/repositories/tokens";
-
-// Deux onglets dont le cookie `access` expire en meme temps envoient deux
-// refresh portant le meme jeton. Le perdant ne doit pas etre pris pour un vol :
-// en dessous de cette fenetre, on considere que c'est le meme client qui rejoue.
 const RETRY_WINDOW_MS = 30_000;
 
 type Outcome =
@@ -34,10 +29,6 @@ export async function POST()
 	}
 
 	const hash = hashToken(cookie);
-
-	// Lecture et revocation dans la meme transaction, et revokeRefreshToken qui
-	// renvoie false vaut "quelqu'un d'autre a gagne la course" : sans cela deux
-	// refresh concurrents passent tous les deux.
 	const outcome = transaction<Outcome>(() => {
 		const usable = findUsableRefreshToken(hash);
 		if (usable && revokeRefreshToken(usable.token_hash))
@@ -55,16 +46,11 @@ export async function POST()
 		{
 			return { kind: "raced" };
 		}
-		// Jeton revoque de longue date ou perime : soit un rejeu par erreur,
-		// soit un vol avant que le client legitime ne le renouvelle. On coupe
-		// toutes les sessions plutot que de laisser tourner celle du voleur.
 		return { kind: "replayed", userId: known.user_id };
 	});
 
 	if (outcome.kind === "raced")
 	{
-		// La requete gagnante a deja pose les nouveaux cookies : le client n'a
-		// qu'a rejouer. Ni revocation de la famille, ni effacement des cookies.
 		return Response.json({ errors: ["refresh_retry"] }, { status: 401 });
 	}
 

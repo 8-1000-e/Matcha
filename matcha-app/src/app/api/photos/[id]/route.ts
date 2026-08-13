@@ -20,8 +20,6 @@ export async function GET(_request: Request, context: Context)
 	{
 		return Response.json({ errors: ["photo not found"] }, { status: 404 });
 	}
-
-	// 404 et non 403 : un blocage ne doit pas confirmer l'existence de la photo.
 	if (
 		photo.user_id !== session.user.id
 		&& isBlockedEitherWay(session.user.id, photo.user_id)

@@ -66,11 +66,6 @@ export function StepProgress({
 				{steps.map((step, position) => {
 					const filled = !missing.includes(step.key);
 					const current = position === index;
-
-					// Le ton depend d'abord de la position : l'etape courante est la plus
-					// foncee, ce qui est derriere reste franc, ce qui reste a faire
-					// s'efface. Sans ca, revenir en arriere ne changeait rien puisque
-					// les etapes deja remplies gardaient toutes la meme couleur.
 					const tone = current
 						? "bg-matcha-dark"
 						: position < index

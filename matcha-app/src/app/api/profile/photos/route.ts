@@ -9,9 +9,6 @@ import {
 	STORED_EXTENSION,
 	writePhotoFile,
 } from "@/lib/profile/storage";
-
-// Marge laissee a l'enveloppe multipart (frontieres et en-tetes de partie)
-// pour qu'un fichier pesant exactement MAX_PHOTO_BYTES reste acceptable.
 const MAX_BODY_BYTES = MAX_PHOTO_BYTES + 8 * 1024;
 
 type BodyRead =
@@ -22,9 +19,6 @@ function tooLarge(): Response
 {
 	return Response.json({ errors: ["photo is too large"] }, { status: 413 });
 }
-
-// Le corps est lu par morceaux et la lecture est interrompue des le
-// depassement : un corps enorme n'est jamais mis en memoire en entier.
 async function readBoundedBody(request: Request): Promise<BodyRead>
 {
 	if (!request.body)

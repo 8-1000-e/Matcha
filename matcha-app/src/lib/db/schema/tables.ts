@@ -142,8 +142,6 @@ export const TABLES: readonly string[] = [
 		read_at TEXT,
 		CHECK (actor_id IS NULL OR actor_id <> recipient_id)
 	) STRICT`,
-	// Referentiel GeoNames (cities500). Alimente par `npm run db:seed:cities`,
-	// jamais par l'application : aucune cle etrangere ne pointe dessus.
 	`CREATE TABLE IF NOT EXISTS cities (
 		id INTEGER PRIMARY KEY,
 		name TEXT NOT NULL,

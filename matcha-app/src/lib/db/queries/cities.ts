@@ -11,8 +11,6 @@ export interface CityRow {
 	longitude: number;
 	population: number;
 }
-
-/** Retire les accents et la casse, comme la colonne search_name a l'insertion. */
 export function foldCity(value: string): string {
 	return value
 		.normalize("NFD")
@@ -24,13 +22,6 @@ export function foldCity(value: string): string {
 const MAX_CODE_POINT = 0x10ffff;
 const FIRST_SURROGATE = 0xd800;
 const AFTER_SURROGATES = 0xe000;
-
-/**
- * Borne haute exclusive du prefixe : le dernier point de code est incremente,
- * ce qui couvre tous les suffixes possibles. Un caractere deja au maximum ne
- * peut pas l'etre, on remonte alors d'un cran ; un prefixe entierement au
- * maximum n'a pas de borne haute.
- */
 function prefixUpperBound(prefix: string): string | undefined {
 	const points = [...prefix];
 	for (let index = points.length - 1; index >= 0; index -= 1) {
@@ -42,16 +33,6 @@ function prefixUpperBound(prefix: string): string | undefined {
 	}
 	return undefined;
 }
-
-/**
- * Le referentiel GeoNames est local, donc la recherche a la frappe ne depend
- * ni du reseau ni d'un quota externe. On classe par population : sur un
- * prefixe court, ce sont les grandes villes qui sont attendues en premier.
- *
- * search_name est deja replie a l'insertion : une comparaison de plage vaut
- * un LIKE de prefixe et, elle, utilise l'index cities_search — un LIKE force
- * un balayage complet des 235 000 lignes a chaque frappe.
- */
 export function searchCities(query: string, limit = 8): CityRow[] {
 	const folded = foldCity(query);
 	if (folded.length < 2) {

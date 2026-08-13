@@ -17,10 +17,6 @@ export async function GET(request: Request)
 	const tokenFound = findUsableEmailToken(hashToken(token), "email_verification");
 	if (!tokenFound)
 	{return expired();}
-
-	// Consommation et passage de is_verified dans la meme transaction : sinon un
-	// echec entre les deux brule le lien sans verifier le compte, et l'utilisateur
-	// n'a plus qu'a en redemander un.
 	const verified = transaction(() => {
 		if (!consumeEmailToken(tokenFound.id))
 		{

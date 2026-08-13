@@ -21,26 +21,13 @@ type CityPickerProps = {
 	error?: string;
 	onPick: (place: Place) => void;
 };
-
-/**
- * Combobox plutot qu'un vrai menu deroulant : le referentiel compte 235 000
- * villes, on filtre donc a la frappe cote serveur. Le clavier est gere a la
- * main (aucune librairie n'est autorisee par le sujet).
- */
 export function CityPicker({ defaultValue = "", error, onPick }: CityPickerProps) {
 	const id = useId();
 	const [query, setQuery] = useState(defaultValue);
 	const [open, setOpen] = useState(false);
 	const [active, setActive] = useState(-1);
-	// La valeur initiale est la ville deja enregistree : tant que l'utilisateur
-	// n'a rien tape, aucun message de recherche n'a de sens.
 	const [typed, setTyped] = useState(false);
-	// Le champ affiche le libelle complet de la ville choisie (« Paris ·
-	// Batignolles »), qui ne correspond a aucune recherche : tant qu'il n'a pas
-	// ete modifie, il n'y a rien a chercher.
 	const [chosen, setChosen] = useState(defaultValue);
-	// Le resultat porte la recherche qui l'a produit : des que la saisie change,
-	// il cesse de correspondre et disparait, sans avoir a le vider a la main.
 	const [result, setResult] = useState<{
 		query: string;
 		places: Place[];
@@ -50,7 +37,7 @@ export function CityPicker({ defaultValue = "", error, onPick }: CityPickerProps
 		places: [],
 		failed: false,
 	});
-	// Une reponse lente ne doit pas ecraser le resultat d'une frappe plus recente.
+	
 	const latest = useRef(0);
 	const field = useRef<HTMLInputElement>(null);
 	const [dropUp, setDropUp] = useState(false);
@@ -86,10 +73,6 @@ export function CityPicker({ defaultValue = "", error, onPick }: CityPickerProps
 
 		return () => clearTimeout(timer);
 	}, [query, chosen]);
-
-	// Le champ est le dernier de l'etape : sans ca, la liste deroulerait sous le
-	// bas de la fenetre. Mesure a l'evenement plutot que dans un effet, pour ne
-	// pas declencher un rendu de plus a chaque ouverture.
 	function updateDirection() {
 		const box = field.current?.getBoundingClientRect();
 		if (!box) {
@@ -167,8 +150,6 @@ export function CityPicker({ defaultValue = "", error, onPick }: CityPickerProps
 					setOpen(true);
 					updateDirection();
 				}}
-				// Le clic sur une option passe par onMouseDown, donc le focus perdu
-				// ici arrive apres le choix : fermer est sans risque.
 				onBlur={() => setOpen(false)}
 				onKeyDown={handleKey}
 				className="mt-2 block min-h-12 w-full min-w-0 rounded-xl border border-edge bg-white/70 px-4 py-3 text-base transition-colors duration-200 ease-out hover:border-matcha/60 focus-visible:border-matcha aria-invalid:border-red-700 aria-invalid:bg-red-50/60"

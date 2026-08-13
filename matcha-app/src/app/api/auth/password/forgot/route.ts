@@ -27,11 +27,6 @@ export async function POST(request: Request)
 	}
 
 	const user = findUserByEmail(email.trim().toLowerCase());
-
-	// Emission du jeton et envoi SMTP apres la reponse : sinon l'adresse connue
-	// repond en centaines de ms la ou l'inconnue repond tout de suite, et ce
-	// delai suffit a enumerer les comptes. Un echec d'envoi ne doit pour la
-	// meme raison rien changer a la reponse : on se contente de le journaliser.
 	if (user)
 	{
 		after(async () => {

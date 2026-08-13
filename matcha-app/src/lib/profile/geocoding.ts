@@ -253,9 +253,6 @@ export async function forwardGeocode(
 	query: string,
 ): Promise<(Place & Point) | null>
 {
-	// Le referentiel local repond en premier : une ville saisie a la main a
-	// ainsi toujours ses coordonnees, meme si les geocodeurs sont injoignables.
-	// Sans coordonnees l'utilisateur sortirait du tri par proximite.
 	const exact = searchCities(query, 1).find(
 		(row) => foldCity(row.name) === foldCity(query),
 	);
@@ -291,13 +288,6 @@ export interface Suggestion extends Point {
 const PHOTON_REGION = ["state", "county"];
 const PHOTON_COUNTRY = ["country"];
 const SUGGESTION_LIMIT = 6;
-
-/**
- * Suggestions pour la saisie manuelle. Les villes viennent du referentiel
- * GeoNames charge en base : 235 000 entrees, donc pas de requete reseau ni de
- * quota externe sur une recherche a la frappe. Photon ne sert plus qu'a
- * completer avec les quartiers, que GeoNames ne couvre pas.
- */
 export async function searchPlaces(query: string): Promise<Suggestion[]>
 {
 	const trimmed = query.trim();
@@ -321,8 +311,6 @@ export async function searchPlaces(query: string): Promise<Suggestion[]>
 
 	for (const entry of remote)
 	{
-		// Un resultat Photon n'a d'interet que s'il descend sous la ville : les
-		// villes seules, on les a deja, et en plus fiable.
 		if (entry.neighborhood === null)
 		{
 			continue;

@@ -66,8 +66,6 @@ function GlobalAlert({ state }: { state: FormState }) {
 
 	return <Alert>{messages.join(" ")}</Alert>;
 }
-
-/** Champs communs aux écrans qui demandent une adresse e-mail. */
 const EMAIL_INPUT = {
 	type: "email",
 	autoComplete: "email",

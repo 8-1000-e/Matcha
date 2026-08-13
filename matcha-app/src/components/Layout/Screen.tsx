@@ -11,7 +11,7 @@ type ScreenProps = {
 	footer: ReactNode;
 	center?: boolean;
 	centerTop?: boolean;
-	/** Les ecrans a deux colonnes ont besoin de plus que les 384px par defaut. */
+	
 	width?: "narrow" | "wide";
 };
 
@@ -62,7 +62,6 @@ export function Screen({
 }
 
 type PrivateScreenProps = {
-	/** Omis quand la page place son titre elle-meme, dans une colonne. */
 	title?: string;
 	intro?: string;
 	children: ReactNode;

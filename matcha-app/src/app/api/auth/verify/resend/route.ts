@@ -27,11 +27,6 @@ export async function POST(request: Request)
 	}
 
 	const user = findUserByEmail(email.trim().toLowerCase());
-
-	// Emission du jeton et envoi SMTP apres la reponse : sinon l'adresse a
-	// verifier repond en centaines de ms la ou l'adresse inconnue (ou deja
-	// verifiee) repond tout de suite, et ce delai suffit a enumerer les
-	// comptes. Un echec d'envoi est journalise, jamais reporte au client.
 	if (user && user.is_verified !== 1)
 	{
 		after(async () => {

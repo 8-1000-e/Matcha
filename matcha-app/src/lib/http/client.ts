@@ -40,9 +40,6 @@ function readCode(payload: unknown): string | undefined {
 }
 
 const REFRESH_PATH = "/api/auth/refresh";
-
-// Un 401 ne veut pas dire que la session a expire : la connexion en renvoie un
-// sur un mot de passe faux. Seules ces erreurs-la valent un renouvellement.
 const RETRY_ERROR = "refresh_retry";
 
 const SESSION_ERRORS = new Set([
@@ -50,11 +47,6 @@ const SESSION_ERRORS = new Set([
 	"invalid session",
 	"refresh token is required",
 ]);
-
-/**
- * Un FormData deja passe a fetch n'est pas rejouable tel quel : on en refait un
- * a chaque tentative. Les autres corps (chaines JSON) le sont.
- */
 function replayable(body: RequestInit["body"]) {
 	if (!(body instanceof FormData)) {
 		return () => body;
@@ -93,10 +85,6 @@ function expired(response: Response, payload: unknown): boolean {
 		)
 	);
 }
-
-// Plusieurs enregistrements peuvent echouer en meme temps : ils attendent tous
-// le meme renouvellement au lieu d'en lancer un chacun, ce qui revoquerait le
-// jeton des autres.
 let renewal: Promise<boolean> | null = null;
 
 function renew(): Promise<boolean> {
@@ -109,10 +97,6 @@ function renew(): Promise<boolean> {
 			if (response.ok) {
 				return true;
 			}
-			// Deux onglets qui renouvellent en meme temps : le perdant presente un
-			// jeton que le gagnant vient de faire tourner. Les nouveaux cookies
-			// sont deja poses, il suffit de rejouer — ce n'est pas une session
-			// perdue.
 			return await carriesRetry(response);
 		})
 		.catch(() => false)
@@ -149,14 +133,8 @@ export async function request<T>(
 	}
 
 	let payload = await readPayload(response);
-
-	// Aucune route /api/* n'est couverte par le proxy : au bout de quinze
-	// minutes le jeton d'acces tombe et la saisie en cours serait perdue. On
-	// renouvelle une seule fois, puis on rejoue la requete.
 	if (path !== REFRESH_PATH && expired(response, payload)) {
 		if (!(await renew())) {
-			// Rechargement complet plutot qu'un router : ce module n'est pas un
-			// composant, et la session perdue doit aussi vider le cache client.
 			window.location.replace("/login");
 			return { ok: false, errors: readErrors(payload), code: readCode(payload) };
 		}

@@ -61,9 +61,6 @@ export interface Place {
 }
 
 export type PlacesResult = ApiResult<{ places: Place[] }>;
-
-// L'echec remonte tel quel : une ville introuvable et une recherche impossible
-// ne se disent pas pareil a l'utilisateur.
 export function searchPlaces(query: string): Promise<PlacesResult> {
 	return request<{ places: Place[] }>(
 		`/api/profile/location/search?q=${encodeURIComponent(query)}`,

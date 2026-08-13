@@ -1,14 +1,3 @@
-/**
- * Contraintes de saisie partagées par tous les formulaires.
- *
- * Elles reflètent volontairement les règles appliquées par le back
- * (src/lib/auth/validation.ts et src/lib/auth/passwordPolicy.ts).
- * Ce module ne peut pas importer ces fichiers : ils lisent le disque au
- * chargement et ne sont donc pas embarquables côté client. Toute
- * modification du back doit être répercutée ici, et nulle part ailleurs
- * dans les composants.
- */
-
 export const USERNAME_MIN = 3;
 export const USERNAME_MAX = 32;
 export const USERNAME_PATTERN = "[A-Za-z0-9._-]+";
@@ -35,8 +24,6 @@ function shiftYears(years: number) {
 	date.setUTCFullYear(date.getUTCFullYear() - years);
 	return date.toISOString().slice(0, 10);
 }
-
-/** Bornes ISO acceptées par le champ « date de naissance ». */
 export function birthDateBounds() {
 	return { min: shiftYears(MAXIMUM_AGE), max: shiftYears(MINIMUM_AGE) };
 }

@@ -13,11 +13,7 @@ import {
 import { Errors, type StepProps } from "./StepBase";
 
 const MAXIMUM = 5;
-/**
- * Largeur d'un emplacement, marges comprises. Les voisines sont reduites a
- * SIDE_SCALE, ce qui les fait tenir entierement dans la colonne au lieu d'etre
- * coupees par ses bords.
- */
+
 const SLIDE_PX = 160;
 const SIDE_SCALE = "scale-[0.78]";
 
@@ -43,9 +39,6 @@ export function PhotosStep({ profile, onSaved, onNext }: StepProps) {
 	const input = useRef<HTMLInputElement>(null);
 	const [errors, setErrors] = useState<AuthError[]>([]);
 	const [pending, startTransition] = useTransition();
-	// Compteur non borne : depasser les extremites est ce qui permet d'animer le
-	// passage de la derniere photo a la premiere. Il revient dans l'intervalle
-	// une fois l'animation terminee.
 	const [slide, setSlide] = useState(0);
 	const [sliding, setSliding] = useState(true);
 
@@ -68,9 +61,6 @@ export function PhotosStep({ profile, onSaved, onNext }: StepProps) {
 			input.current.value = "";
 		}
 		if (file) {
-			// La nouvelle photo arrive en fin de galerie : on s'y deplace une fois
-			// l'envoi accepte, sinon le carrousel bougerait pour rien pendant que
-			// l'erreur s'affiche.
 			const added = profile.photos.length;
 			run(() => addPhoto(file), () => setSlide(added));
 		}
@@ -78,15 +68,8 @@ export function PhotosStep({ profile, onSaved, onNext }: StepProps) {
 
 	const photos = profile.photos;
 	const count = photos.length;
-	// Une suppression peut laisser l'index hors limites : il est ramene au rendu
-	// plutot que corrige dans un effet, qui rendrait deux fois.
 	const current = count === 0 ? 0 : modulo(slide, count);
 	const photo = photos[current];
-
-	// A partir de trois photos, la galerie est rendue en trois exemplaires et
-	// centree sur celui du milieu : il y a toujours une voisine de chaque cote, y
-	// compris aux extremites. En dessous, la boucle afficherait la meme photo
-	// deux fois a l'ecran, donc la piste s'arrete a ses bords.
 	const looping = count > 2;
 	const strip = looping ? [...photos, ...photos, ...photos] : photos;
 	const position = looping ? count + slide : current;
@@ -98,12 +81,6 @@ export function PhotosStep({ profile, onSaved, onNext }: StepProps) {
 				: Math.min(Math.max(current + step, 0), count - 1),
 		);
 	}
-
-	/**
-	 * Une fois l'animation finie, le compteur revient dans l'intervalle et la
-	 * piste saute d'un exemplaire a l'autre. Le saut se fait sans transition,
-	 * donc a l'ecran rien ne bouge ; la frame suivante la reactive.
-	 */
 	function settle() {
 		const normalized = modulo(slide, count);
 		if (normalized !== slide) {
@@ -128,9 +105,6 @@ export function PhotosStep({ profile, onSaved, onNext }: StepProps) {
 				<div className="flex flex-col gap-3">
 					<div className="relative">
 						<div className="overflow-hidden">
-							{/* left-1/2 se calcule sur le conteneur, contrairement a un
-							    pourcentage de translation qui porterait sur la piste
-							    elle-meme : c'est lui qui centre la photo courante. */}
 							<div
 								onTransitionEnd={settle}
 								className={`relative left-1/2 flex ${
