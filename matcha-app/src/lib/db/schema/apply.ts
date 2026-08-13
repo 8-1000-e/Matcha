@@ -4,7 +4,7 @@ import { TABLES } from "./tables";
 import { TAG_LABELS } from "./tags";
 import { TRIGGERS } from "./triggers";
 import { VIEWS } from "./views";
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 function seedTags(database: Database.Database): void {
 	const insert = database.prepare(

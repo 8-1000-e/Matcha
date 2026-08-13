@@ -21,7 +21,6 @@ export interface PublicProfile
 	age: number;
 	distance_km: number | null;
 	common_tags: number;
-	popularity_score: number;
 	review_average: number;
 	review_count: number;
 	profile_photo_path: string | null;
@@ -44,7 +43,6 @@ export function findPublicProfile(
 					${viewer.latitude}, ${viewer.longitude},
 					target.latitude, target.longitude
 				) AS distance_km,
-				popularity.popularity_score AS popularity_score,
 				popularity.review_average AS review_average,
 				popularity.review_count AS review_count,
 				(

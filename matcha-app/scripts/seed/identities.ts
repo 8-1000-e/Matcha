@@ -5,7 +5,7 @@ import { pick } from "./random";
 const RANDOM_USER_URL = "https://randomuser.me/api/";
 const SEED = "matcha";
 const NATIONALITIES = "fr,gb,es,de,nl";
-const EMAIL_DOMAIN = "seed.matcha";
+export const EMAIL_DOMAIN = "seed.matcha";
 const USERNAME_RE = /[^a-z0-9._-]/g;
 const USERNAME_MAX = 32;
 const USERNAME_FALLBACK = "seed";

@@ -14,7 +14,7 @@ import { GENDERS, type Gender, type UserRow } from "../types";
 const SORT_COLUMNS = {
 	distance: "distance_km",
 	age: "age",
-	popularity: "popularity_score",
+	popularity: "review_average",
 	common_tags: "common_tags",
 	last_seen: "last_seen_at",
 	created: "created_at",
@@ -57,7 +57,6 @@ export interface DiscoveryRow
 	age: number;
 	distance_km: number | null;
 	common_tags: number;
-	popularity_score: number;
 	review_average: number;
 	review_count: number;
 	photo_count: number;
@@ -135,20 +134,20 @@ function filterClauses(
 	}
 	if (filters.popularityMin !== undefined) {
 		clauses.push(
-			sql`popularity.popularity_score >= ${finiteNumber(
+			sql`popularity.review_average >= ${finiteNumber(
 				filters.popularityMin,
 				0,
-				100,
+				5,
 				"popularityMin",
 			)}`,
 		);
 	}
 	if (filters.popularityMax !== undefined) {
 		clauses.push(
-			sql`popularity.popularity_score <= ${finiteNumber(
+			sql`popularity.review_average <= ${finiteNumber(
 				filters.popularityMax,
 				0,
-				100,
+				5,
 				"popularityMax",
 			)}`,
 		);
@@ -197,7 +196,7 @@ function filterClauses(
 
 function ordering(sorts: readonly DiscoverySort[]): SqlFragment {
 	if (sorts.length === 0) {
-		return raw("ORDER BY popularity_score DESC, candidate.id");
+		return raw("ORDER BY review_average DESC, candidate.id");
 	}
 	const parts = sorts.map((sort) => {
 		const key = pickKey(sort.key, SORT_KEYS, "sort key");
@@ -264,7 +263,6 @@ export function findCandidates(
 					JOIN user_tags AS mine ON mine.tag_id = theirs.tag_id
 					WHERE theirs.user_id = candidate.id AND mine.user_id = ${viewer.id}
 				) AS common_tags,
-				popularity.popularity_score AS popularity_score,
 				popularity.review_average AS review_average,
 				popularity.review_count AS review_count,
 				(SELECT COUNT(*) FROM photos WHERE photos.user_id = candidate.id)
