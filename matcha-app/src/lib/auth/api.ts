@@ -1,9 +1,4 @@
-import {
-	GENERIC_ERROR,
-	NETWORK_ERROR,
-	translateError,
-	type AuthError,
-} from "./errorMessages";
+import { request, send, type ApiResult } from "@/lib/http/client";
 
 export interface RegisterFields {
 	email: string;
@@ -37,75 +32,10 @@ export interface CurrentUser extends SessionUser {
 	missing: string[];
 }
 
-export type AuthResult<T> =
-	| { ok: true; data: T }
-	| { ok: false; errors: AuthError[]; code?: string };
-
-function fallback(): AuthError[] {
-	return [{ field: null, message: GENERIC_ERROR }];
-}
-
-function readErrors(payload: unknown): AuthError[] {
-	if (typeof payload !== "object" || payload === null) {
-		return fallback();
-	}
-
-	const raw = (payload as { errors?: unknown }).errors;
-	if (!Array.isArray(raw)) {
-		return fallback();
-	}
-
-	const translated = raw
-		.filter((entry): entry is string => typeof entry === "string")
-		.map(translateError);
-
-	return translated.length > 0 ? translated : fallback();
-}
-
-function readCode(payload: unknown): string | undefined {
-	if (typeof payload !== "object" || payload === null) {
-		return undefined;
-	}
-
-	const code = (payload as { code?: unknown }).code;
-	return typeof code === "string" ? code : undefined;
-}
-
-async function request<T>(
-	path: string,
-	init: RequestInit,
-): Promise<AuthResult<T>> {
-	let response: Response;
-	try {
-		response = await fetch(path, init);
-	} catch {
-		return { ok: false, errors: [{ field: null, message: NETWORK_ERROR }] };
-	}
-
-	let payload: unknown = null;
-	try {
-		payload = await response.json();
-	} catch {
-		payload = null;
-	}
-
-	if (!response.ok) {
-		return {
-			ok: false,
-			errors: readErrors(payload),
-			code: readCode(payload),
-		};
-	}
-
-	return { ok: true, data: payload as T };
-}
+export type AuthResult<T> = ApiResult<T>;
 
 function post<T>(path: string, fields: unknown): Promise<AuthResult<T>> {
-	return request<T>(path, {
-		method: "POST",
-		headers: { "content-type": "application/json" },
-		body: JSON.stringify(fields),
-	});
+	return send<T>("POST", path, fields);
 }
 
 export function register(
@@ -149,18 +79,6 @@ export function resetPassword(
 	return post<{ ok: true }>("/api/auth/password/reset", fields);
 }
 
-export async function me(): Promise<AuthResult<{ user: CurrentUser }>> {
-	const current = await request<{ user: CurrentUser }>("/api/auth/me", {
-		method: "GET",
-	});
-	if (current.ok) {
-		return current;
-	}
-
-	const renewed = await refresh();
-	if (!renewed.ok) {
-		return current;
-	}
-
+export function me(): Promise<AuthResult<{ user: CurrentUser }>> {
 	return request<{ user: CurrentUser }>("/api/auth/me", { method: "GET" });
 }
