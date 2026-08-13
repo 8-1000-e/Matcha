@@ -60,19 +60,29 @@ export function StepProgress({
 			</div>
 
 			<ol
-				className="flex gap-1"
+				className="flex items-center gap-1"
 				aria-label={`Étape ${Math.min(index + 1, steps.length)} sur ${steps.length}`}
 			>
 				{steps.map((step, position) => {
 					const filled = !missing.includes(step.key);
 					const current = position === index;
 
+					// Une etape deja remplie garde sa couleur quand on y revient : sans
+					// la hauteur et le ton fonces, revenir en arriere ne se verrait pas.
 					return (
 						<li
 							key={step.key}
 							aria-current={current ? "step" : undefined}
-							className={`h-1 flex-1 rounded-full transition-colors duration-300 ${
-								filled ? "bg-matcha" : current ? "bg-matcha/40" : "bg-edge/20"
+							className={`flex-1 rounded-full transition-all duration-300 ${
+								current ? "h-1.5" : "h-1"
+							} ${
+								current
+									? filled
+										? "bg-matcha-dark"
+										: "bg-matcha/50"
+									: filled
+										? "bg-matcha"
+										: "bg-edge/20"
 							}`}
 						/>
 					);
