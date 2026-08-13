@@ -81,10 +81,13 @@ export function PhotosStep({ profile, onSaved, onNext }: StepProps) {
 	const current = count === 0 ? 0 : modulo(slide, count);
 	const photo = photos[current];
 
-	// La galerie est rendue en trois exemplaires et centree sur celui du milieu :
-	// il y a donc toujours une photo de chaque cote, y compris aux extremites.
-	const strip = count === 0 ? [] : [...photos, ...photos, ...photos];
-	const position = count + slide;
+	// Au-dela d'une photo, la galerie est rendue en trois exemplaires et centree
+	// sur celui du milieu : il y a donc toujours une voisine de chaque cote, y
+	// compris aux extremites. Une seule photo n'est evidemment pas triplee, sinon
+	// elle aurait l'air d'en etre trois.
+	const looping = count > 1;
+	const strip = looping ? [...photos, ...photos, ...photos] : photos;
+	const position = looping ? count + slide : 0;
 
 	function move(step: number) {
 		setSlide(slide + step);
@@ -162,30 +165,33 @@ export function PhotosStep({ profile, onSaved, onNext }: StepProps) {
 													Photo de profil
 												</span>
 											) : null}
+
+											{/* Attachee a la photo, et seulement sur celle du
+											    milieu : les exemplaires voisins ne sont la que
+											    pour l'apercu. */}
+											{index === position ? (
+												<button
+													type="button"
+													onClick={() => run(() => removePhoto(entry.id))}
+													disabled={pending}
+													aria-label="Supprimer cette photo"
+													className="absolute top-1.5 right-1.5 cursor-pointer p-1.5 text-red-600 drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)] transition-colors duration-200 ease-out hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+												>
+													<svg viewBox="0 0 12 12" className="size-3" fill="none">
+														<path
+															d="M3 3l6 6M9 3l-6 6"
+															stroke="currentColor"
+															strokeWidth="2.25"
+															strokeLinecap="round"
+														/>
+													</svg>
+												</button>
+											) : null}
 										</div>
 									</div>
 								))}
 							</div>
 						</div>
-
-						{/* Posee dans le coin de la photo courante, dont le bord droit
-						    tombe a 74px du centre de la piste. */}
-						<button
-							type="button"
-							onClick={() => run(() => removePhoto(photo.id))}
-							disabled={pending}
-							aria-label="Supprimer cette photo"
-							className="absolute top-2.5 left-1/2 ml-12 flex size-6 cursor-pointer items-center justify-center rounded-full bg-white/80 text-red-700 backdrop-blur-sm transition-colors duration-200 ease-out hover:bg-red-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-						>
-							<svg viewBox="0 0 12 12" className="size-2.5" fill="none">
-								<path
-									d="M3 3l6 6M9 3l-6 6"
-									stroke="currentColor"
-									strokeWidth="2"
-									strokeLinecap="round"
-								/>
-							</svg>
-						</button>
 
 						{count > 1 ? (
 							<>
