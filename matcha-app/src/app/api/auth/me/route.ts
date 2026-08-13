@@ -1,7 +1,5 @@
 import { requireUser } from "@/lib/auth/session";
-import { MINIMUM_TAGS, photos, userTags } from "@/lib/db";
-
-export const runtime = "nodejs";
+import { missingProfileFields } from "@/lib/profile/profile";
 
 export async function GET()
 {
@@ -9,28 +7,6 @@ export async function GET()
 	if (!user)
 	{
 		return Response.json({ errors: ["unauthorized"] }, { status: 401 });
-	}
-
-	const missing: string[] = [];
-	if (user.gender === null)
-	{
-		missing.push("gender");
-	}
-	if (user.biography === null || user.biography.trim().length === 0)
-	{
-		missing.push("biography");
-	}
-	if (userTags.count({ user_id: user.id }) < MINIMUM_TAGS)
-	{
-		missing.push("tags");
-	}
-	if (photos.count({ user_id: user.id, is_profile: 1 }) === 0)
-	{
-		missing.push("profile_photo");
-	}
-	if (user.latitude === null && user.city === null)
-	{
-		missing.push("location");
 	}
 
 	return Response.json({
@@ -42,7 +18,7 @@ export async function GET()
 			last_name: user.last_name,
 			is_verified: user.is_verified === 1,
 			profile_completed: user.profile_completed === 1,
-			missing,
+			missing: missingProfileFields(user),
 		},
 	});
 }

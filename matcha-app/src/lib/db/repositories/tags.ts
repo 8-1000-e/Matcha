@@ -32,6 +32,15 @@ export function listUserTags(userId: string): TagRow[] {
 	);
 }
 
+export function findTagsByLabels(labels: readonly string[]): TagRow[] {
+	if (labels.length === 0) {
+		return [];
+	}
+	return queryAll<TagRow>(
+		sql`SELECT * FROM tags WHERE label IN (${[...labels]}) ORDER BY label`,
+	);
+}
+
 export function resolveTagIds(labels: readonly string[]): number[] {
 	if (labels.length === 0) {
 		return [];

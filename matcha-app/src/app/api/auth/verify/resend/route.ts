@@ -3,8 +3,6 @@ import { findUserByEmail, issueEmailToken, revokeEmailTokens } from "@/lib/db";
 import { readJsonBody } from "@/lib/http/body";
 import { sendMail } from "@/lib/mail/mailer";
 
-export const runtime = "nodejs";
-
 const SENT = { ok: true, message: "if the address exists, a link has been sent" };
 
 export async function POST(request: Request)

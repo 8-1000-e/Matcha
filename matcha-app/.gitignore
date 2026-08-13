@@ -35,7 +35,7 @@ yarn-error.log*
 .env.*
 !.env.example
 
-# sqlite — le nom du fichier depend de DATABASE_PATH, d'ou le filet large
+# sqlite - le nom du fichier depend de DATABASE_PATH, d'ou le filet large
 *.db
 *.db-journal
 *.db-shm
@@ -49,3 +49,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Photos envoyees par les utilisateurs
+/data/uploads/

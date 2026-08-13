@@ -76,9 +76,18 @@ export function removePhoto(userId: string, photoId: string): boolean {
 			return false;
 		}
 		photos.removeById(photoId);
+		const ceiling
+			= queryScalar<number>(
+				sql`SELECT COALESCE(MAX(position), 0) + 1 FROM photos
+					WHERE user_id = ${userId}`,
+			) ?? 1;
 		execute(
-			sql`UPDATE photos SET position = position - 1
+			sql`UPDATE photos SET position = position - ${ceiling}
 				WHERE user_id = ${userId} AND position > ${target.position}`,
+		);
+		execute(
+			sql`UPDATE photos SET position = position + ${ceiling - 1}
+				WHERE user_id = ${userId} AND position < 0`,
 		);
 		if (target.is_profile === 1) {
 			execute(
