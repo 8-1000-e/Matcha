@@ -2,6 +2,7 @@ import { createEmailToken, EMAIL_TTL } from "@/lib/auth/tokens";
 import { findUserByEmail, issueEmailToken, revokeEmailTokens } from "@/lib/db";
 import { readJsonBody } from "@/lib/http/body";
 import { sendMail } from "@/lib/mail/mailer";
+import { resendVerifyMail } from "@/lib/mail/templates";
 
 const SENT = { ok: true, message: "if the address exists, a link has been sent" };
 
@@ -42,13 +43,8 @@ export async function POST(request: Request)
 	});
 
 	const link = `${process.env.APP_URL}/api/auth/verify?token=${verification.token}`;
-	await sendMail(
-		user.email,
-		"Verify your address - Matcha",
-		`<p>Welcome ${user.username},</p>
-		 <p><a href="${link}">Verify your address</a></p>
-		 <p>This link expires in ${Math.round(EMAIL_TTL / 60)} minutes.</p>`,
-	);
+	const mail = resendVerifyMail({ username: user.username, link, ttlSeconds: EMAIL_TTL });
+	await sendMail(user.email, mail.subject, mail.html, mail.text);
 
 	return Response.json(SENT);
 }

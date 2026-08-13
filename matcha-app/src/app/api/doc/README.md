@@ -54,10 +54,13 @@ Crée un compte et envoie le lien de vérification.
 
 | Code | Corps | Cas |
 | --- | --- | --- |
-| `201` | `{ "id": "uuid", "username": "bob" }` | créé |
+| `201` | `{ "id": "uuid", "username": "bob", "is_verified": false }` | créé, **+ cookies `access` et `refresh`** |
 | `400` | `{ "errors": [...] }` | validation |
 | `409` | `{ "errors": ["email or username is already in use"] }` | e-mail **ou** username pris — message unique, pour ne pas révéler lequel |
 | `415` | `{ "errors": ["content-type must be application/json"] }` | |
+
+**L'inscription ouvre la session.** Redemander les identifiants qu'on vient de
+choisir n'apporte rien ; le front enchaîne donc sur la vérification d'adresse.
 
 Un jeton de vérification est créé (`EMAIL_TOKEN_TTL`, 900 s) et le lien envoyé
 par mail. Un échec SMTP est logué mais **ne fait pas échouer l'inscription** :

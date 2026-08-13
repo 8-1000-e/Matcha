@@ -10,7 +10,9 @@ const transporter = nodemailer.createTransport({
 	},
 });
 
-export async function sendMail(to: string, subject: string, html: string): Promise<void>
+// `text` est optionnel mais fortement conseille : un mail sans version texte
+// passe plus facilement pour du spam.
+export async function sendMail(to: string, subject: string, html: string, text?: string): Promise<void>
 {
 	try
 	{
@@ -19,6 +21,7 @@ export async function sendMail(to: string, subject: string, html: string): Promi
 			to,
 			subject,
 			html,
+			text,
 		});
 	}
 	catch (error)
