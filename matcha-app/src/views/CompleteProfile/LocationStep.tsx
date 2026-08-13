@@ -12,7 +12,7 @@ const DENIED = "Position refusée. Choisissez votre ville juste en dessous.";
 const UNAVAILABLE
 	= "Votre navigateur ne partage pas votre position. Choisissez votre ville.";
 
-export function LocationStep({ profile, onSaved }: StepProps) {
+export function LocationStep({ profile, onSaved, onNext }: StepProps) {
 	const [notice, setNotice] = useState("");
 	const [errors, setErrors] = useState<AuthError[]>([]);
 	const [pending, startSaving] = useTransition();
@@ -118,6 +118,17 @@ export function LocationStep({ profile, onSaved }: StepProps) {
 				error={fieldError(errors, "city")}
 				onPick={pick}
 			/>
+
+			{/* L'etape enregistre des qu'une position est choisie : ce bouton ne
+			    sauvegarde rien, il sert a passer a la suite une fois verifie. */}
+			<ActionButton
+				type="button"
+				tone="primary"
+				onClick={onNext}
+				disabled={!located || pending}
+			>
+				Continuer
+			</ActionButton>
 		</div>
 	);
 }

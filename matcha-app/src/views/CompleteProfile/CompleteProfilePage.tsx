@@ -94,6 +94,10 @@ export function CompleteProfilePage({ initial }: { initial: Profile }) {
 		}
 	}
 
+	function advance() {
+		setIndex(firstMissing(profile.missing));
+	}
+
 	function finish() {
 		startLeaving(() => {
 			router.push("/me");
@@ -131,7 +135,7 @@ export function CompleteProfilePage({ initial }: { initial: Profile }) {
 					/>
 
 					{StepBody ? (
-						<StepBody profile={profile} onSaved={handleSaved} />
+						<StepBody profile={profile} onSaved={handleSaved} onNext={advance} />
 					) : (
 						<ReviewStep
 							steps={STEPS}
