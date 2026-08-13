@@ -1,5 +1,5 @@
 import { requireSession } from "@/lib/auth/guards";
-import { DatabaseError, photos, removePhoto, setProfilePhoto } from "@/lib/db";
+import { photos, removePhoto, setProfilePhoto } from "@/lib/db";
 import { readJsonBody } from "@/lib/http/body";
 import { profileResponse } from "@/lib/profile/profile";
 import { removePhotoFile } from "@/lib/profile/storage";
@@ -35,17 +35,9 @@ export async function PATCH(request: Request, context: Context)
 	}
 
 	const { id } = await context.params;
-	try
+	if (setProfilePhoto(session.user.id, id) === null)
 	{
-		setProfilePhoto(session.user.id, id);
-	}
-	catch (error)
-	{
-		if (error instanceof DatabaseError)
-		{
-			return notFound();
-		}
-		throw error;
+		return notFound();
 	}
 
 	return profileResponse(session.user.id);

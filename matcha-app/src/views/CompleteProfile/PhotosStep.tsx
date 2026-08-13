@@ -49,7 +49,7 @@ export function PhotosStep({ profile, onSaved, onNext }: StepProps) {
 	const [slide, setSlide] = useState(0);
 	const [sliding, setSliding] = useState(true);
 
-	function run(call: () => Promise<ProfileResult>) {
+	function run(call: () => Promise<ProfileResult>, done?: () => void) {
 		startTransition(async () => {
 			const result = await call();
 			if (!result.ok) {
@@ -59,6 +59,7 @@ export function PhotosStep({ profile, onSaved, onNext }: StepProps) {
 
 			setErrors([]);
 			onSaved(result.data.profile);
+			done?.();
 		});
 	}
 
@@ -67,10 +68,11 @@ export function PhotosStep({ profile, onSaved, onNext }: StepProps) {
 			input.current.value = "";
 		}
 		if (file) {
-			// La nouvelle photo arrive en fin de galerie : on l'affiche pour que
-			// l'envoi se voie sans avoir a la chercher.
-			setSlide(profile.photos.length);
-			run(() => addPhoto(file));
+			// La nouvelle photo arrive en fin de galerie : on s'y deplace une fois
+			// l'envoi accepte, sinon le carrousel bougerait pour rien pendant que
+			// l'erreur s'affiche.
+			const added = profile.photos.length;
+			run(() => addPhoto(file), () => setSlide(added));
 		}
 	}
 

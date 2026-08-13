@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { createEmailToken, EMAIL_TTL } from "@/lib/auth/tokens";
 import { findUserByEmail, issueEmailToken, revokeEmailTokens } from "@/lib/db";
 import { readJsonBody } from "@/lib/http/body";
@@ -27,24 +28,31 @@ export async function POST(request: Request)
 
 	const user = findUserByEmail(email.trim().toLowerCase());
 
-	if (!user || user.is_verified === 1)
+	// Emission du jeton et envoi SMTP apres la reponse : sinon l'adresse a
+	// verifier repond en centaines de ms la ou l'adresse inconnue (ou deja
+	// verifiee) repond tout de suite, et ce delai suffit a enumerer les
+	// comptes. Un echec d'envoi est journalise, jamais reporte au client.
+	if (user && user.is_verified !== 1)
 	{
-		return Response.json(SENT);
+		after(async () => {
+			revokeEmailTokens(user.id, "email_verification");
+
+			const verification = createEmailToken();
+			issueEmailToken({
+				user_id: user.id,
+				token_hash: verification.hash,
+				type: "email_verification",
+				expires_at: verification.expiresAt,
+			});
+
+			const link = `${process.env.APP_URL}/api/auth/verify?token=${verification.token}`;
+			const mail = resendVerifyMail({ username: user.username, link, ttlSeconds: EMAIL_TTL });
+			if (!await sendMail(user.email, mail.subject, mail.html, mail.text))
+			{
+				console.error("verification mail not delivered", { user_id: user.id });
+			}
+		});
 	}
-
-	revokeEmailTokens(user.id, "email_verification");
-
-	const verification = createEmailToken();
-	issueEmailToken({
-		user_id: user.id,
-		token_hash: verification.hash,
-		type: "email_verification",
-		expires_at: verification.expiresAt,
-	});
-
-	const link = `${process.env.APP_URL}/api/auth/verify?token=${verification.token}`;
-	const mail = resendVerifyMail({ username: user.username, link, ttlSeconds: EMAIL_TTL });
-	await sendMail(user.email, mail.subject, mail.html, mail.text);
 
 	return Response.json(SENT);
 }

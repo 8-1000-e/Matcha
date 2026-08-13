@@ -11,11 +11,26 @@ import { Errors, fieldError, type StepProps } from "./StepBase";
 const DENIED = "Position refusée. Choisissez votre ville juste en dessous.";
 const UNAVAILABLE
 	= "Votre navigateur ne partage pas votre position. Choisissez votre ville.";
+const NO_SIGNAL
+	= "Votre position n’a pas pu être déterminée. Choisissez votre ville juste en dessous.";
+const TIMED_OUT
+	= "La localisation a pris trop de temps. Réessayez ou choisissez votre ville.";
+
+function geolocationMessage(error: GeolocationPositionError) {
+	if (error.code === error.PERMISSION_DENIED) {
+		return DENIED;
+	}
+	return error.code === error.TIMEOUT ? TIMED_OUT : NO_SIGNAL;
+}
 
 export function LocationStep({ profile, onSaved, onNext }: StepProps) {
 	const [notice, setNotice] = useState("");
 	const [errors, setErrors] = useState<AuthError[]>([]);
 	const [pending, startSaving] = useTransition();
+	// L'acquisition GPS peut durer une vingtaine de secondes, bien avant que la
+	// transition d'enregistrement ne demarre : sans cet etat, le bouton reste
+	// inerte et l'utilisateur relance la demande.
+	const [locating, setLocating] = useState(false);
 
 	function save(fields: Parameters<typeof saveLocation>[0]) {
 		setErrors([]);
@@ -31,6 +46,10 @@ export function LocationStep({ profile, onSaved, onNext }: StepProps) {
 	}
 
 	function locate() {
+		if (locating || pending) {
+			return;
+		}
+
 		setErrors([]);
 		setNotice("");
 
@@ -39,13 +58,19 @@ export function LocationStep({ profile, onSaved, onNext }: StepProps) {
 			return;
 		}
 
+		setLocating(true);
 		navigator.geolocation.getCurrentPosition(
-			(position) =>
+			(position) => {
+				setLocating(false);
 				save({
 					latitude: position.coords.latitude,
 					longitude: position.coords.longitude,
-				}),
-			() => setNotice(DENIED),
+				});
+			},
+			(error) => {
+				setLocating(false);
+				setNotice(geolocationMessage(error));
+			},
 		);
 	}
 
@@ -87,13 +112,15 @@ export function LocationStep({ profile, onSaved, onNext }: StepProps) {
 					type="button"
 					tone={located ? "secondary" : "primary"}
 					onClick={locate}
-					disabled={pending}
+					disabled={pending || locating}
 				>
-					{pending
-						? "Enregistrement…"
-						: located
-							? "Relancer la localisation"
-							: "Utiliser ma position"}
+					{locating
+						? "Localisation en cours…"
+						: pending
+							? "Enregistrement…"
+							: located
+								? "Relancer la localisation"
+								: "Utiliser ma position"}
 				</ActionButton>
 				<p className="text-xs text-muted">
 					Votre position sert à vous proposer des profils proches. Elle n’est
@@ -125,7 +152,7 @@ export function LocationStep({ profile, onSaved, onNext }: StepProps) {
 				type="button"
 				tone="primary"
 				onClick={onNext}
-				disabled={!located || pending}
+				disabled={!located || pending || locating}
 			>
 				Continuer
 			</ActionButton>

@@ -12,7 +12,11 @@ const transporter = nodemailer.createTransport({
 
 // `text` est optionnel mais fortement conseille : un mail sans version texte
 // passe plus facilement pour du spam.
-export async function sendMail(to: string, subject: string, html: string, text?: string): Promise<void>
+//
+// Renvoie false plutot que de propager : un SMTP injoignable ne doit pas faire
+// echouer l'appelant, mais celui-ci doit pouvoir en tenir compte (proposer un
+// renvoi, journaliser) au lieu de croire le mail parti.
+export async function sendMail(to: string, subject: string, html: string, text?: string): Promise<boolean>
 {
 	try
 	{
@@ -23,9 +27,11 @@ export async function sendMail(to: string, subject: string, html: string, text?:
 			html,
 			text,
 		});
+		return true;
 	}
 	catch (error)
 	{
 		console.error("sendMail failed", error);
+		return false;
 	}
 }

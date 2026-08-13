@@ -1,8 +1,25 @@
 const REVIEW_CONFIDENCE = "8.0";
 const NEUTRAL_SCORE = "3.0";
 
+/**
+ * Age calendaire : la difference des dates compactees YYYYMMDD, divisee par
+ * 10000, ne bascule que le jour anniversaire. Un ecart en jours rapporte a
+ * 365.25 se decale d'un an autour de l'anniversaire et contredit alors le
+ * filtre d'age de la decouverte, lui aussi calendaire.
+ */
+export function ageYears(birthDateColumn: string): string {
+	return `(CAST(strftime('%Y%m%d','now') AS INT)
+		- CAST(strftime('%Y%m%d', ${birthDateColumn}) AS INT)) / 10000`;
+}
+
+/**
+ * Les vues sont sans etat : chaque entree se recree entierement pour que la
+ * base suive la definition du code, un CREATE ... IF NOT EXISTS seul laissant
+ * une ancienne definition en place indefiniment.
+ */
 export const VIEWS: readonly string[] = [
-	`CREATE VIEW IF NOT EXISTS user_popularity AS
+	`DROP VIEW IF EXISTS user_popularity;
+	CREATE VIEW user_popularity AS
 	SELECT
 		parts.user_id AS user_id,
 		parts.review_count AS review_count,
@@ -88,12 +105,11 @@ export const VIEWS: readonly string[] = [
 			SELECT user_id, COUNT(*) AS tag_count FROM user_tags GROUP BY user_id
 		) AS tagged ON tagged.user_id = users.id
 	) AS parts`,
-	`CREATE VIEW IF NOT EXISTS user_profiles AS
+	`DROP VIEW IF EXISTS user_profiles;
+	CREATE VIEW user_profiles AS
 	SELECT
 		users.*,
-		CAST(
-			(julianday('now') - julianday(users.birth_date)) / 365.25 AS INTEGER
-		) AS age,
+		${ageYears("users.birth_date")} AS age,
 		user_popularity.popularity_score AS popularity_score,
 		user_popularity.review_average AS review_average,
 		user_popularity.review_count AS review_count,

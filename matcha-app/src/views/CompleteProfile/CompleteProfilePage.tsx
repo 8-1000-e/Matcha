@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { PrivateScreen } from "@/components/Layout/Screen";
 import { ProfilePreview } from "@/components/Profile/ProfilePreview";
 import type { Profile } from "@/lib/profile/client";
@@ -76,6 +76,9 @@ export function CompleteProfilePage({ initial }: { initial: Profile }) {
 	const [profile, setProfile] = useState(initial);
 	const [index, setIndex] = useState(() => firstMissing(initial.missing));
 	const [leaving, startLeaving] = useTransition();
+	// Une etape enregistre puis demande a avancer dans la foulee : `profile` vaut
+	// encore l'ancien profil a cet instant, la reference porte le dernier connu.
+	const saved = useRef(initial);
 
 	const reviewing = index === REVIEW;
 	const step = reviewing ? null : STEPS[index];
@@ -84,6 +87,7 @@ export function CompleteProfilePage({ initial }: { initial: Profile }) {
 	const StepBody = step?.Body;
 
 	function handleSaved(next: Profile) {
+		saved.current = next;
 		setProfile(next);
 
 		// On avance vers ce qui manque encore, ou vers la relecture si tout est
@@ -96,7 +100,7 @@ export function CompleteProfilePage({ initial }: { initial: Profile }) {
 	}
 
 	function advance() {
-		setIndex(firstMissing(profile.missing));
+		setIndex(firstMissing(saved.current.missing));
 	}
 
 	function finish() {
@@ -134,7 +138,7 @@ export function CompleteProfilePage({ initial }: { initial: Profile }) {
 					<ReviewStep
 						steps={STEPS}
 						profile={profile}
-						onSaved={setProfile}
+						onSaved={handleSaved}
 						onFinish={finish}
 						pending={leaving}
 					/>

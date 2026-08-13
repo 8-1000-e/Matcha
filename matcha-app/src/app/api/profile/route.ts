@@ -1,4 +1,4 @@
-import { requireSession } from "@/lib/auth/guards";
+import { requireAnySession, requireSession } from "@/lib/auth/guards";
 import { createEmailToken, EMAIL_TTL } from "@/lib/auth/tokens";
 import {
 	isEmailTaken,
@@ -38,9 +38,11 @@ async function sendVerification(
 	);
 }
 
+// Lire son propre profil reste ouvert a un compte non verifie : la page de
+// completion en a besoin pour savoir qu'elle doit rediriger vers /verify-email.
 export async function GET()
 {
-	const session = await requireSession();
+	const session = await requireAnySession();
 	if (!session.ok)
 	{
 		return session.response;

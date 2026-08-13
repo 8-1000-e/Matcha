@@ -1,5 +1,5 @@
 import { execute, queryScalar, transaction } from "../core/client";
-import { DatabaseError } from "../core/errors";
+import { ConstraintError, DatabaseError } from "../core/errors";
 import { createRepository } from "../core/repository";
 import { sql } from "../core/sql";
 import { createId } from "../core/values";
@@ -27,35 +27,52 @@ export function hasProfilePhoto(userId: string): boolean {
 	return photos.exists({ user_id: userId, is_profile: 1 });
 }
 
-export function addPhoto(userId: string, path: string): PhotoRow {
-	return transaction(() => {
-		const used
-			= queryScalar<number>(
-				sql`SELECT COUNT(*) FROM photos WHERE user_id = ${userId}`,
-			) ?? 0;
-		if (used >= MAX_PHOTOS_PER_USER) {
-			throw new DatabaseError("photo_limit_reached");
-		}
-		const nextPosition
-			= queryScalar<number>(
-				sql`SELECT COALESCE(MAX(position) + 1, 0) FROM photos
-					WHERE user_id = ${userId}`,
-			) ?? 0;
-		return photos.insert({
-			id: createId(),
-			user_id: userId,
-			path,
-			position: nextPosition,
-			is_profile: used === 0 ? 1 : 0,
+/** Retourne null quand la limite de photos est atteinte. */
+export function addPhoto(userId: string, path: string): PhotoRow | null {
+	try {
+		return transaction(() => {
+			const used
+				= queryScalar<number>(
+					sql`SELECT COUNT(*) FROM photos WHERE user_id = ${userId}`,
+				) ?? 0;
+			if (used >= MAX_PHOTOS_PER_USER) {
+				return null;
+			}
+			const nextPosition
+				= queryScalar<number>(
+					sql`SELECT COALESCE(MAX(position) + 1, 0) FROM photos
+						WHERE user_id = ${userId}`,
+				) ?? 0;
+			return photos.insert({
+				id: createId(),
+				user_id: userId,
+				path,
+				position: nextPosition,
+				is_profile: used === 0 ? 1 : 0,
+			});
 		});
-	});
+	} catch (error) {
+		// Le trigger photos_limit_before_insert rattrape les insertions
+		// concurrentes : c'est un refus metier, pas une panne.
+		if (
+			error instanceof ConstraintError
+			&& error.message.includes("photo_limit_reached")
+		) {
+			return null;
+		}
+		throw error;
+	}
 }
 
-export function setProfilePhoto(userId: string, photoId: string): PhotoRow {
+/** Retourne null quand la photo n'appartient pas a l'utilisateur. */
+export function setProfilePhoto(
+	userId: string,
+	photoId: string,
+): PhotoRow | null {
 	return transaction(() => {
 		const target = photos.findOne({ id: photoId, user_id: userId });
 		if (target === undefined) {
-			throw new DatabaseError("photo_not_found");
+			return null;
 		}
 		execute(
 			sql`UPDATE photos SET is_profile = 0
@@ -102,14 +119,18 @@ export function removePhoto(userId: string, photoId: string): boolean {
 	});
 }
 
-export function reorderPhotos(userId: string, orderedIds: string[]): PhotoRow[] {
+/** Retourne null quand l'ordre recu ne correspond pas aux photos possedees. */
+export function reorderPhotos(
+	userId: string,
+	orderedIds: string[],
+): PhotoRow[] | null {
 	return transaction(() => {
 		const owned = photos.find({ user_id: userId });
 		if (
 			owned.length !== orderedIds.length
 			|| orderedIds.some((id) => !owned.some((photo) => photo.id === id))
 		) {
-			throw new DatabaseError("photo_order_mismatch");
+			return null;
 		}
 		orderedIds.forEach((id, index) => {
 			execute(

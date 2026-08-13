@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Alert } from "@/components/Form/Alert";
 import { ActionButton } from "@/components/Form/Button";
 import { ProfilePreview } from "@/components/Profile/ProfilePreview";
 import type { Profile } from "@/lib/profile/client";
@@ -61,6 +62,10 @@ export function ReviewStep({
 }: ReviewProps) {
 	const [open, setOpen] = useState<string | null>(null);
 
+	// On peut vider une section depuis la relecture : sans ce garde-fou, /me
+	// renverrait aussitot ici sans dire pourquoi.
+	const missing = profile.missing.map((key) => LABELS[key] ?? key);
+
 	return (
 		<div className="flex flex-col gap-8">
 			<div className="mx-auto w-full max-w-sm">
@@ -100,12 +105,18 @@ export function ReviewStep({
 					})}
 				</ul>
 
-				<div className="mt-6">
+				<div className="mt-6 flex flex-col gap-3">
+					{missing.length > 0 ? (
+						<Alert>
+							Il reste à compléter : {missing.join(", ")}.
+						</Alert>
+					) : null}
+
 					<ActionButton
 						type="button"
 						tone="primary"
 						onClick={onFinish}
-						disabled={pending}
+						disabled={pending || missing.length > 0}
 					>
 						{pending ? "Un instant…" : "C’est bon, je continue"}
 					</ActionButton>

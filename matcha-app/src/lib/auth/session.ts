@@ -53,6 +53,9 @@ export async function getSession(): Promise<AccessPayload | null>
 	return verifyAccessToken(token);
 }
 
+// Ne controle volontairement pas is_verified : cette brique sert aussi aux
+// routes ouvertes aux comptes non verifies (/api/auth/me). Le controle est
+// porte par requireSession dans ./guards, a utiliser pour toute route protegee.
 export async function requireUser(): Promise<UserRow | null>
 {
 	const session = await getSession();

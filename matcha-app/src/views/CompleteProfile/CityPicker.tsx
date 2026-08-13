@@ -35,11 +35,20 @@ export function CityPicker({ defaultValue = "", error, onPick }: CityPickerProps
 	// La valeur initiale est la ville deja enregistree : tant que l'utilisateur
 	// n'a rien tape, aucun message de recherche n'a de sens.
 	const [typed, setTyped] = useState(false);
+	// Le champ affiche le libelle complet de la ville choisie (« Paris ·
+	// Batignolles »), qui ne correspond a aucune recherche : tant qu'il n'a pas
+	// ete modifie, il n'y a rien a chercher.
+	const [chosen, setChosen] = useState(defaultValue);
 	// Le resultat porte la recherche qui l'a produit : des que la saisie change,
 	// il cesse de correspondre et disparait, sans avoir a le vider a la main.
-	const [result, setResult] = useState<{ query: string; places: Place[] }>({
+	const [result, setResult] = useState<{
+		query: string;
+		places: Place[];
+		failed: boolean;
+	}>({
 		query: "",
 		places: [],
+		failed: false,
 	});
 	// Une reponse lente ne doit pas ecraser le resultat d'une frappe plus recente.
 	const latest = useRef(0);
@@ -47,12 +56,16 @@ export function CityPicker({ defaultValue = "", error, onPick }: CityPickerProps
 	const [dropUp, setDropUp] = useState(false);
 
 	const trimmed = query.trim();
-	const places = result.query === trimmed ? result.places : [];
-	const searching = trimmed.length >= MIN_LENGTH && result.query !== trimmed;
+	const settled = trimmed === chosen.trim();
+	const matching = !settled && result.query === trimmed;
+	const places = matching ? result.places : [];
+	const failed = matching && result.failed;
+	const searching
+		= !settled && trimmed.length >= MIN_LENGTH && result.query !== trimmed;
 
 	useEffect(() => {
 		const asked = query.trim();
-		if (asked.length < MIN_LENGTH) {
+		if (asked.length < MIN_LENGTH || asked === chosen.trim()) {
 			return;
 		}
 
@@ -62,13 +75,17 @@ export function CityPicker({ defaultValue = "", error, onPick }: CityPickerProps
 		const timer = setTimeout(async () => {
 			const found = await searchPlaces(asked);
 			if (latest.current === ticket) {
-				setResult({ query: asked, places: found });
+				setResult({
+					query: asked,
+					places: found.ok ? found.data.places : [],
+					failed: !found.ok,
+				});
 				setActive(-1);
 			}
 		}, DEBOUNCE_MS);
 
 		return () => clearTimeout(timer);
-	}, [query]);
+	}, [query, chosen]);
 
 	// Le champ est le dernier de l'etape : sans ca, la liste deroulerait sous le
 	// bas de la fenetre. Mesure a l'evenement plutot que dans un effet, pour ne
@@ -84,6 +101,7 @@ export function CityPicker({ defaultValue = "", error, onPick }: CityPickerProps
 
 	function choose(place: Place) {
 		setQuery(label(place));
+		setChosen(label(place));
 		setOpen(false);
 		onPick(place);
 	}
@@ -191,10 +209,12 @@ export function CityPicker({ defaultValue = "", error, onPick }: CityPickerProps
 
 			{error ? <Alert className="mt-2">{error}</Alert> : null}
 
-			{!error && typed && trimmed.length >= MIN_LENGTH && !searching
+			{!error && typed && !settled && trimmed.length >= MIN_LENGTH && !searching
 				&& places.length === 0 ? (
 					<p className="mt-2 text-xs text-muted">
-						Aucune ville ne correspond. Vérifiez l’orthographe.
+						{failed
+							? "Recherche impossible, vérifiez votre connexion."
+							: "Aucune ville ne correspond. Vérifiez l’orthographe."}
 					</p>
 				) : null}
 		</div>

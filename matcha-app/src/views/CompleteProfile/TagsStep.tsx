@@ -10,7 +10,7 @@ import { Errors, type StepProps } from "./StepBase";
 const MINIMUM = 3;
 const MAXIMUM = 10;
 
-export function TagsStep({ profile, onSaved }: StepProps) {
+export function TagsStep({ profile, onSaved, onNext }: StepProps) {
 	const [selected, setSelected] = useState<string[]>(profile.tags);
 	const [filter, setFilter] = useState("");
 	const [errors, setErrors] = useState<AuthError[]>([]);
@@ -41,6 +41,7 @@ export function TagsStep({ profile, onSaved }: StepProps) {
 
 			setErrors([]);
 			onSaved(result.data.profile);
+			onNext();
 		});
 	}
 

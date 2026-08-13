@@ -1,5 +1,5 @@
 import { hashToken } from "@/lib/auth/tokens";
-import { consumeEmailToken, findUsableEmailToken, markUserVerified } from "@/lib/db";
+import { consumeEmailToken, findUsableEmailToken, markUserVerified, transaction } from "@/lib/db";
 
 function expired(): Response
 {
@@ -18,12 +18,20 @@ export async function GET(request: Request)
 	if (!tokenFound)
 	{return expired();}
 
-	const consumed = consumeEmailToken(tokenFound.id);
-	if (!consumed)
+	// Consommation et passage de is_verified dans la meme transaction : sinon un
+	// echec entre les deux brule le lien sans verifier le compte, et l'utilisateur
+	// n'a plus qu'a en redemander un.
+	const verified = transaction(() => {
+		if (!consumeEmailToken(tokenFound.id))
+		{
+			return false;
+		}
+		markUserVerified(tokenFound.user_id);
+		return true;
+	});
+
+	if (!verified)
 	{return expired();}
-
-
-	await markUserVerified(tokenFound.user_id);
 
 	return Response.redirect(new URL("/login?verified=1", process.env.APP_URL));
 }

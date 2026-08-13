@@ -28,6 +28,13 @@ jamais lus par le JavaScript du client :
 **Codes de statut.** `405` sur tout verbe non implémenté (comportement Next).
 `OPTIONS` renvoie `204`.
 
+**Comptes non vérifiés.** Un compte authentifié mais dont l'adresse n'est pas
+confirmée reçoit **403** `email_not_verified` sur toutes les routes qui
+modifient le profil. Restent ouvertes : `GET /profile` (la page de complétion
+en a besoin pour savoir qu'elle doit rediriger vers `/verify-email`),
+`GET /auth/me`, `logout`, `refresh`, `verify` et `verify/resend`. La garde vit
+dans `requireSession` ; `requireAnySession` est sa variante sans ce contrôle.
+
 **Ce qui n'est jamais renvoyé** : `password_hash`, l'adresse e-mail d'un
 utilisateur, et la valeur en clair d'un jeton stocké. Seule exception :
 `GET /profile` renvoie l'adresse du **connecté**, pour préremplir son propre
@@ -54,7 +61,7 @@ Crée un compte et envoie le lien de vérification.
 
 | Code | Corps | Cas |
 | --- | --- | --- |
-| `201` | `{ "id": "uuid", "username": "bob", "is_verified": false }` | créé, **+ cookies `access` et `refresh`** |
+| `201` | `{ "id": "uuid", "username": "bob", "is_verified": false, "verification_email_sent": true }` | créé, **+ cookies `access` et `refresh`** |
 | `400` | `{ "errors": [...] }` | validation |
 | `409` | `{ "errors": ["email or username is already in use"] }` | e-mail **ou** username pris — message unique, pour ne pas révéler lequel |
 | `415` | `{ "errors": ["content-type must be application/json"] }` | |
@@ -64,7 +71,10 @@ choisir n'apporte rien ; le front enchaîne donc sur la vérification d'adresse.
 
 Un jeton de vérification est créé (`EMAIL_TOKEN_TTL`, 900 s) et le lien envoyé
 par mail. Un échec SMTP est logué mais **ne fait pas échouer l'inscription** :
-le compte existe déjà à ce stade.
+le compte existe déjà à ce stade. Le champ `verification_email_sent` dit si le
+mail est réellement parti, pour que le front propose un renvoi plutôt que de
+laisser l'utilisateur attendre un lien qui ne viendra pas. Le révéler ici ne
+crée pas d'oracle : le 409 dit déjà si un compte existe.
 
 ---
 
@@ -151,14 +161,25 @@ inhérent à un JWT sans liste de révocation. Fenêtre : `ACCESS_TOKEN_TTL`.
 | --- | --- | --- |
 | `200` | `{ "ok": true }` | + nouveaux cookies `access` et `refresh` |
 | `401` | `{ "errors": ["refresh token is required"] }` | cookie absent |
-| `401` | `{ "errors": ["invalid session"] }` | jeton inconnu, expiré ou déjà révoqué |
+| `401` | `{ "errors": ["refresh_retry"] }` | course entre deux renouvellements : rejouer, la session est intacte |
+| `401` | `{ "errors": ["invalid session"] }` | jeton inconnu, expiré, ou rejeu avéré |
 | `401` | `{ "errors": ["unauthorized"] }` | compte supprimé |
 
-**Rotation** : l'ancien jeton est révoqué avant l'émission du nouveau.
+**Rotation** : lecture et révocation sont dans la même transaction, l'ancien
+jeton est révoqué avant l'émission du nouveau.
 
 **Détection de réutilisation** : présenter un jeton **déjà révoqué** révoque
 *toutes* les sessions de l'utilisateur. C'est le signe d'un vol — quelqu'un
 rejoue un jeton que le client légitime a déjà renouvelé.
+
+**Fenêtre de grâce de 30 secondes.** Deux onglets ouverts renouvellent en même
+temps : les deux présentent le même jeton, le perdant tombe donc sur un jeton
+révoqué une milliseconde plus tôt. Sans garde-fou, cette course parfaitement
+légitime était prise pour un vol et déconnectait l'utilisateur de partout. Un
+jeton révoqué depuis **moins de 30 s** renvoie donc `refresh_retry` sans rien
+révoquer ni toucher aux cookies : le navigateur a déjà reçu ceux du gagnant, il
+lui suffit de rejouer la requête. Au-delà de 30 s, c'est un rejeu et toute la
+famille saute.
 
 ---
 
@@ -196,6 +217,13 @@ La réponse est **identique** que l'adresse soit inconnue, déjà vérifiée, ou
 qu'un mail parte réellement — sinon l'endpoint permettrait de tester qui a un
 compte. Les liens précédents sont révoqués : un seul est vivant à la fois.
 
+**La réponse part avant l'envoi du mail** (émission du jeton et SMTP dans
+`after()`). Une adresse existante déclenchait sinon une écriture en base et un
+aller-retour SMTP de plusieurs centaines de millisecondes, quand une adresse
+inconnue répondait immédiatement : chronométrer la réponse suffisait à trier
+une liste d'adresses. Corollaire : `ok: true` ne garantit pas la remise du mail,
+un échec d'envoi n'est que journalisé.
+
 ---
 
 ## `POST /api/auth/password/forgot`
@@ -210,8 +238,12 @@ Envoie un lien de réinitialisation.
 | `400` | `{ "errors": ["email is required"] }` |
 | `415` | |
 
-Même réponse que l'adresse existe ou non. Les liens de reset précédents sont
-révoqués : un seul est vivant à la fois.
+Même réponse que l'adresse existe ou non, et **la réponse part avant l'envoi du
+mail** : sinon une adresse connue coûtait une écriture en base plus un
+aller-retour SMTP quand une adresse inconnue répondait tout de suite, et
+chronométrer suffisait à savoir qui a un compte. Un `ok: true` ne garantit donc
+pas la remise du mail. Les liens de reset précédents sont révoqués : un seul est
+vivant à la fois.
 
 Le lien mène à une **page du front** (`/reset-password?token=...`), pas à
 l'API : l'utilisateur doit encore saisir son nouveau mot de passe.
@@ -443,8 +475,18 @@ illisibles échoue ici, d'où `photo could not be processed`.
 | `201` | ajoutée |
 | `400` | `["photo is required"]`, `["photo must be a jpeg, png or webp image"]`, `["photo could not be processed"]` |
 | `409` | `["photo limit reached"]` |
-| `413` | `["photo is too large"]` — 5 Mo |
+| `413` | `["photo is too large"]` — voir ci-dessous |
 | `415` | `["content-type must be multipart/form-data"]` |
+| `500` | violation de contrainte réelle — elle n'est plus maquillée en erreur métier |
+
+**La taille est comptée sur le flux**, pas déduite de `content-length` : cet
+en-tête est fourni par le client, donc absent d'une requête en
+`Transfer-Encoding: chunked` et arbitraire sinon. Le corps est lu morceau par
+morceau et la lecture est interrompue dès `MAX_PHOTO_BYTES + 8 Kio` (marge
+d'enveloppe multipart), avant toute mise en mémoire complète. Auparavant le
+contrôle réel n'arrivait qu'après `formData()`, qui avait déjà tout chargé : un
+corps de plusieurs Go suffisait à faire tomber le serveur avec une seule session
+valide. Le contrôle `file.size` reste en second rideau.
 
 ## `PATCH /api/profile/photos/[id]`
 
@@ -455,6 +497,12 @@ garantit qu'il n'y en a jamais deux.
 `400 ["is_profile must be true"]` sinon, `404 ["photo not found"]` si la photo
 n'existe pas **ou** n'appartient pas au connecté — un seul message, pour ne pas
 révéler l'existence des photos des autres.
+
+Ces codes métier viennent d'un résultat explicite du repository, plus du type
+de l'exception : une `ConstraintError` concurrente était auparavant attrapée
+comme un `DatabaseError` et rendue en `404` sur une photo qui existait
+pourtant. Une vraie erreur de base remonte maintenant en `500`, où elle est
+visible.
 
 ## `DELETE /api/profile/photos/[id]`
 
@@ -488,4 +536,14 @@ lecture. Une traversée de répertoire est donc impossible.
 | --- | --- |
 | `200` | l'image, avec son vrai `content-type` |
 | `401` | pas de session |
-| `404` | id inconnu, ou fichier absent du disque |
+| `403` | compte non vérifié |
+| `404` | id inconnu, fichier absent du disque, ou **blocage** entre le connecté et le propriétaire |
+
+Le blocage est vérifié **dans les deux sens** : un utilisateur bloqué garde
+sinon les URL en mémoire et continue de voir les photos, alors que le sujet
+demande qu'il disparaisse. La réponse est un `404`, pas un `403`, pour ne pas
+confirmer que la photo existe.
+
+La réponse porte `X-Content-Type-Options: nosniff`. Le risque est faible — les
+octets servis sont toujours du WebP ré-encodé par sharp — mais l'en-tête coûte
+une ligne.

@@ -11,9 +11,14 @@ import { VIEWS } from "./views";
  * n'apparait jamais. Toutes les instructions etant en IF NOT EXISTS, les
  * rejouer sur une base remplie ne detruit rien.
  *
+ * Les vues font exception : chacune est precedee de son DROP, donc rejouer le
+ * schema suffit a les remettre a niveau. Une modification de vue reste
+ * invisible tant que la version ne change pas, d'ou l'increment ci-dessous.
+ *
  * 2 — table cities (referentiel GeoNames)
+ * 3 — age calendaire dans la vue user_profiles
  */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 function seedTags(database: Database.Database): void {
 	const insert = database.prepare(

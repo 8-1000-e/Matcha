@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { createEmailToken, EMAIL_TTL } from "@/lib/auth/tokens";
 import { findUserByEmail, issueEmailToken, revokeEmailTokens } from "@/lib/db";
 import { readJsonBody } from "@/lib/http/body";
@@ -26,23 +27,31 @@ export async function POST(request: Request)
 	}
 
 	const user = findUserByEmail(email.trim().toLowerCase());
-	if (!user)
+
+	// Emission du jeton et envoi SMTP apres la reponse : sinon l'adresse connue
+	// repond en centaines de ms la ou l'inconnue repond tout de suite, et ce
+	// delai suffit a enumerer les comptes. Un echec d'envoi ne doit pour la
+	// meme raison rien changer a la reponse : on se contente de le journaliser.
+	if (user)
 	{
-		return Response.json(SENT);
+		after(async () => {
+			revokeEmailTokens(user.id, "password_reset");
+			const verification = createEmailToken();
+			issueEmailToken({
+				user_id: user.id,
+				token_hash: verification.hash,
+				type: "password_reset",
+				expires_at: verification.expiresAt,
+			});
+
+			const link = `${process.env.APP_URL}/reset-password?token=${verification.token}`;
+			const mail = resetPasswordMail({ username: user.username, link, ttlSeconds: EMAIL_TTL });
+			if (!await sendMail(user.email, mail.subject, mail.html, mail.text))
+			{
+				console.error("password reset mail not delivered", { user_id: user.id });
+			}
+		});
 	}
-
-	revokeEmailTokens(user.id, "password_reset");
-	const verification = createEmailToken();
-	issueEmailToken({
-		user_id: user.id,
-		token_hash: verification.hash,
-		type: "password_reset",
-		expires_at: verification.expiresAt,
-	});
-
-	const link = `${process.env.APP_URL}/reset-password?token=${verification.token}`;
-	const mail = resetPasswordMail({ username: user.username, link, ttlSeconds: EMAIL_TTL });
-	await sendMail(user.email, mail.subject, mail.html, mail.text);
 
 	return Response.json(SENT);
 }

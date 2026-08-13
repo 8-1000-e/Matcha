@@ -60,12 +60,15 @@ export interface Place {
 	longitude: number;
 }
 
-export async function searchPlaces(query: string): Promise<Place[]> {
-	const result = await request<{ places: Place[] }>(
+export type PlacesResult = ApiResult<{ places: Place[] }>;
+
+// L'echec remonte tel quel : une ville introuvable et une recherche impossible
+// ne se disent pas pareil a l'utilisateur.
+export function searchPlaces(query: string): Promise<PlacesResult> {
+	return request<{ places: Place[] }>(
 		`/api/profile/location/search?q=${encodeURIComponent(query)}`,
 		{ method: "GET" },
 	);
-	return result.ok ? result.data.places : [];
 }
 
 type Payload = { profile: Profile };
