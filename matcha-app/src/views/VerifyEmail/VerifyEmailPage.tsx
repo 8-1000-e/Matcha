@@ -5,6 +5,7 @@ import { PrivateScreen } from "@/components/Layout/Screen";
 export function VerifyEmailPage({ firstName }: { firstName: string }) {
 	return (
 		<PrivateScreen
+			verified={false}
 			title="Vérifiez votre adresse"
 			intro={`${firstName}, votre compte existe mais son adresse e-mail n’est pas encore confirmée. Ouvrez le lien reçu par mail pour la valider.`}
 			footer={

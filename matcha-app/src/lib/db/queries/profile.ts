@@ -1,7 +1,7 @@
 import { queryOne } from "../core/client";
 import { raw, sql } from "../core/sql";
 import type { Flag } from "../core/values";
-import { ageYears } from "../schema/views";
+import { ageYears, onlineNow } from "../schema/views";
 import type { UserRow } from "../types";
 
 export interface ProfileRelationship {
@@ -37,8 +37,8 @@ export function findPublicProfile(
 				target.birth_date, target.gender, target.orientation,
 				target.biography, target.is_verified, target.profile_completed,
 				target.latitude, target.longitude, target.city, target.neighborhood,
-				target.location_consent, target.is_online, target.last_seen_at,
-				target.created_at,
+				target.location_consent, target.last_seen_at, target.created_at,
+				${raw(onlineNow("target.last_seen_at"))} AS is_online,
 				${raw(ageYears("target.birth_date"))} AS age,
 				distance_km(
 					${viewer.latitude}, ${viewer.longitude},

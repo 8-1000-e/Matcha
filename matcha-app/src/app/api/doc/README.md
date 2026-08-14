@@ -1047,3 +1047,39 @@ compterait deux visites au moindre préchargement du navigateur ou double montag
 de React en mode strict — or `profile_views` n'a pas de contrainte d'unicité,
 chaque ligne compte. Le front appelle donc les deux : le `GET` pour afficher, le
 `POST` pour enregistrer.
+
+---
+
+# Présence
+
+## `POST /api/presence`
+
+Signale que le connecté est actif. Met `last_seen_at` à l'heure et renvoie
+`{ "ok": true, "window_seconds": 90 }`. `401` sans session, `403` si le compte
+n'est pas vérifié.
+
+Appelée automatiquement par `PresenceHeartbeat`, monté dans `PrivateScreen` :
+toutes les **30 secondes** tant qu'un onglet est ouvert et visible, plus un
+battement immédiat au montage et au retour sur l'onglet. Un onglet en arrière-plan
+ne bat pas — inutile de compter en ligne quelqu'un qui a la page ouverte depuis
+trois jours dans un onglet oublié.
+
+**L'état en ligne n'est pas stocké, il est calculé à la lecture** : « en ligne »
+signifie « `last_seen_at` il y a moins de 90 secondes », via la fonction
+`onlineNow()` partagée. La colonne `users.is_online` existe encore mais n'est
+plus ni écrite ni lue — une valeur dénormalisée que rien ne remet à zéro
+resterait vraie pour toujours après une fermeture brutale du navigateur.
+
+Conséquence assumée : fermer un onglet laisse le profil affiché en ligne pendant
+au plus 90 secondes. Le sujet n'impose aucun délai sur la présence — les 10
+secondes concernent le chat et les notifications.
+
+Pourquoi pas les webhooks de présence Pusher, comme le prévoyait
+`docs/db-schema.md` : un webhook part des serveurs de Pusher **vers**
+l'application, et ils ne peuvent pas joindre `http://localhost:3000`. Il aurait
+fallu un tunnel en développement comme à la soutenance. Le raisonnement complet
+est dans `docs/db-schema.md`, section `users`.
+
+`is_online` et `last_seen_at` sont exposés partout où un utilisateur est décrit :
+`GET /api/users/[id]`, `GET /api/likes`, `GET /api/views`, `GET /api/blocks` et
+`GET /api/matches`.

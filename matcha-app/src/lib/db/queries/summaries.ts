@@ -1,6 +1,7 @@
 import { queryOne } from "../core/client";
 import { raw, sql, type SqlFragment } from "../core/sql";
 import type { Flag } from "../core/values";
+import { onlineNow } from "../schema/views";
 
 export interface UserSummaryRow {
 	id: string;
@@ -21,7 +22,7 @@ export const SUMMARY_COLUMNS: SqlFragment = raw(`profiles.id,
 	profiles.age,
 	profiles.city,
 	profiles.neighborhood,
-	profiles.is_online,
+	${onlineNow("profiles.last_seen_at")} AS is_online,
 	profiles.last_seen_at,
 	profiles.popularity_score,
 	(

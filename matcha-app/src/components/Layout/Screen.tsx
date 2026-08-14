@@ -5,6 +5,7 @@ import { BackLink } from "@/components/Form/Button";
 import { LogoutButton } from "@/components/Form/LogoutButton";
 import { Backdrop } from "@/components/Layout/Backdrop";
 import { NotificationBell } from "@/components/Notifications/NotificationBell";
+import { PresenceHeartbeat } from "@/components/Presence/PresenceHeartbeat";
 
 type ScreenProps = {
 	top: ReactNode;
@@ -69,6 +70,7 @@ type PrivateScreenProps = {
 	footer: ReactNode;
 	width?: "narrow" | "wide";
 	center?: boolean;
+	verified?: boolean;
 };
 
 export function PrivateScreen({
@@ -78,6 +80,7 @@ export function PrivateScreen({
 	footer,
 	width = "narrow",
 	center = false,
+	verified = true,
 }: PrivateScreenProps) {
 	return (
 		<Screen
@@ -85,9 +88,10 @@ export function PrivateScreen({
 			center={center}
 			top={
 				<div className="flex w-full items-center justify-between gap-3">
+					{verified ? <PresenceHeartbeat /> : null}
 					<BrandLockup />
 					<div className="flex items-center gap-1">
-						<NotificationBell />
+						{verified ? <NotificationBell /> : null}
 						<LogoutButton />
 					</div>
 				</div>

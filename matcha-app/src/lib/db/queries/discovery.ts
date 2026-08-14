@@ -8,7 +8,7 @@ import {
 } from "../core/identifiers";
 import { startsWith } from "../core/operators";
 import { every, join, raw, sql, when, type SqlFragment } from "../core/sql";
-import { ageYears } from "../schema/views";
+import { ageYears, onlineNow } from "../schema/views";
 import { GENDERS, type Gender, type UserRow } from "../types";
 
 const SORT_COLUMNS = {
@@ -146,7 +146,7 @@ function filterClauses(
 		);
 	}
 	if (filters.onlineOnly === true) {
-		clauses.push(raw("candidate.is_online = 1"));
+		clauses.push(raw(onlineNow("candidate.last_seen_at")));
 	}
 	if (filters.usernameQuery !== undefined) {
 		clauses.push(sql`candidate.username ${startsWith(filters.usernameQuery)}`);

@@ -156,11 +156,12 @@ export {
 	markUserVerified,
 	refreshProfileCompletion,
 	setLocation,
-	setPresence,
+	touchLastSeen,
 	updatePassword,
 	users,
 } from "./repositories/users";
 export { purgeIfDue } from "./maintenance";
 export { applySchema, dropSchema, SCHEMA_VERSION } from "./schema/apply";
+export { onlineNow, PRESENCE_WINDOW_SECONDS } from "./schema/views";
 export { TAG_LABELS } from "./schema/tags";
 export * from "./types";
