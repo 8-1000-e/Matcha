@@ -22,6 +22,22 @@ export const notifications = createRepository<
 	defaultOrder: [{ column: "created_at", direction: "desc" }],
 });
 
+export const NOTIFICATION_HISTORY = 50;
+
+export function pruneNotifications(recipientId: string): number {
+	return execute(
+		sql`DELETE FROM notifications
+			WHERE recipient_id = ${recipientId}
+				AND read_at IS NOT NULL
+				AND id NOT IN (
+					SELECT id FROM notifications
+					WHERE recipient_id = ${recipientId}
+					ORDER BY created_at DESC, id DESC
+					LIMIT ${NOTIFICATION_HISTORY}
+				)`,
+	).changes;
+}
+
 export function notify(
 	values: NotificationInsert,
 ): NotificationRow | undefined {
@@ -39,7 +55,12 @@ export function notify(
 	) {
 		return undefined;
 	}
-	return notifications.insert({ ...values, id: values.id ?? createId() });
+	const created = notifications.insert({
+		...values,
+		id: values.id ?? createId(),
+	});
+	pruneNotifications(values.recipient_id);
+	return created;
 }
 
 export function listNotifications(

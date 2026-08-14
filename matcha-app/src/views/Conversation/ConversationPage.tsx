@@ -62,6 +62,29 @@ function Header({ partner }: { partner: Partner | null }) {
 	);
 }
 
+function Ticks({ read }: { read: boolean }) {
+	return (
+		<>
+			<svg
+				viewBox="0 0 22 12"
+				aria-hidden="true"
+				className={`ml-1 inline-block h-3 w-4 align-[-2px] ${
+					read ? "text-white" : "text-white/60"
+				}`}
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="2"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+			>
+				<path d="M1 6.5 4.5 10 11 2.5" />
+				{read ? <path d="M8 6.5 11.5 10 18 2.5" /> : null}
+			</svg>
+			<span className="sr-only">{read ? "vu" : "envoyé"}</span>
+		</>
+	);
+}
+
 function Bubble({ message, mine }: { message: ChatMessage; mine: boolean }) {
 	return (
 		<li className={`flex ${mine ? "justify-end" : "justify-start"}`}>
@@ -79,7 +102,7 @@ function Bubble({ message, mine }: { message: ChatMessage; mine: boolean }) {
 					}`}
 				>
 					{messageTime(message.sent_at)}
-					{mine && message.read ? " · vu" : ""}
+					{mine ? <Ticks read={message.read} /> : null}
 				</span>
 			</div>
 		</li>
@@ -106,6 +129,15 @@ export function ConversationPage({
 	const sentinel = useRef<HTMLDivElement>(null);
 	const kept = useRef<number | null>(null);
 	const glued = useRef(true);
+	const unseen = useRef(false);
+
+	const flushRead = useCallback(() => {
+		if (!unseen.current || document.visibilityState !== "visible") {
+			return;
+		}
+		unseen.current = false;
+		void markConversationRead(matchId);
+	}, [matchId]);
 
 	const add = useCallback((incoming: ChatMessage[], atTop: boolean) => {
 		setMessages((current) => {
@@ -146,20 +178,34 @@ export function ConversationPage({
 			setMessages(result.data.messages);
 			setExhausted(result.data.messages.length < PAGE_SIZE);
 			setReady(true);
-			void markConversationRead(matchId);
+			unseen.current = result.data.messages.some(
+				(entry) => entry.sender_id !== userId && !entry.read,
+			);
+			flushRead();
 		});
 
 		return () => {
 			live = false;
 		};
-	}, [matchId]);
+	}, [matchId, userId, flushRead]);
+
+	useEffect(() => {
+		document.addEventListener("visibilitychange", flushRead);
+		return () => {
+			document.removeEventListener("visibilitychange", flushRead);
+		};
+	}, [flushRead]);
 
 	useEffect(() => {
 		return subscribe(`private-chat-${matchId}`, "message", (payload) => {
-			add([payload as ChatMessage], false);
-			void markConversationRead(matchId);
+			const incoming = payload as ChatMessage;
+			add([incoming], false);
+			if (incoming.sender_id !== userId) {
+				unseen.current = true;
+				flushRead();
+			}
 		});
-	}, [matchId, add]);
+	}, [matchId, userId, add, flushRead]);
 
 	useEffect(() => {
 		return subscribe(`private-chat-${matchId}`, "read", () => {

@@ -98,8 +98,10 @@ export {
 	listNotifications,
 	markAllNotificationsRead,
 	markNotificationRead,
+	NOTIFICATION_HISTORY,
 	notifications,
 	notify,
+	pruneNotifications,
 } from "./repositories/notifications";
 export {
 	addPhoto,

@@ -689,6 +689,15 @@ charge.
 
 `read_at` devient le booléen `read` : le front n'a pas besoin de l'horodatage.
 
+**L'historique se purge tout seul.** Chaque insertion appelle
+`pruneNotifications`, qui supprime les notifications **déjà lues** sorties des
+`NOTIFICATION_HISTORY` (50) plus récentes du destinataire. Sans cela la table
+grossit indéfiniment : un compte actif accumule un `VIEWED` par visite de son
+profil. **Une notification non lue n'est jamais supprimée**, quel que soit son
+âge — la purge ne doit pas faire disparaître ce que l'utilisateur n'a pas encore
+vu. La limite est la même que celle de la lecture, donc la purge ne retire
+jamais une ligne que cette route aurait renvoyée.
+
 **Cette route est la seule des notifications à passer par `requireAnySession`** :
 elle n'exige donc pas que le compte soit vérifié. La raison est concrète — la
 cloche est montée dans `PrivateScreen`, qui habille aussi `/verify-email`, où
