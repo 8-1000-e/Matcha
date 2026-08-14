@@ -32,7 +32,7 @@ export async function PUT(_request: Request, context: Context)
 		ok: true,
 		liked: outcome.liked,
 		matched: outcome.matched,
-		match_id: outcome.match?.id ?? null,
+		match_id: outcome.matched ? (outcome.match?.id ?? null) : null,
 	});
 }
 
