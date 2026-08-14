@@ -99,6 +99,7 @@ export {
 	countUnreadNotifications,
 	listNotifications,
 	markAllNotificationsRead,
+	markLinkedNotificationsRead,
 	markNotificationRead,
 	NOTIFICATION_HISTORY,
 	notifications,

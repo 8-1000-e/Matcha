@@ -92,9 +92,10 @@ Le cœur. Un seul enregistrement par personne.
 | `created_at` | timestamp | |
 
 **L'état en ligne est calculé à la lecture, à partir de `last_seen_at`.** Une
-page ouverte envoie un `POST /api/presence` toutes les 30 secondes, qui remet
-`last_seen_at` à l'heure. « En ligne » signifie « vu il y a moins de
-`PRESENCE_WINDOW_SECONDS` » (90 s), exprimé par la fonction `onlineNow()` de
+page ouverte envoie un `POST /api/presence` toutes les `PRESENCE_BEAT_MS`
+(15 s), qui remet `last_seen_at` à l'heure. « En ligne » signifie « vu il y a
+moins de `PRESENCE_WINDOW_SECONDS` » (45 s), et le battement vaut le tiers de
+la fenêtre — deux battements perdus ne font pas clignoter la présence, exprimé par la fonction `onlineNow()` de
 `schema/views.ts` — la même mécanique que `ageYears()`, qu'on ne stocke pas non
 plus.
 
@@ -110,7 +111,7 @@ n'impose **aucun délai** — les 10 secondes concernent le chat (IV.6) et les
 notifications (IV.7), pas la présence.
 
 Le prix de ce choix est assumé : quelqu'un qui ferme son onglet reste affiché en
-ligne pendant au plus 90 secondes. En échange, la fonctionnalité ne dépend
+ligne pendant au plus 45 secondes. En échange, la fonctionnalité ne dépend
 d'aucun service tiers et ne peut pas tomber en panne devant le correcteur.
 
 **Une seule source de vérité, délibérément.** `is_online` n'est plus écrit ni

@@ -6,7 +6,7 @@ import {
 	type NotificationRow,
 } from "@/lib/db";
 import { publish, userChannel } from "@/lib/realtime/server";
-import { serializeNotification } from "./notifications";
+import { conversationLink, serializeNotification } from "./notifications";
 
 function push(row: NotificationRow): void {
 	after(() => {
@@ -52,6 +52,6 @@ export function emitMessage(
 		recipient_id: recipientId,
 		actor_id: actorId,
 		type: "MESSAGE",
-		link: `/messages/${matchId}`,
+		link: conversationLink(matchId),
 	});
 }

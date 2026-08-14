@@ -12,6 +12,10 @@ export interface NotificationPayload {
 
 export const UNKNOWN_ACTOR = "Quelqu’un";
 
+export function conversationLink(matchId: string): string {
+	return `/messages/${matchId}`;
+}
+
 export const NOTIFICATION_LABELS: Record<
 	NotificationType,
 	(actor: string) => string

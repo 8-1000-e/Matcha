@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
+import { PRESENCE_BEAT_MS } from "@/lib/db/schema/views";
 import { send } from "@/lib/http/client";
-
-const BEAT_INTERVAL_MS = 30_000;
 
 export function PresenceHeartbeat() {
 	useEffect(() => {
@@ -17,7 +16,7 @@ export function PresenceHeartbeat() {
 		};
 
 		beat();
-		const timer = window.setInterval(beat, BEAT_INTERVAL_MS);
+		const timer = window.setInterval(beat, PRESENCE_BEAT_MS);
 		document.addEventListener("visibilitychange", beat);
 
 		return () => {

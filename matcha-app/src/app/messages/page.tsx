@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { fetchCurrentUser } from "@/lib/auth/serverUser";
-import { ConversationsPage } from "@/views/Conversations/ConversationsPage";
+import { InboxPage } from "@/views/Inbox/InboxPage";
 
 export const metadata: Metadata = {
 	title: "Messages",
@@ -20,5 +20,5 @@ export default async function Page() {
 		redirect("/complete-profile");
 	}
 
-	return <ConversationsPage userId={user.id} />;
+	return <InboxPage userId={user.id} />;
 }

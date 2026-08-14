@@ -830,9 +830,20 @@ notification `MESSAGE` part vers le destinataire, avec
 ## `PATCH /api/messages/[matchId]`
 
 **Corps** : `{ "read": true }`. Marque lus tous les messages de la conversation
-qui ne viennent pas de l'appelant, renvoie `{ "ok": true, "updated": n }`, et
-publie l'événement `read` sur le canal du chat pour que l'expéditeur voie son
-« vu » sans recharger.
+qui ne viennent pas de l'appelant, et publie l'événement `read` sur le canal du
+chat pour que l'expéditeur voie son « vu » sans recharger.
+
+**La même requête éteint les notifications de cette conversation.** Ouvrir un
+fil et y voir les messages, tout en gardant « untel vous a envoyé un message »
+dans la cloche, oblige l'utilisateur à acquitter deux fois la même information.
+`markLinkedNotificationsRead` marque donc lues les notifications dont le `link`
+vaut `/messages/<matchId>` — d'où le lien porté par les notifications `MESSAGE`,
+qui sert ici de clé de regroupement et pas seulement de destination.
+
+La réponse devient `{ "ok": true, "updated": n, "dismissed": n }`. Quand
+`dismissed > 0`, l'événement **`notifications-read`** est publié sur le canal
+personnel du lecteur avec `{ link }` : les autres onglets et la cloche
+rafraîchissent leur compteur sans recharger la page.
 
 ## Les gardes des quatre routes
 
@@ -871,12 +882,30 @@ compte.
 | Canal | Événement | Charge |
 | --- | --- | --- |
 | `private-user-<id>` | `notification` | une notification sérialisée, identique à un élément de `GET /api/notifications` |
+| `private-user-<id>` | `notifications-read` | `{ link }` — les notifications portant ce lien viennent d'être acquittées |
 | `private-chat-<matchId>` | `message` | un message sérialisé |
 | `private-chat-<matchId>` | `read` | `{ match_id, reader_id, read_at }` |
+| `private-chat-<matchId>` | `closed` | `{ match_id }` — la connexion est rompue, la conversation n'est plus accessible |
+
+**`closed` part du retrait de like et du blocage**, les deux seules opérations
+qui désactivent un match. Sans lui, l'écran de conversation restait ouvert sur
+un fil devenu inaccessible : la saisie répondait `404` sans rien expliquer. Il
+est publié sur le canal du chat parce que **les deux parties y sont déjà
+abonnées** — celle qui subit la rupture n'a rien demandé et n'a donc aucun autre
+signal.
 
 Un seul nom d'événement pour les cinq types de notification : le client ajoute
 en tête et incrémente son badge sans connaître les types. En ajouter un plus
 tard ne touche pas le client.
+
+**Le client tait les notifications de la conversation qu'il a sous les yeux.**
+Recevoir « untel vous a envoyé un message » pendant qu'on lit ce message est
+absurde. La conversation ouverte s'enregistre dans `notifications/active.ts`, et
+la cloche ignore une notification `MESSAGE` dont le lien correspond. Le filtre
+est côté client, pas serveur : le serveur ne sait pas quel écran est affiché, et
+le lui apprendre demanderait de stocker un état d'interface en base. La ligne
+existe donc bien en base, mais le `PATCH` déclenché par la lecture la marque lue
+dans la foulée — au rechargement, elle est déjà acquittée.
 
 Les **client events sont désactivés** dans le tableau de bord Pusher : un
 navigateur ne publie jamais. Sinon n'importe qui fabriquerait un faux message
@@ -1102,20 +1131,23 @@ Signale que le connecté est actif. Met `last_seen_at` à l'heure et renvoie
 n'est pas vérifié.
 
 Appelée automatiquement par `PresenceHeartbeat`, monté dans `PrivateScreen` :
-toutes les **30 secondes** tant qu'un onglet est ouvert et visible, plus un
+toutes les **15 secondes** tant qu'un onglet est ouvert et visible, plus un
 battement immédiat au montage et au retour sur l'onglet. Un onglet en arrière-plan
 ne bat pas — inutile de compter en ligne quelqu'un qui a la page ouverte depuis
 trois jours dans un onglet oublié.
 
 **L'état en ligne n'est pas stocké, il est calculé à la lecture** : « en ligne »
-signifie « `last_seen_at` il y a moins de 90 secondes », via la fonction
+signifie « `last_seen_at` il y a moins de 45 secondes », via la fonction
 `onlineNow()` partagée. La colonne `users.is_online` existe encore mais n'est
 plus ni écrite ni lue — une valeur dénormalisée que rien ne remet à zéro
 resterait vraie pour toujours après une fermeture brutale du navigateur.
 
 Conséquence assumée : fermer un onglet laisse le profil affiché en ligne pendant
-au plus 90 secondes. Le sujet n'impose aucun délai sur la présence — les 10
-secondes concernent le chat et les notifications.
+au plus 45 secondes, et l'écran qui l'affiche interroge le serveur au même
+rythme que le battement — donc **une minute au pire** entre la fermeture et le
+point qui s'éteint. Le battement vaut le tiers de la fenêtre : deux battements
+peuvent se perdre sans faire clignoter la présence. Le sujet n'impose aucun
+délai ici — les 10 secondes concernent le chat et les notifications.
 
 Pourquoi pas les webhooks de présence Pusher, comme le prévoyait
 `docs/db-schema.md` : un webhook part des serveurs de Pusher **vers**

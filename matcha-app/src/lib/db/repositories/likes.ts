@@ -28,6 +28,7 @@ export interface LikeOutcome {
 export interface UnlikeOutcome {
 	unliked: boolean;
 	disconnected: boolean;
+	match_id: string | null;
 }
 
 function pair(first: string, second: string): [string, string] {
@@ -87,12 +88,16 @@ export function like(likerId: string, likedId: string): LikeOutcome {
 
 export function unlike(likerId: string, likedId: string): UnlikeOutcome {
 	return transaction(() => {
-		const wasConnected
-			= findMatchBetween(likerId, likedId)?.is_active === 1;
+		const existing = findMatchBetween(likerId, likedId);
+		const wasConnected = existing?.is_active === 1;
 		if (likes.remove({ liker_id: likerId, liked_id: likedId }) === 0) {
-			return { unliked: false, disconnected: false };
+			return { unliked: false, disconnected: false, match_id: null };
 		}
-		return { unliked: true, disconnected: wasConnected };
+		return {
+			unliked: true,
+			disconnected: wasConnected,
+			match_id: wasConnected ? (existing?.id ?? null) : null,
+		};
 	});
 }
 

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { fetchCurrentUser } from "@/lib/auth/serverUser";
-import { ConversationPage } from "@/views/Conversation/ConversationPage";
+import { ThreadPage } from "@/views/Thread/ThreadPage";
 
 export const metadata: Metadata = {
 	title: "Conversation",
@@ -22,5 +22,5 @@ export default async function Page({ params }: PageProps<"/messages/[matchId]">)
 
 	const { matchId } = await params;
 
-	return <ConversationPage matchId={matchId} userId={user.id} />;
+	return <ThreadPage matchId={matchId} userId={user.id} />;
 }

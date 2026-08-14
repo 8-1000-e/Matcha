@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import {
 	Fragment,
 	useCallback,
@@ -12,6 +11,8 @@ import {
 } from "react";
 import { BackLink } from "@/components/Form/Button";
 import { Backdrop } from "@/components/Layout/Backdrop";
+import { PresenceAvatar } from "@/components/Presence/PresenceAvatar";
+import { PRESENCE_BEAT_MS } from "@/lib/db/schema/views";
 import {
 	getMessages,
 	getPartner,
@@ -22,6 +23,8 @@ import {
 	type Partner,
 } from "@/lib/messages/client";
 import { dayLabel, lastSeenLabel, messageTime, sameDay } from "@/lib/messages/dates";
+import { openConversation } from "@/lib/notifications/active";
+import { conversationLink } from "@/lib/notifications/notifications";
 import { subscribe } from "@/lib/realtime/client";
 
 function Header({ partner }: { partner: Partner | null }) {
@@ -31,26 +34,20 @@ function Header({ partner }: { partner: Partner | null }) {
 		<header className="mx-auto flex w-full max-w-sm shrink-0 items-center gap-3 px-6 pt-6 pb-3">
 			<BackLink href="/messages" />
 
-			<div className="relative size-9 shrink-0 overflow-hidden rounded-full bg-leaf">
-				{partner?.photo_url ? (
-					<Image
-						src={partner.photo_url}
-						alt=""
-						fill
-						unoptimized
-						sizes="36px"
-						className="object-cover"
-					/>
-				) : (
-					<span className="flex size-full items-center justify-center text-sm font-medium text-matcha-dark">
-						{name.slice(0, 1).toUpperCase()}
-					</span>
-				)}
-			</div>
+			<PresenceAvatar
+				url={partner?.photo_url ?? null}
+				name={name}
+				online={partner?.is_online ?? false}
+				size="small"
+			/>
 
 			<div className="min-w-0">
 				<p className="truncate font-medium">{name}</p>
-				<p className="text-xs text-muted">
+				<p
+					className={`text-xs ${
+						partner?.is_online ? "text-matcha-dark" : "text-muted"
+					}`}
+				>
 					{partner === null
 						? ""
 						: partner.is_online
@@ -62,7 +59,7 @@ function Header({ partner }: { partner: Partner | null }) {
 	);
 }
 
-const PRESENCE_REFRESH_MS = 30_000;
+const PRESENCE_REFRESH_MS = PRESENCE_BEAT_MS;
 
 function Ticks({ read }: { read: boolean }) {
 	return (
@@ -111,7 +108,7 @@ function Bubble({ message, mine }: { message: ChatMessage; mine: boolean }) {
 	);
 }
 
-export function ConversationPage({
+export function ThreadPage({
 	matchId,
 	userId,
 }: {
@@ -196,6 +193,16 @@ export function ConversationPage({
 			window.clearInterval(timer);
 		};
 	}, [matchId, missing]);
+
+	useEffect(() => {
+		return openConversation(conversationLink(matchId));
+	}, [matchId]);
+
+	useEffect(() => {
+		return subscribe(`private-chat-${matchId}`, "closed", () => {
+			setMissing(true);
+		});
+	}, [matchId]);
 
 	useEffect(() => {
 		document.addEventListener("visibilitychange", flushRead);

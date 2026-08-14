@@ -103,6 +103,18 @@ export function markNotificationRead(
 	);
 }
 
+export function markLinkedNotificationsRead(
+	recipientId: string,
+	link: string,
+): number {
+	return execute(
+		sql`UPDATE notifications SET read_at = ${nowIso()}
+			WHERE recipient_id = ${recipientId}
+				AND link = ${link}
+				AND read_at IS NULL`,
+	).changes;
+}
+
 export function markAllNotificationsRead(recipientId: string): number {
 	return execute(
 		sql`UPDATE notifications SET read_at = ${nowIso()}

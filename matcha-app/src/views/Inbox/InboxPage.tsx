@@ -1,69 +1,26 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PrivateScreen } from "@/components/Layout/Screen";
+import { PresenceAvatar } from "@/components/Presence/PresenceAvatar";
+import { PRESENCE_BEAT_MS } from "@/lib/db/schema/views";
 import {
 	CONVERSATION_PAGE_SIZE,
 	getConversations,
 	type Conversation,
 	type ConversationCursor,
 } from "@/lib/messages/client";
+import { append, refreshHead } from "@/lib/messages/conversations";
 import { conversationDate } from "@/lib/messages/dates";
 import { subscribe } from "@/lib/realtime/client";
 
 const SEARCH_DELAY_MS = 300;
-const REFRESH_MS = 30_000;
+const REFRESH_MS = PRESENCE_BEAT_MS;
 
 interface Page {
 	query: string;
 	items: Conversation[];
-}
-
-function merge(
-	current: Conversation[],
-	fresh: Conversation[],
-): Conversation[] {
-	const byId = new Map(current.map((entry) => [entry.match_id, entry]));
-	for (const entry of fresh) {
-		byId.set(entry.match_id, entry);
-	}
-	return [...byId.values()].sort((left, right) =>
-		left.activity_at === right.activity_at
-			? right.match_id.localeCompare(left.match_id)
-			: right.activity_at.localeCompare(left.activity_at),
-	);
-}
-
-function Avatar({
-	url,
-	online,
-	name,
-}: {
-	url: string | null;
-	online: boolean;
-	name: string;
-}) {
-	return (
-		<div className="relative size-12 shrink-0">
-			<div className="relative size-12 overflow-hidden rounded-full bg-leaf">
-				{url === null ? (
-					<span className="flex size-full items-center justify-center text-base font-medium text-matcha-dark">
-						{name.slice(0, 1).toUpperCase()}
-					</span>
-				) : (
-					<Image src={url} alt="" fill unoptimized sizes="48px" className="object-cover" />
-				)}
-			</div>
-			{online ? (
-				<span
-					className="absolute right-0 bottom-0 size-3 rounded-full bg-matcha ring-2 ring-cream"
-					aria-label="en ligne"
-				/>
-			) : null}
-		</div>
-	);
 }
 
 function Preview({ conversation }: { conversation: Conversation }) {
@@ -101,10 +58,10 @@ function Row({ conversation }: { conversation: Conversation }) {
 				href={`/messages/${conversation.match_id}`}
 				className="flex items-center gap-3 rounded-xl px-2 py-3 transition-colors duration-200 ease-out hover:bg-leaf/40"
 			>
-				<Avatar
+				<PresenceAvatar
 					url={partner?.photo_url ?? null}
-					online={partner?.is_online ?? false}
 					name={name}
+					online={partner?.is_online ?? false}
 				/>
 
 				<span className="min-w-0 flex-1">
@@ -136,7 +93,7 @@ function Row({ conversation }: { conversation: Conversation }) {
 	);
 }
 
-export function ConversationsPage({ userId }: { userId: string }) {
+export function InboxPage({ userId }: { userId: string }) {
 	const [page, setPage] = useState<Page | null>(null);
 	const [search, setSearch] = useState("");
 	const [applied, setApplied] = useState("");
@@ -175,7 +132,7 @@ export function ConversationsPage({ userId }: { userId: string }) {
 			setPage((current) =>
 				current === null || current.query !== applied
 					? { query: applied, items: result.data.matches }
-					: { query: applied, items: merge(current.items, result.data.matches) },
+					: { query: applied, items: refreshHead(current.items, result.data.matches) },
 			);
 		});
 	}, [applied]);
@@ -229,7 +186,7 @@ export function ConversationsPage({ userId }: { userId: string }) {
 				}
 				return {
 					query: current.query,
-					items: merge(current.items, result.data.matches),
+					items: append(current.items, result.data.matches),
 				};
 			});
 		});

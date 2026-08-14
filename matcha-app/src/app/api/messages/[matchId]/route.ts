@@ -6,6 +6,7 @@ import {
 	isBlockedEitherWay,
 	listConversation,
 	markConversationRead,
+	markLinkedNotificationsRead,
 	sendMessage,
 	type MatchRow,
 	type UserRow,
@@ -17,9 +18,10 @@ import {
 	validateMessageBody,
 } from "@/lib/messages/validation";
 import { emitMessage } from "@/lib/notifications/emit";
+import { conversationLink } from "@/lib/notifications/notifications";
 import { validateRead } from "@/lib/notifications/validation";
 import { serializeUserSummary } from "@/lib/profile/summary";
-import { chatChannel, publish } from "@/lib/realtime/server";
+import { chatChannel, publish, userChannel } from "@/lib/realtime/server";
 
 interface Context {
 	params: Promise<{ matchId: string }>;
@@ -142,9 +144,11 @@ export async function PATCH(request: Request, context: Context)
 		return Response.json({ errors: result.errors }, { status: 400 });
 	}
 
-	const updated = markConversationRead(matchId, guarded.user.id);
-	const readAt = new Date().toISOString();
 	const reader = guarded.user.id;
+	const link = conversationLink(matchId);
+	const updated = markConversationRead(matchId, reader);
+	const dismissed = markLinkedNotificationsRead(reader, link);
+	const readAt = new Date().toISOString();
 
 	after(() => {
 		publish(chatChannel(matchId), "read", {
@@ -152,7 +156,11 @@ export async function PATCH(request: Request, context: Context)
 			reader_id: reader,
 			read_at: readAt,
 		});
+		if (dismissed > 0)
+		{
+			publish(userChannel(reader), "notifications-read", { link });
+		}
 	});
 
-	return Response.json({ ok: true, updated });
+	return Response.json({ ok: true, updated, dismissed });
 }

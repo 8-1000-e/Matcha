@@ -34,7 +34,7 @@ export interface ConversationCursor {
 	id: string;
 }
 
-export interface ConversationPage {
+export interface ConversationList {
 	matches: Conversation[];
 	cursor: ConversationCursor | null;
 	unread_messages: number;
@@ -52,7 +52,7 @@ export interface ChatMessage {
 export function getConversations(options?: {
 	search?: string;
 	before?: ConversationCursor;
-}): Promise<ApiResult<ConversationPage>> {
+}): Promise<ApiResult<ConversationList>> {
 	const query = new URLSearchParams({
 		limit: String(CONVERSATION_PAGE_SIZE),
 	});
@@ -63,7 +63,7 @@ export function getConversations(options?: {
 		query.set("before", options.before.activity_at);
 		query.set("before_id", options.before.id);
 	}
-	return request<ConversationPage>(`/api/matches?${query.toString()}`, {
+	return request<ConversationList>(`/api/matches?${query.toString()}`, {
 		method: "GET",
 	});
 }
