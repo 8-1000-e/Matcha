@@ -223,7 +223,7 @@ export function InboxPage({ userId }: { userId: string }) {
 			}
 			footer={null}
 		>
-			<label className="block">
+			<label className="relative block">
 				<span className="sr-only">Rechercher une conversation</span>
 				<input
 					type="search"

@@ -112,7 +112,7 @@ function Bubble({ message, mine }: { message: ChatMessage; mine: boolean }) {
 			>
 				{message.body}
 				<span
-					className={`mt-1 block text-right text-xs ${
+					className={`relative mt-1 block text-right text-xs ${
 						mine ? "text-white/70" : "text-muted"
 					}`}
 				>
@@ -203,6 +203,10 @@ export function ThreadPage({
 			void getPartner(matchId).then((result) => {
 				if (result.ok) {
 					setPartner(result.data.partner);
+					return;
+				}
+				if (result.status === 404) {
+					setMissing(true);
 				}
 			});
 		}, PRESENCE_REFRESH_MS);
