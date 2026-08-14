@@ -164,7 +164,7 @@ export function NotificationBell() {
 					{notifications.length === 0 ? (
 						<p className="mt-3 text-sm text-muted">Rien pour le moment.</p>
 					) : (
-						<ul className="mt-3 flex max-h-80 flex-col gap-1 overflow-y-auto">
+						<ul className="mt-3 flex max-h-80 flex-col gap-1 overflow-y-auto overscroll-contain">
 							{notifications.map((entry) => (
 								<li key={entry.id}>
 									<Entry

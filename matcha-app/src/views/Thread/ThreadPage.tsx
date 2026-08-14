@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
 	Fragment,
 	useCallback,
@@ -11,6 +12,7 @@ import {
 } from "react";
 import { BackLink } from "@/components/Form/Button";
 import { Backdrop } from "@/components/Layout/Backdrop";
+import { ModerationMenu } from "@/components/Moderation/ModerationMenu";
 import { PresenceAvatar } from "@/components/Presence/PresenceAvatar";
 import { PRESENCE_BEAT_MS } from "@/lib/db/schema/views";
 import {
@@ -27,7 +29,13 @@ import { openConversation } from "@/lib/notifications/active";
 import { conversationLink } from "@/lib/notifications/notifications";
 import { subscribe } from "@/lib/realtime/client";
 
-function Header({ partner }: { partner: Partner | null }) {
+function Header({
+	partner,
+	onBlocked,
+}: {
+	partner: Partner | null;
+	onBlocked: () => void;
+}) {
 	const name = partner?.first_name ?? partner?.username ?? "Conversation";
 
 	return (
@@ -41,7 +49,7 @@ function Header({ partner }: { partner: Partner | null }) {
 				size="small"
 			/>
 
-			<div className="min-w-0">
+			<div className="min-w-0 flex-1">
 				<p className="truncate font-medium">{name}</p>
 				<p
 					className={`text-xs ${
@@ -55,6 +63,14 @@ function Header({ partner }: { partner: Partner | null }) {
 							: lastSeenLabel(partner.last_seen_at)}
 				</p>
 			</div>
+
+			{partner === null ? null : (
+				<ModerationMenu
+					userId={partner.id}
+					name={name}
+					onBlocked={onBlocked}
+				/>
+			)}
 		</header>
 	);
 }
@@ -115,6 +131,7 @@ export function ThreadPage({
 	matchId: string;
 	userId: string;
 }) {
+	const router = useRouter();
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [partner, setPartner] = useState<Partner | null>(null);
 	const [ready, setReady] = useState(false);
@@ -316,12 +333,17 @@ export function ThreadPage({
 			<Backdrop />
 
 			<div className="flex h-dvh flex-col">
-				<Header partner={partner} />
+				<Header
+					partner={partner}
+					onBlocked={() => {
+						router.replace("/messages");
+					}}
+				/>
 
 				<main
 					ref={thread}
 					onScroll={onScroll}
-					className="mx-auto w-full max-w-sm flex-1 overflow-y-auto px-6"
+					className="mx-auto w-full max-w-sm flex-1 overflow-y-auto overscroll-contain px-6"
 				>
 					{missing ? (
 						<p className="py-8 text-sm text-muted">
