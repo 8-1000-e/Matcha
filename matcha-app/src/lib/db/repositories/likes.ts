@@ -3,13 +3,8 @@ import { boundedInteger } from "../core/identifiers";
 import { createRepository } from "../core/repository";
 import { sql } from "../core/sql";
 import { createId } from "../core/values";
-import type {
-	LikeInsert,
-	LikeRow,
-	MatchInsert,
-	MatchRow,
-	UserRow,
-} from "../types";
+import { SUMMARY_COLUMNS, type UserSummaryRow } from "../queries/summaries";
+import type { LikeInsert, LikeRow, MatchInsert, MatchRow } from "../types";
 
 export const likes = createRepository<LikeRow, LikeInsert>({
 	table: "likes",
@@ -27,6 +22,11 @@ export interface LikeOutcome {
 	liked: boolean;
 	matched: boolean;
 	match?: MatchRow;
+}
+
+export interface UnlikeOutcome {
+	unliked: boolean;
+	disconnected: boolean;
 }
 
 function pair(first: string, second: string): [string, string] {
@@ -84,21 +84,30 @@ export function like(likerId: string, likedId: string): LikeOutcome {
 	});
 }
 
-export function unlike(likerId: string, likedId: string): boolean {
-	return transaction(
-		() => likes.remove({ liker_id: likerId, liked_id: likedId }) === 1,
-	);
+export function unlike(likerId: string, likedId: string): UnlikeOutcome {
+	return transaction(() => {
+		const wasConnected
+			= findMatchBetween(likerId, likedId)?.is_active === 1;
+		if (likes.remove({ liker_id: likerId, liked_id: likedId }) === 0) {
+			return { unliked: false, disconnected: false };
+		}
+		return { unliked: true, disconnected: wasConnected };
+	});
 }
 
-export function listLikers(likedId: string, limit = 100): UserRow[] {
-	return queryAll<UserRow>(
-		sql`SELECT users.* FROM users
-			JOIN likes ON likes.liker_id = users.id
+export function listLikers(
+	likedId: string,
+	limit = 100,
+): (UserSummaryRow & { liked_at: string })[] {
+	return queryAll<UserSummaryRow & { liked_at: string }>(
+		sql`SELECT ${SUMMARY_COLUMNS}, likes.liked_at AS liked_at
+			FROM user_profiles AS profiles
+			JOIN likes ON likes.liker_id = profiles.id
 			WHERE likes.liked_id = ${likedId}
 				AND NOT EXISTS (
 					SELECT 1 FROM blocks
-					WHERE (blocks.blocker_id = ${likedId} AND blocks.blocked_id = users.id)
-						OR (blocks.blocker_id = users.id AND blocks.blocked_id = ${likedId})
+					WHERE (blocks.blocker_id = ${likedId} AND blocks.blocked_id = profiles.id)
+						OR (blocks.blocker_id = profiles.id AND blocks.blocked_id = ${likedId})
 				)
 			ORDER BY likes.liked_at DESC
 			LIMIT ${boundedInteger(limit, 1, 500, "limit")}`,

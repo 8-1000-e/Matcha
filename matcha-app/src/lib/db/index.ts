@@ -58,6 +58,11 @@ export {
 	type PublicProfile,
 } from "./queries/profile";
 export {
+	findUserSummary,
+	SUMMARY_COLUMNS,
+	type UserSummaryRow,
+} from "./queries/summaries";
+export {
 	findActiveMatchForUsers,
 	findMatchBetween,
 	hasLiked,
@@ -68,6 +73,7 @@ export {
 	matches,
 	unlike,
 	type LikeOutcome,
+	type UnlikeOutcome,
 } from "./repositories/likes";
 export {
 	countUnreadMessages,

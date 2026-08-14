@@ -4,6 +4,7 @@ import { BrandLockup } from "@/components/Brand/Brand";
 import { BackLink } from "@/components/Form/Button";
 import { LogoutButton } from "@/components/Form/LogoutButton";
 import { Backdrop } from "@/components/Layout/Backdrop";
+import { NotificationBell } from "@/components/Notifications/NotificationBell";
 
 type ScreenProps = {
 	top: ReactNode;
@@ -85,7 +86,10 @@ export function PrivateScreen({
 			top={
 				<div className="flex w-full items-center justify-between gap-3">
 					<BrandLockup />
-					<LogoutButton />
+					<div className="flex items-center gap-1">
+						<NotificationBell />
+						<LogoutButton />
+					</div>
 				</div>
 			}
 			footer={footer}

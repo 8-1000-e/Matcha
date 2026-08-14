@@ -46,7 +46,7 @@ export type Validated<Value> =
 	| { ok: true; value: Value }
 	| { ok: false; errors: string[] };
 
-function isRecord(value: unknown): value is Record<string, unknown>
+export function isRecord(value: unknown): value is Record<string, unknown>
 {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
