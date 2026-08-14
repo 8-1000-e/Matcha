@@ -72,7 +72,8 @@ export function findPublicProfile(
 				) AS is_connected,
 				(
 					SELECT id FROM matches
-					WHERE matches.user_a_id = MIN(${viewer.id}, target.id)
+					WHERE matches.is_active = 1
+						AND matches.user_a_id = MIN(${viewer.id}, target.id)
 						AND matches.user_b_id = MAX(${viewer.id}, target.id)
 				) AS match_id,
 				EXISTS (

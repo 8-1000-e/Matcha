@@ -970,3 +970,80 @@ Les personnes bloquées, dans un sens comme dans l'autre, sont exclues de
 `/api/likes` et de `/api/views?scope=received`. `visit_count` compte les visites
 répétées, puisque `profile_views` n'a pas de contrainte d'unicité — le §IV.5
 demande un historique, pas un ensemble.
+
+---
+
+# Profil public
+
+## `GET /api/users/[id]`
+
+Le profil d'un **autre** utilisateur, tel que le sujet le décrit au §IV.5 :
+« toutes les informations disponibles, à l'exception de l'adresse e-mail et du
+mot de passe ». Pour son propre profil, c'est `GET /api/profile`.
+
+```json
+{
+  "ok": true,
+  "profile": {
+    "id": "uuid", "username": "ana", "first_name": "Ana", "last_name": "Bob",
+    "age": 31, "gender": "woman", "orientation": "bi",
+    "biography": "Je bois du matcha.",
+    "city": "Paris", "neighborhood": null, "distance_km": 4.2,
+    "tags": ["books", "cats", "tea"],
+    "photos": [
+      { "id": "uuid", "url": "/api/photos/uuid", "is_profile": true, "position": 0 }
+    ],
+    "common_tags": 3,
+    "popularity_score": 38.2, "review_average": 0, "review_count": 0,
+    "is_online": false, "last_seen_at": null,
+    "created_at": "2026-08-14T11:25:45.467Z",
+    "viewer_liked_target": false, "target_liked_viewer": true,
+    "is_connected": false, "match_id": null,
+    "viewer_blocked_target": false, "viewer_reported_target": false,
+    "viewer_review_score": null
+  }
+}
+```
+
+**Trois champs sont délibérément absents**, bien que la requête sous-jacente les
+lise : `latitude`, `longitude` et `birth_date`. Le sujet veut une localisation
+« jusqu'au quartier » et un consentement explicite au GPS ; renvoyer les
+coordonnées exactes d'une personne à quiconque ouvre son profil reviendrait à
+publier son domicile. `city`, `neighborhood` et `distance_km` donnent
+l'information utile sans cela. Et l'âge suffit là où la date de naissance est
+une donnée personnelle de plus à protéger.
+
+**Les quatre champs de relation répondent à une exigence précise** du §IV.5 :
+« les utilisateurs doivent clairement voir si le profil qu'ils consultent les a
+likés ou s'ils sont déjà connectés ».
+
+| Champ | Sens |
+| --- | --- |
+| `viewer_liked_target` | je l'ai liké |
+| `target_liked_viewer` | il m'a liké |
+| `is_connected` | likes réciproques, le chat est ouvert |
+| `match_id` | **non nul seulement si `is_connected`** — c'est la conversation ouvrable |
+
+`match_id` ne remonte que pour un match **actif**. Auparavant la requête
+renvoyait aussi l'identifiant d'un match désactivé : le front aurait affiché un
+lien de conversation qui répondait `404`.
+
+| Code | Corps | Cas |
+| --- | --- | --- |
+| `200` | le profil | |
+| `400` | `{ "errors": ["use /api/profile for your own profile"] }` | son propre identifiant |
+| `401` | `{ "errors": ["unauthorized"] }` | pas de session |
+| `403` | `{ "errors": ["email_not_verified"] }` | compte non vérifié |
+| `403` | `{ "errors": ["profile_incomplete"] }` | le **visiteur** n'a pas fini son profil |
+| `404` | `{ "errors": ["user not found"] }` | inconnu, non vérifié, profil incomplet, **ou blocage dans un sens ou l'autre** |
+
+Le `404` est volontairement indistinct, comme sur `GET /api/photos/[id]` : il ne
+dit pas si le profil existe, donc il ne révèle pas qu'on a été bloqué.
+
+**Cette route n'enregistre rien.** Consulter un profil doit apparaître dans
+l'historique de visites (§IV.5) et déclencher la notification `VIEWED` (§IV.7),
+mais c'est `POST /api/users/[id]/view` qui s'en charge. Un `GET` qui écrit
+compterait deux visites au moindre préchargement du navigateur ou double montage
+de React en mode strict — or `profile_views` n'a pas de contrainte d'unicité,
+chaque ligne compte. Le front appelle donc les deux : le `GET` pour afficher, le
+`POST` pour enregistrer.
