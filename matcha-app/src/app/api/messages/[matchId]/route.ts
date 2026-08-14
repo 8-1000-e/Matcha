@@ -2,6 +2,7 @@ import { after } from "next/server";
 import { requireSession } from "@/lib/auth/guards";
 import {
 	findActiveMatchForUsers,
+	findUserSummary,
 	isBlockedEitherWay,
 	listConversation,
 	markConversationRead,
@@ -17,6 +18,7 @@ import {
 } from "@/lib/messages/validation";
 import { emitMessage } from "@/lib/notifications/emit";
 import { validateRead } from "@/lib/notifications/validation";
+import { serializeUserSummary } from "@/lib/profile/summary";
 import { chatChannel, publish } from "@/lib/realtime/server";
 
 interface Context {
@@ -77,8 +79,13 @@ export async function GET(request: Request, context: Context)
 		before: before ?? undefined,
 		limit: limit.value,
 	});
+	const partner = findUserSummary(guarded.partnerId);
 
-	return Response.json({ ok: true, messages: rows.map(serializeMessage) });
+	return Response.json({
+		ok: true,
+		partner: partner === undefined ? null : serializeUserSummary(partner),
+		messages: rows.map(serializeMessage),
+	});
 }
 
 export async function POST(request: Request, context: Context)

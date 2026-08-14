@@ -1,7 +1,8 @@
 import { execute, queryAll, queryOne, transaction } from "../core/client";
 import { boundedInteger } from "../core/identifiers";
+import { contains } from "../core/operators";
 import { createRepository } from "../core/repository";
-import { sql } from "../core/sql";
+import { every, sql, when } from "../core/sql";
 import { createId } from "../core/values";
 import { SUMMARY_COLUMNS, type UserSummaryRow } from "../queries/summaries";
 import type { LikeInsert, LikeRow, MatchInsert, MatchRow } from "../types";
@@ -119,26 +120,70 @@ export interface MatchListRow extends MatchRow {
 	last_body: string | null;
 	last_sent_at: string | null;
 	last_sender_id: string | null;
+	activity_at: string;
 }
 
-export function listMatches(userId: string): MatchListRow[] {
+export interface MatchCursor {
+	activity_at: string;
+	id: string;
+}
+
+export interface MatchListOptions {
+	limit?: number;
+	before?: MatchCursor;
+	query?: string;
+}
+
+export function listMatches(
+	userId: string,
+	options: MatchListOptions = {},
+): MatchListRow[] {
+	const limit = boundedInteger(options.limit ?? 50, 1, 100, "limit");
+	const query = options.query?.trim() ?? "";
+	const before = options.before;
+
+	const conditions = every([
+		sql`${userId} IN (matches.user_a_id, matches.user_b_id)`,
+		sql`matches.is_active = 1`,
+		sql`NOT EXISTS (
+			SELECT 1 FROM blocks
+			WHERE (blocks.blocker_id = ${userId} AND blocks.blocked_id = partner.id)
+				OR (blocks.blocker_id = partner.id AND blocks.blocked_id = ${userId})
+		)`,
+		when(
+			query.length > 0,
+			() =>
+				sql`(partner.first_name ${contains(query)}
+					OR partner.username ${contains(query)})`,
+		),
+		when(
+			before !== undefined,
+			() =>
+				sql`(COALESCE(last.sent_at, matches.connected_at), matches.id)
+					< (${before?.activity_at}, ${before?.id})`,
+		),
+	]);
+
 	return queryAll<MatchListRow>(
 		sql`SELECT matches.*,
-				CASE WHEN matches.user_a_id = ${userId}
-					THEN matches.user_b_id ELSE matches.user_a_id END AS partner_id,
+				partner.id AS partner_id,
 				last.body AS last_body,
 				last.sent_at AS last_sent_at,
-				last.sender_id AS last_sender_id
+				last.sender_id AS last_sender_id,
+				COALESCE(last.sent_at, matches.connected_at) AS activity_at
 			FROM matches
+			JOIN users AS partner ON partner.id = CASE
+				WHEN matches.user_a_id = ${userId}
+					THEN matches.user_b_id ELSE matches.user_a_id END
 			LEFT JOIN messages AS last ON last.id = (
 				SELECT messages.id FROM messages
 				WHERE messages.match_id = matches.id
 				ORDER BY messages.sent_at DESC, messages.id DESC
 				LIMIT 1
 			)
-			WHERE (matches.user_a_id = ${userId} OR matches.user_b_id = ${userId})
-				AND matches.is_active = 1
-			ORDER BY COALESCE(last.sent_at, matches.connected_at) DESC`,
+			WHERE ${conditions}
+			ORDER BY activity_at DESC, matches.id DESC
+			LIMIT ${limit}`,
 	);
 }
 

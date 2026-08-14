@@ -1,6 +1,7 @@
 import { request, send, type ApiResult } from "@/lib/http/client";
 
 export const PAGE_SIZE = 30;
+export const CONVERSATION_PAGE_SIZE = 15;
 
 export interface Partner {
 	id: string;
@@ -22,9 +23,21 @@ export interface LastMessage {
 export interface Conversation {
 	match_id: string;
 	connected_at: string;
+	activity_at: string;
 	unread: number;
 	partner: Partner | null;
 	last_message: LastMessage | null;
+}
+
+export interface ConversationCursor {
+	activity_at: string;
+	id: string;
+}
+
+export interface ConversationPage {
+	matches: Conversation[];
+	cursor: ConversationCursor | null;
+	unread_messages: number;
 }
 
 export interface ChatMessage {
@@ -36,24 +49,47 @@ export interface ChatMessage {
 	read: boolean;
 }
 
-export function getConversations(): Promise<
-	ApiResult<{ matches: Conversation[] }>
-	> {
-	return request<{ matches: Conversation[] }>("/api/matches", {
+export function getConversations(options?: {
+	search?: string;
+	before?: ConversationCursor;
+}): Promise<ApiResult<ConversationPage>> {
+	const query = new URLSearchParams({
+		limit: String(CONVERSATION_PAGE_SIZE),
+	});
+	if (options?.search !== undefined && options.search.length > 0) {
+		query.set("q", options.search);
+	}
+	if (options?.before !== undefined) {
+		query.set("before", options.before.activity_at);
+		query.set("before_id", options.before.id);
+	}
+	return request<ConversationPage>(`/api/matches?${query.toString()}`, {
 		method: "GET",
 	});
+}
+
+export interface Thread {
+	partner: Partner | null;
+	messages: ChatMessage[];
 }
 
 export function getMessages(
 	matchId: string,
 	before?: string,
-): Promise<ApiResult<{ messages: ChatMessage[] }>> {
+): Promise<ApiResult<Thread>> {
 	const query = new URLSearchParams({ limit: String(PAGE_SIZE) });
 	if (before !== undefined) {
 		query.set("before", before);
 	}
-	return request<{ messages: ChatMessage[] }>(
+	return request<Thread>(
 		`/api/messages/${encodeURIComponent(matchId)}?${query.toString()}`,
+		{ method: "GET" },
+	);
+}
+
+export function getPartner(matchId: string): Promise<ApiResult<Thread>> {
+	return request<Thread>(
+		`/api/messages/${encodeURIComponent(matchId)}?limit=1`,
 		{ method: "GET" },
 	);
 }

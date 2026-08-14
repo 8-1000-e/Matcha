@@ -737,33 +737,67 @@ couple d'utilisateurs.
 
 ## `GET /api/matches`
 
-Les connexions actives du connecté, de la plus récente à la plus ancienne.
+Les connexions actives du connecté, de la plus récente **activité** à la plus
+ancienne — donc une conversation vivante remonte, alors qu'un tri sur la date de
+connexion l'aurait figée en bas.
+
+**Paramètres** : `limit` (1 à 50), `q` (recherche, 32 caractères maximum), et le
+couple `before` / `before_id` pour paginer. Un `limit` hors bornes donne
+`400 ["limit is invalid"]`, un `q` trop long ou porteur d'un caractère de
+contrôle `400 ["search is invalid"]`, et un curseur à moitié fourni
+`400 ["cursor is incomplete"]`.
 
 ```json
 {
   "ok": true,
+  "unread_messages": 3,
+  "cursor": { "activity_at": "2026-08-14T12:07:11.246Z", "id": "uuid" },
   "matches": [
     {
       "match_id": "uuid",
       "connected_at": "2026-08-14T12:07:11.246Z",
+      "activity_at": "2026-08-15T09:31:02.881Z",
       "unread": 0,
       "partner": {
         "id": "uuid",
         "username": "bob",
         "first_name": "Bob",
         "photo_url": "/api/photos/uuid"
+      },
+      "last_message": {
+        "body": "à demain",
+        "sent_at": "2026-08-15T09:31:02.881Z",
+        "mine": false
       }
     }
   ]
 }
 ```
 
-`listMatches()` ne filtre pas les blocages : la route écarte donc les
-partenaires pour lesquels un blocage existe dans un sens ou l'autre.
+**Le curseur est un couple, pas une date.** Deux connexions créées dans la même
+milliseconde partageraient un `activity_at` ; un curseur réduit à l'horodatage
+sauterait l'une des deux ou la servirait deux fois. La comparaison porte donc sur
+`(activity_at, id)`, avec le même couple en `ORDER BY`.
+
+`q` cherche une sous-chaîne dans le prénom **ou** le pseudo du partenaire. Les
+jokers `%` et `_` sont échappés : les taper cherche ces caractères, il ne
+sélectionnent pas tout.
+
+**Le filtre de blocage est dans la requête SQL**, pas dans la route. Écarter les
+partenaires bloqués après coup amputerait la page — on demande 15 lignes, on en
+rend 12 sans que le client puisse savoir s'il reste des pages.
+
+**`unread_messages` est un total global**, pas la somme des lignes renvoyées.
+Une liste paginée ne connaît que sa première page : additionner les `unread`
+reçus afficherait « 3 messages non lus » alors qu'il y en a douze plus bas.
 
 ## `GET /api/messages/[matchId]`
 
-La conversation, en ordre chronologique.
+La conversation, en ordre chronologique, **et le partenaire** — même objet que
+dans `GET /api/matches`. L'écran de conversation a besoin du nom, de la photo et
+de la présence : les prendre ici lui épargne un second appel, et surtout un appel
+à la liste des connexions, qui est paginée et pourrait ne pas contenir la
+conversation ouverte.
 
 **Paramètres** : `before` (horodatage ISO, pour paginer vers le passé) et
 `limit` (entier de 1 à 200, 50 par défaut). Un `limit` non entier ou hors bornes

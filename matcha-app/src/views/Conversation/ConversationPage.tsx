@@ -13,8 +13,8 @@ import {
 import { BackLink } from "@/components/Form/Button";
 import { Backdrop } from "@/components/Layout/Backdrop";
 import {
-	getConversations,
 	getMessages,
+	getPartner,
 	markConversationRead,
 	postMessage,
 	PAGE_SIZE,
@@ -61,6 +61,8 @@ function Header({ partner }: { partner: Partner | null }) {
 		</header>
 	);
 }
+
+const PRESENCE_REFRESH_MS = 30_000;
 
 function Ticks({ read }: { read: boolean }) {
 	return (
@@ -153,20 +155,6 @@ export function ConversationPage({
 	useEffect(() => {
 		let live = true;
 
-		void getConversations().then((result) => {
-			if (!live || !result.ok) {
-				return;
-			}
-			const found = result.data.matches.find(
-				(entry) => entry.match_id === matchId,
-			);
-			if (found === undefined) {
-				setMissing(true);
-				return;
-			}
-			setPartner(found.partner);
-		});
-
 		void getMessages(matchId).then((result) => {
 			if (!live) {
 				return;
@@ -175,6 +163,7 @@ export function ConversationPage({
 				setMissing(true);
 				return;
 			}
+			setPartner(result.data.partner);
 			setMessages(result.data.messages);
 			setExhausted(result.data.messages.length < PAGE_SIZE);
 			setReady(true);
@@ -188,6 +177,25 @@ export function ConversationPage({
 			live = false;
 		};
 	}, [matchId, userId, flushRead]);
+
+	useEffect(() => {
+		if (missing) {
+			return;
+		}
+		const timer = window.setInterval(() => {
+			if (document.visibilityState !== "visible") {
+				return;
+			}
+			void getPartner(matchId).then((result) => {
+				if (result.ok) {
+					setPartner(result.data.partner);
+				}
+			});
+		}, PRESENCE_REFRESH_MS);
+		return () => {
+			window.clearInterval(timer);
+		};
+	}, [matchId, missing]);
 
 	useEffect(() => {
 		document.addEventListener("visibilitychange", flushRead);
