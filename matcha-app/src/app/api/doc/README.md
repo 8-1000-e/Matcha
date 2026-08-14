@@ -684,7 +684,7 @@ l'ouverture alors qu'un message ne l'est qu'en ouvrant la conversation.
 **`link` est `null`** pour les quatre notifications liées à un acteur :
 `actor_username` est déjà joint, donc le client construit la destination
 lui-même, et le serveur s'épargne une requête. Seul `MESSAGE` porte un lien,
-`/chat/<matchId>`, parce que le `matchId` n'est nulle part ailleurs dans la
+`/messages/<matchId>`, parce que le `matchId` n'est nulle part ailleurs dans la
 charge.
 
 `read_at` devient le booléen `read` : le front n'a pas besoin de l'horodatage.
@@ -782,7 +782,7 @@ faille éliminatoire au sujet.
 
 Après l'écriture, le message est publié sur `private-chat-<matchId>` et une
 notification `MESSAGE` part vers le destinataire, avec
-`link: "/chat/<matchId>"`.
+`link: "/messages/<matchId>"`.
 
 ## `PATCH /api/messages/[matchId]`
 

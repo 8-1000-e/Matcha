@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useNotifications } from "@/lib/notifications/client";
 import {
@@ -23,6 +24,55 @@ function when(iso: string): string {
 
 function badge(count: number): string {
 	return count > 9 ? "9+" : String(count);
+}
+
+const ROW =
+	"block w-full rounded-lg px-2 py-2 text-left text-sm transition-colors duration-200 ease-out";
+
+function Body({ entry }: { entry: NotificationPayload }) {
+	return (
+		<>
+			{label(entry)}
+			<span className="mt-0.5 block text-xs text-muted">
+				{when(entry.created_at)}
+			</span>
+		</>
+	);
+}
+
+function Entry({
+	entry,
+	onOpen,
+	onRead,
+}: {
+	entry: NotificationPayload;
+	onOpen: () => void;
+	onRead: () => void;
+}) {
+	const tone = entry.read ? "text-muted" : "font-medium";
+
+	if (entry.link !== null) {
+		return (
+			<Link
+				href={entry.link}
+				onClick={onOpen}
+				className={`${ROW} cursor-pointer hover:bg-leaf/40 ${tone}`}
+			>
+				<Body entry={entry} />
+			</Link>
+		);
+	}
+
+	return (
+		<button
+			type="button"
+			onClick={onRead}
+			disabled={entry.read}
+			className={`${ROW} cursor-pointer hover:bg-leaf/40 disabled:cursor-default disabled:hover:bg-transparent ${tone}`}
+		>
+			<Body entry={entry} />
+		</button>
+	);
 }
 
 export function NotificationBell() {
@@ -117,19 +167,14 @@ export function NotificationBell() {
 						<ul className="mt-3 flex max-h-80 flex-col gap-1 overflow-y-auto">
 							{notifications.map((entry) => (
 								<li key={entry.id}>
-									<button
-										type="button"
-										onClick={() => markOne(entry.id)}
-										disabled={entry.read}
-										className={`w-full cursor-pointer rounded-lg px-2 py-2 text-left text-sm transition-colors duration-200 ease-out hover:bg-leaf/40 disabled:cursor-default disabled:hover:bg-transparent ${
-											entry.read ? "text-muted" : "font-medium"
-										}`}
-									>
-										{label(entry)}
-										<span className="mt-0.5 block text-xs text-muted">
-											{when(entry.created_at)}
-										</span>
-									</button>
+									<Entry
+										entry={entry}
+										onOpen={() => {
+											markOne(entry.id);
+											setOpen(false);
+										}}
+										onRead={() => markOne(entry.id)}
+									/>
 								</li>
 							))}
 						</ul>

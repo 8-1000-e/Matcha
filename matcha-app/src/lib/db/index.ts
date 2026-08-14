@@ -73,6 +73,7 @@ export {
 	matches,
 	unlike,
 	type LikeOutcome,
+	type MatchListRow,
 	type UnlikeOutcome,
 } from "./repositories/likes";
 export {

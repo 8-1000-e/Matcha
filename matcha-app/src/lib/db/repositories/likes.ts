@@ -114,15 +114,31 @@ export function listLikers(
 	);
 }
 
-export function listMatches(userId: string): (MatchRow & { partner_id: string })[] {
-	return queryAll<MatchRow & { partner_id: string }>(
+export interface MatchListRow extends MatchRow {
+	partner_id: string;
+	last_body: string | null;
+	last_sent_at: string | null;
+	last_sender_id: string | null;
+}
+
+export function listMatches(userId: string): MatchListRow[] {
+	return queryAll<MatchListRow>(
 		sql`SELECT matches.*,
 				CASE WHEN matches.user_a_id = ${userId}
-					THEN matches.user_b_id ELSE matches.user_a_id END AS partner_id
+					THEN matches.user_b_id ELSE matches.user_a_id END AS partner_id,
+				last.body AS last_body,
+				last.sent_at AS last_sent_at,
+				last.sender_id AS last_sender_id
 			FROM matches
+			LEFT JOIN messages AS last ON last.id = (
+				SELECT messages.id FROM messages
+				WHERE messages.match_id = matches.id
+				ORDER BY messages.sent_at DESC, messages.id DESC
+				LIMIT 1
+			)
 			WHERE (matches.user_a_id = ${userId} OR matches.user_b_id = ${userId})
 				AND matches.is_active = 1
-			ORDER BY matches.connected_at DESC`,
+			ORDER BY COALESCE(last.sent_at, matches.connected_at) DESC`,
 	);
 }
 

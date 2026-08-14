@@ -52,6 +52,6 @@ export function emitMessage(
 		recipient_id: recipientId,
 		actor_id: actorId,
 		type: "MESSAGE",
-		link: `/chat/${matchId}`,
+		link: `/messages/${matchId}`,
 	});
 }

@@ -4,8 +4,22 @@ import {
 	isBlockedEitherWay,
 	listMatches,
 	listUnreadByMatch,
+	type MatchListRow,
 } from "@/lib/db";
 import { serializeUserSummary } from "@/lib/profile/summary";
+
+function lastMessage(match: MatchListRow, viewerId: string)
+{
+	if (match.last_sent_at === null || match.last_body === null)
+	{
+		return null;
+	}
+	return {
+		body: match.last_body,
+		sent_at: match.last_sent_at,
+		mine: match.last_sender_id === viewerId,
+	};
+}
 
 export async function GET()
 {
@@ -31,6 +45,7 @@ export async function GET()
 				connected_at: match.connected_at,
 				unread: unread.get(match.id) ?? 0,
 				partner: partner === undefined ? null : serializeUserSummary(partner),
+				last_message: lastMessage(match, session.user.id),
 			};
 		});
 
