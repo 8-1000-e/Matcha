@@ -325,6 +325,31 @@ le reste est du bonus.
 
 ---
 
+## 2 bis. Les migrations
+
+`applySchema()` comparait `user_version` à `SCHEMA_VERSION` et, en cas d'écart,
+rejouait tout le schéma. Cela suffit pour créer une base neuve, et pour ajouter
+une table ou rafraîchir une vue — les tables sont en `CREATE TABLE IF NOT
+EXISTS`, les vues en `DROP` puis `CREATE`. Cela ne suffit pas dès qu'une
+**donnée déjà écrite** doit changer de forme : le renommage de `/chat/` en
+`/messages/` a laissé des liens de notification pointant vers une route qui
+n'existe plus, et rien dans le schéma ne pouvait les rattraper.
+
+`schema/migrations.ts` porte donc une liste ordonnée d'instructions, et
+`SCHEMA_VERSION` vaut `BASE_VERSION + MIGRATIONS.length` — ajouter une migration
+suffit à faire monter la version, on ne peut pas oublier de l'incrémenter.
+`applySchema()` ne rejoue que les migrations postérieures à la version trouvée
+en base, dans la même transaction que le schéma : une base à jour ne fait rien,
+une base en retard rattrape exactement ce qui lui manque, et une base neuve les
+traverse sans effet puisqu'elle n'a rien à corriger.
+
+Chaque migration doit rester **idempotente** malgré ce garde-fou : une base
+interrompue en cours de route, ou restaurée depuis une sauvegarde, peut repasser
+sur une étape déjà appliquée. La 001 le fait par sa clause `WHERE link LIKE
+'/chat/%'`, qui ne trouve plus rien une fois le renommage effectué.
+
+---
+
 ## 3. La note de popularité
 
 Le sujet laisse libre, à condition que les critères soient **cohérents et

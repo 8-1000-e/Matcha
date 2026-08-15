@@ -1,10 +1,11 @@
 import type Database from "better-sqlite3";
 import { INDEXES } from "./indexes";
+import { BASE_VERSION, MIGRATIONS } from "./migrations";
 import { TABLES } from "./tables";
 import { TAG_LABELS } from "./tags";
 import { TRIGGERS } from "./triggers";
 import { VIEWS } from "./views";
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = BASE_VERSION + MIGRATIONS.length;
 
 function seedTags(database: Database.Database): void {
 	const insert = database.prepare(
@@ -25,6 +26,9 @@ export function applySchema(database: Database.Database): void {
 			database.exec(statement);
 		}
 		seedTags(database);
+		for (const step of MIGRATIONS.slice(Math.max(current - BASE_VERSION, 0))) {
+			database.exec(step);
+		}
 	})();
 	database.pragma(`user_version = ${SCHEMA_VERSION}`);
 }
