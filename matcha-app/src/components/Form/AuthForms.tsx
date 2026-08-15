@@ -238,7 +238,7 @@ export function LoginForm() {
 				return { errors: result.errors, values: fields };
 			}
 
-			router.push(result.data.user.is_verified ? "/me" : "/verify-email");
+			router.push(result.data.user.is_verified ? "/feed" : "/verify-email");
 			router.refresh();
 			return CLEAN;
 		},

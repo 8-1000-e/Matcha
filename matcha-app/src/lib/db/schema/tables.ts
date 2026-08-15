@@ -142,6 +142,23 @@ export const TABLES: readonly string[] = [
 		read_at TEXT,
 		CHECK (actor_id IS NULL OR actor_id <> recipient_id)
 	) STRICT`,
+	`DROP TABLE IF EXISTS feed_entries;
+	DROP TABLE IF EXISTS feed_sessions;
+	CREATE TABLE feed_sessions (
+		id TEXT PRIMARY KEY,
+		user_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+		filters_hash TEXT NOT NULL,
+		total INTEGER NOT NULL DEFAULT 0,
+		exhausted INTEGER NOT NULL DEFAULT 0 CHECK (exhausted IN (0, 1)),
+		created_at TEXT NOT NULL DEFAULT ${TIMESTAMP_DEFAULT},
+		UNIQUE (user_id, filters_hash)
+	) STRICT`,
+	`CREATE TABLE IF NOT EXISTS feed_entries (
+		session_id TEXT NOT NULL REFERENCES feed_sessions (id) ON DELETE CASCADE,
+		position INTEGER NOT NULL,
+		candidate_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+		PRIMARY KEY (session_id, position)
+	) STRICT`,
 	`CREATE TABLE IF NOT EXISTS cities (
 		id INTEGER PRIMARY KEY,
 		name TEXT NOT NULL,

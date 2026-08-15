@@ -282,11 +282,4 @@ export interface PopularityRow {
 	user_id: string;
 	review_count: number;
 	review_average: number;
-	bayesian_score: number;
-	like_count: number;
-	view_count: number;
-	match_count: number;
-	report_count: number;
-	engagement_score: number;
-	popularity_score: number;
 }
