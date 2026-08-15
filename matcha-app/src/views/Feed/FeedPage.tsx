@@ -63,6 +63,7 @@ export function FeedPage({
 	const [liked, setLiked] = useState<Record<string, boolean>>({});
 	const [likePending, setLikePending] = useState(false);
 	const [likeError, setLikeError] = useState<string | null>(null);
+	const [ended, setEnded] = useState(false);
 	const inFlight = useRef(false);
 	const restored = useRef(false);
 
@@ -112,10 +113,10 @@ export function FeedPage({
 
 	const go = useCallback(
 		(offset: number) => {
-			const target = Math.min(
-				Math.max(0, position + offset),
-				Math.max(0, state.items.length - 1),
-			);
+			const last = Math.max(0, state.items.length - 1);
+			const target = Math.min(Math.max(0, position + offset), last);
+
+			setEnded(offset > 0 && position === last && state.next === null);
 			if (target >= state.items.length - PREFETCH && state.next !== null)
 			{
 				void load(filters, state.session, state.next);
@@ -160,6 +161,7 @@ export function FeedPage({
 		setPosition(0);
 		setLiked({});
 		setLikeError(null);
+		setEnded(false);
 		void load(next, null, 0, true);
 	}
 
@@ -262,8 +264,6 @@ export function FeedPage({
 				firstName={firstName}
 				filters={filters}
 				onChange={changeFilters}
-				total={state.total}
-				position={position}
 				tags={tags}
 			/>
 
@@ -310,13 +310,11 @@ export function FeedPage({
 				<p className="py-16 text-center text-sm text-muted">Chargement…</p>
 			) : null}
 
-			{current !== null
-				&& position === state.items.length - 1
-				&& state.next === null ? (
-					<p className="pt-2 text-center text-xs text-muted">
-						Vous avez vu tous les profils correspondants.
-					</p>
-				) : null}
+			{current !== null && ended ? (
+				<p className="pt-2 text-center text-xs text-muted">
+					Vous avez vu tous les profils correspondants.
+				</p>
+			) : null}
 		</PrivateScreen>
 	);
 }

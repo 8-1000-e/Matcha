@@ -43,7 +43,7 @@ export function Screen({
 		<>
 
 			<header
-				className={`mx-auto flex w-full ${max} px-6 pt-6 ${
+				className={`mx-auto flex w-full ${max} px-4 pt-4 sm:px-6 sm:pt-6 ${
 					centerTop ? "justify-center" : ""
 				}`}
 			>
@@ -51,17 +51,17 @@ export function Screen({
 			</header>
 
 			<main
-				className={`mx-auto flex w-full ${max} flex-1 flex-col px-6 ${
-					width === "narrow" ? "py-10" : "py-6"
+				className={`mx-auto flex w-full ${max} flex-1 flex-col px-4 sm:px-6 ${
+					width === "narrow" ? "py-8 sm:py-10" : "py-5 sm:py-6"
 				} ${center ? "justify-center" : ""} ${
-					fit ? "min-h-0 overflow-hidden !py-4" : ""
+					fit ? "sm:min-h-0 sm:overflow-hidden sm:!py-4" : ""
 				}`}
 			>
 				{children}
 			</main>
 
 			<footer
-				className={`mx-auto w-full ${max} px-6 pb-8 text-sm text-muted ${
+				className={`mx-auto w-full ${max} shrink-0 px-4 pb-6 text-sm text-muted sm:px-6 sm:pb-8 ${
 					centerTop ? "text-center" : ""
 				}`}
 			>
@@ -72,7 +72,11 @@ export function Screen({
 
 	if (!nav) {
 		return (
-			<div className={fit ? "flex h-dvh flex-col overflow-hidden" : "contents"}>
+			<div
+				className={fit
+					? "flex flex-1 flex-col sm:h-dvh sm:overflow-hidden"
+					: "contents"}
+			>
 				<Backdrop />
 				{body}
 			</div>
@@ -80,12 +84,16 @@ export function Screen({
 	}
 
 	return (
-		<div className={fit ? "flex h-dvh overflow-hidden" : "flex flex-1"}>
+		<div
+			className={`flex flex-1 flex-col sm:flex-row ${
+				fit ? "sm:h-dvh sm:overflow-hidden" : ""
+			}`}
+		>
 			<Backdrop />
 			<AppNav />
 			<div
 				className={`flex min-w-0 flex-1 flex-col ${
-					fit ? "min-h-0 overflow-hidden" : ""
+					fit ? "sm:min-h-0 sm:overflow-hidden" : ""
 				}`}
 			>
 				{body}

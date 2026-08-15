@@ -55,7 +55,7 @@ function Gallery({ candidate }: { candidate: Candidate }) {
 	}
 
 	return (
-		<div className="relative h-56 shrink-0 overflow-hidden rounded-3xl bg-leaf/50 ring-1 ring-edge/30 md:h-full">
+		<div className="relative h-52 w-full shrink-0 overflow-hidden rounded-2xl bg-leaf/50 ring-1 ring-edge/30 sm:h-60 sm:rounded-3xl md:h-full">
 			{current !== null ? (
 				<Image
 					key={current}
@@ -179,15 +179,15 @@ export function CandidateSlide({
 	const tags = (candidate.tags ?? "").split(",").filter(Boolean).slice(0, 8);
 
 	return (
-		<article className="grid size-full gap-3 overflow-hidden rounded-3xl bg-white/60 p-3 ring-1 ring-edge/30 md:grid-cols-2">
+		<article className="mx-auto grid w-full max-w-md gap-2 rounded-3xl bg-white/60 p-2 ring-1 ring-edge/30 sm:gap-3 sm:p-3 md:h-full md:max-h-[30rem] md:max-w-3xl md:grid-cols-2 md:overflow-hidden">
 			<Gallery candidate={candidate} />
 
-			<div className="grid min-h-0 overflow-y-auto rounded-2xl bg-cream ring-1 ring-edge/25 md:overflow-hidden md:grid-rows-[auto_1fr_auto]">
-				<div className="border-b border-edge/20 px-5 py-4">
-					<div className="flex items-start justify-between gap-3">
-						<h2 className="flex items-baseline gap-2.5 text-2xl leading-tight font-semibold tracking-tight">
+			<div className="grid rounded-2xl bg-cream ring-1 ring-edge/25 md:min-h-0 md:grid-rows-[auto_1fr_auto] md:overflow-hidden">
+				<div className="border-b border-edge/20 px-4 py-3 sm:px-5 sm:py-4">
+					<div className="flex items-start justify-between gap-2 sm:gap-3">
+						<h2 className="flex min-w-0 items-baseline gap-2 text-xl leading-tight font-semibold tracking-tight sm:gap-2.5 sm:text-2xl">
 							<span className="truncate">{candidate.first_name}</span>
-							<span className="font-normal text-muted">{candidate.age}</span>
+							<span className="shrink-0 font-normal text-muted">{candidate.age}</span>
 						</h2>
 
 						<LikeButton
@@ -217,7 +217,7 @@ export function CandidateSlide({
 					</div>
 				</div>
 
-				<div className="min-h-0 border-b border-edge/20 px-5 py-4 text-sm leading-relaxed md:overflow-y-auto">
+				<div className="border-b border-edge/20 px-4 py-3 text-sm leading-relaxed break-words sm:px-5 sm:py-4 md:min-h-0 md:overflow-y-auto">
 					{candidate.biography !== null ? (
 						candidate.biography
 					) : (
@@ -225,11 +225,11 @@ export function CandidateSlide({
 					)}
 				</div>
 
-				<div className="flex flex-col gap-4 px-5 pt-5 pb-5">
+				<div className="flex flex-col gap-3 px-4 py-4 sm:gap-4 sm:px-5 sm:py-5">
 					{tags.length > 0 ? (
-						<ul className="flex flex-wrap gap-2 text-sm text-matcha-dark">
+						<ul className="flex flex-wrap gap-1.5 text-xs text-matcha-dark sm:gap-2 sm:text-sm">
 							{tags.map((tag) => (
-								<li key={tag} className="rounded-md bg-leaf/50 px-2.5 py-1">
+								<li key={tag} className="max-w-full truncate rounded-md bg-leaf/50 px-2 py-1 sm:px-2.5">
 									#{tag}
 								</li>
 							))}

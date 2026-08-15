@@ -177,15 +177,11 @@ export function FilterBar({
 	firstName,
 	filters,
 	onChange,
-	total,
-	position,
 	tags,
 }: {
 	firstName: string;
 	filters: FeedFilters;
 	onChange: (filters: FeedFilters) => void;
-	total: number;
-	position: number;
 	tags: readonly TagOption[];
 }) {
 	const [open, setOpen] = useState(false);
@@ -209,7 +205,7 @@ export function FilterBar({
 	}
 
 	return (
-		<div className="mb-3 flex flex-col gap-3">
+		<div className="mb-3 flex shrink-0 flex-col gap-3">
 			<div className="flex items-center justify-between gap-3">
 				<h1 className="mr-2 truncate text-base font-semibold tracking-tight">
 					Des profils pour vous, {firstName}
@@ -234,13 +230,10 @@ export function FilterBar({
 					) : null}
 				</button>
 
-				<p className="ml-auto text-sm text-muted tabular-nums" role="status">
-					{total === 0 ? "Aucun profil" : `${Math.min(position + 1, total)} / ${total}`}
-				</p>
 			</div>
 
 			{open ? (
-				<div className="flex flex-col gap-4 rounded-xl bg-white/70 p-4 ring-1 ring-edge/40">
+				<div className="flex flex-col gap-4 rounded-xl bg-white/70 p-3 ring-1 ring-edge/40 sm:max-h-[60vh] sm:overflow-y-auto sm:overscroll-contain sm:p-4">
 					<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 						<Field
 							label="Trier par"

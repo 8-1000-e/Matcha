@@ -94,7 +94,7 @@ export function Deck({
 			</div>
 
 			<div
-				className="min-h-0 flex-1 touch-pan-y select-none"
+				className="flex min-h-0 min-w-0 flex-1 items-center justify-center touch-pan-y select-none"
 				onPointerDown={begin}
 				onPointerMove={move}
 				onPointerUp={end}
