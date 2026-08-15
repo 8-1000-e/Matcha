@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Alert } from "@/components/Form/Alert";
+import { Footer } from "@/components/Layout/Footer";
 import { PrivateScreen } from "@/components/Layout/Screen";
 import { PresenceAvatar } from "@/components/Presence/PresenceAvatar";
 import type { AuthError } from "@/lib/auth/errorMessages";
@@ -684,7 +685,7 @@ export function SettingsPage() {
 			width="wide"
 			title="Réglages"
 			intro="Votre position, les comptes que vous avez bloqués et les informations de votre compte."
-			footer={null}
+			footer={<Footer />}
 		>
 			{profile === null ? (
 				<p className="py-16 text-center text-sm text-muted">Chargement…</p>

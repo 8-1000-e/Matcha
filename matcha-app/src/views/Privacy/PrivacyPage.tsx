@@ -1,4 +1,5 @@
 import { BrandLockup } from "@/components/Brand/Brand";
+import { BackLink } from "@/components/Form/Button";
 import { Footer } from "@/components/Layout/Footer";
 import { Screen } from "@/components/Layout/Screen";
 
@@ -28,7 +29,16 @@ function Row({ label, value }: { label: string; value: string }) {
 
 export function PrivacyPage() {
 	return (
-		<Screen width="wide" top={<BrandLockup />} footer={<Footer />}>
+		<Screen
+			width="wide"
+			top={
+				<div className="flex w-full items-center justify-between gap-3">
+					<BrandLockup />
+					<BackLink href="/me" label="Mon profil" />
+				</div>
+			}
+			footer={<Footer />}
+		>
 			<div className="flex flex-col gap-10">
 				<header className="flex flex-col gap-3">
 					<h1 className="text-2xl font-semibold tracking-tight">
@@ -97,77 +107,6 @@ export function PrivacyPage() {
 					</dl>
 				</Section>
 
-				<Section title="Combien de temps">
-					<dl className="divide-y divide-edge/20">
-						<Row
-							label="Votre compte"
-							value="Tant qu’il existe. Sa suppression le rend invisible immédiatement ; les données sont conservées quatorze jours pour vous laisser revenir en arrière, puis effacées."
-						/>
-						<Row
-							label="Après ces quatorze jours"
-							value="Tout part : profil, photos et fichiers image, likes, visites, connexions, messages, avis, blocages, signalements, notifications. Rien n’est archivé, rien n’est anonymisé et conservé."
-						/>
-						<Row
-							label="Jetons de session"
-							value="Les jetons d’accès expirent après quinze minutes, les jetons de renouvellement après trente jours. Les jetons expirés sont purgés automatiquement."
-						/>
-						<Row
-							label="Sessions de recherche"
-							value="L’ordre figé de votre fil de suggestions est conservé trente minutes, puis supprimé."
-						/>
-					</dl>
-				</Section>
-
-				<Section title="Comment vos données sont protégées">
-					<ul className="flex list-disc flex-col gap-2 pl-5 text-sm text-muted">
-						<li>
-							Les mots de passe ne sont <strong>jamais</strong> stockés : seule
-							une empreinte bcrypt est conservée, et elle n’est pas réversible.
-						</li>
-						<li>
-							Le contenu des messages est <strong>chiffré en base</strong> en
-							AES-256-GCM. Voler le fichier de base de données ne suffit pas à
-							les lire.
-						</li>
-						<li>
-							Les cookies de session sont <code>httpOnly</code> : le JavaScript
-							de la page ne peut pas les lire.
-						</li>
-						<li>
-							Vos coordonnées GPS exactes et votre date de naissance ne sont
-							jamais envoyées aux autres utilisateurs. Ils ne voient que votre
-							ville, votre quartier, une distance et votre âge.
-						</li>
-						<li>
-							Votre adresse e-mail n’est visible que par vous.
-						</li>
-					</ul>
-				</Section>
-
-				<Section title="Qui d’autre voit vos données">
-					<dl className="divide-y divide-edge/20">
-						<Row
-							label="Les autres utilisateurs"
-							value="Votre profil public : prénom, nom, âge, genre, orientation, biographie, centres d’intérêt, photos, ville, quartier, note et date de dernière connexion."
-						/>
-						<Row
-							label="Pusher"
-							value="Prestataire du temps réel. Transitent par lui les messages de discussion et les notifications, le temps de leur acheminement."
-						/>
-						<Row
-							label="Serveur d’envoi d’e-mails"
-							value="Votre adresse e-mail, pour les liens de vérification et de réinitialisation."
-						/>
-						<Row
-							label="Photon (Komoot)"
-							value="Service de géocodage interrogé lorsque vous cherchez une ville. Il reçoit le texte que vous saisissez, jamais votre identité."
-						/>
-					</dl>
-					<p className="text-sm text-muted">
-						Aucune donnée n’est vendue, louée, ni transmise à des annonceurs.
-					</p>
-				</Section>
-
 				<Section title="Vos droits">
 					<dl className="divide-y divide-edge/20">
 						<Row
@@ -185,10 +124,6 @@ export function PrivacyPage() {
 						<Row
 							label="Opposition et limitation"
 							value="Bloquer un profil suffit à faire cesser tout traitement vous concernant de sa part : il ne vous voit plus, ne vous écrit plus et ne vous notifie plus."
-						/>
-						<Row
-							label="Accès et portabilité"
-							value="L’export de vos données dans un format lisible par une machine n’est pas encore disponible. Il est prévu, et le chiffrement des messages a été conçu réversible exactement pour cela."
 						/>
 					</dl>
 				</Section>

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Alert } from "@/components/Form/Alert";
 import { ActionButton } from "@/components/Form/Button";
+import { Footer } from "@/components/Layout/Footer";
 import { PrivateScreen } from "@/components/Layout/Screen";
 import { unblockUser } from "@/lib/moderation/client";
 
@@ -49,7 +50,7 @@ export function BlockedProfilePage({
 	}
 
 	return (
-		<PrivateScreen width="wide" title={copy.title} intro={copy.intro} footer={null}>
+		<PrivateScreen width="wide" title={copy.title} intro={copy.intro} footer={<Footer />}>
 			<div className="flex flex-col gap-4">
 				{error !== null ? <Alert>{error}</Alert> : null}
 

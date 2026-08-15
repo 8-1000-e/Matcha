@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
+import { Footer } from "@/components/Layout/Footer";
 import { PrivateScreen } from "@/components/Layout/Screen";
 import { fetchLikers } from "@/lib/profile/views";
 import { ActivityTabs, type Tab } from "./ActivityTabs";
@@ -43,7 +44,7 @@ export function LikesPage() {
 			width="wide"
 			title="Likes"
 			intro="Les profils que vous avez likés et ceux qui vous ont liké."
-			footer={null}
+			footer={<Footer />}
 		>
 			<ActivityTabs tabs={TABS} load={load} />
 		</PrivateScreen>

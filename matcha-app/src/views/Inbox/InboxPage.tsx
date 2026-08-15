@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Footer } from "@/components/Layout/Footer";
 import { PrivateScreen } from "@/components/Layout/Screen";
 import { PresenceAvatar } from "@/components/Presence/PresenceAvatar";
 import {
@@ -224,7 +225,7 @@ export function InboxPage({ userId }: { userId: string }) {
 					}.`
 					: undefined
 			}
-			footer={null}
+			footer={<Footer />}
 		>
 			<label className="relative block">
 				<span className="sr-only">Rechercher une conversation</span>

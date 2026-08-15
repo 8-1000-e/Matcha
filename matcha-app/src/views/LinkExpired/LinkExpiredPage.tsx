@@ -1,5 +1,6 @@
 import { ResendVerificationForm } from "@/components/Form/AuthForms";
 import { ActionLink } from "@/components/Form/Button";
+import { Footer } from "@/components/Layout/Footer";
 import { FlowScreen } from "@/components/Layout/Screen";
 
 export type ExpiredLinkKind = "verification" | "reset";
@@ -20,7 +21,7 @@ export function LinkExpiredPage({ kind }: { kind?: ExpiredLinkKind }) {
 			back="/login"
 			title="Ce lien a expiré"
 			intro={kind ? INTRO[kind] : GENERIC}
-			footer={null}
+			footer={<Footer />}
 		>
 			<div className="flex flex-col gap-8">
 				{kind !== "reset" ? <ResendVerificationForm /> : null}

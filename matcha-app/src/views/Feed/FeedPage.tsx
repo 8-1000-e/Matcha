@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert } from "@/components/Form/Alert";
 import { ActionButton } from "@/components/Form/Button";
+import { Footer } from "@/components/Layout/Footer";
 import { PrivateScreen } from "@/components/Layout/Screen";
 import {
 	fetchFeed,
@@ -255,7 +256,7 @@ export function FeedPage({
 		<PrivateScreen
 			width="wide"
 			fit
-			footer={null}
+			footer={<Footer />}
 		>
 			<FilterBar
 				firstName={firstName}

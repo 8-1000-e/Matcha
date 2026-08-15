@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
+import { Footer } from "@/components/Layout/Footer";
 import { PrivateScreen } from "@/components/Layout/Screen";
 import { fetchViews, type ProfileView } from "@/lib/profile/views";
 import { ActivityTabs, type Tab } from "./ActivityTabs";
@@ -49,7 +50,7 @@ export function ViewsPage() {
 			width="wide"
 			title="Visites"
 			intro="Les profils que vous avez consultés et ceux qui ont consulté le vôtre."
-			footer={null}
+			footer={<Footer />}
 		>
 			<ActivityTabs tabs={TABS} load={load} />
 		</PrivateScreen>

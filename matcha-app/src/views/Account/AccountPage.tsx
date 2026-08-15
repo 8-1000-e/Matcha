@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { MatchaBowl } from "@/components/Brand/Brand";
 import { Alert } from "@/components/Form/Alert";
 import { ActionButton } from "@/components/Form/Button";
+import { Footer } from "@/components/Layout/Footer";
 import { PrivateScreen } from "@/components/Layout/Screen";
 import { TAG_LABELS } from "@/lib/db/schema/tags";
 import { MINIMUM_TAGS } from "@/lib/db/types";
@@ -565,7 +566,7 @@ export function AccountPage() {
 
 	if (profile === null) {
 		return (
-			<PrivateScreen width="wide" footer={null}>
+			<PrivateScreen width="wide" footer={<Footer />}>
 				<p className="py-16 text-center text-sm text-muted">Chargement…</p>
 			</PrivateScreen>
 		);
@@ -575,7 +576,7 @@ export function AccountPage() {
 		?? profile.photos[0];
 
 	return (
-		<PrivateScreen width="wide" footer={null}>
+		<PrivateScreen width="wide" footer={<Footer />}>
 			<header className="flex gap-5 sm:gap-10">
 				<div className="relative size-24 shrink-0 overflow-hidden rounded-full bg-leaf/50 ring-2 ring-matcha sm:size-32">
 					{photo === undefined ? (
