@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { getProfile, saveLocation } from "@/lib/profile/client";
+import { saveLocation, sharedProfile } from "@/lib/profile/client";
 import { LOCATION_SYNC_INTERVAL_MS, syncDue } from "@/lib/profile/locationSync";
 
 const CHECK_INTERVAL_MS = 60 * 60 * 1000;
@@ -11,7 +11,7 @@ function refresh() {
 		return;
 	}
 
-	void getProfile().then((result) => {
+	void sharedProfile().then((result) => {
 		if (!result.ok) {
 			return;
 		}

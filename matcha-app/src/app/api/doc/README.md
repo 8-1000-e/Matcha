@@ -414,6 +414,23 @@ fourni et on laisse le reste à `NULL`. La complétion n'exige que des coordonn�
 | `200` | enregistré |
 | `400` | `["coordinates are invalid"]`, `["city is invalid"]`, `["neighborhood is invalid"]`, `["coordinates or a city are required"]` |
 
+## `PATCH /api/profile/location`
+
+**Corps** : `{ "consent": false }` — pose le consentement de géolocalisation
+**sans toucher à la position**. `PUT` déduisait le consentement du mode d'envoi
+(coordonnées = accepté, ville = refusé), ce qui rendait impossible de le
+révoquer en gardant sa ville.
+
+Chaque écriture de position renseigne `users.location_updated_at`. C'est cette
+date que le front compare pour son cycle de 24 h : tant qu'elle a moins d'un
+jour, aucune demande de position n'est faite au navigateur.
+
+| Code | Cas |
+| --- | --- |
+| `200` | le profil complet |
+| `400` | `["consent must be a boolean"]` |
+| `400` | `["send your position before enabling tracking"]` — aucune coordonnée enregistrée |
+
 ## `GET /api/profile/location/search?q=`
 
 Suggestions de villes pour la saisie manuelle. Moins de 2 caractères renvoie une
@@ -507,12 +524,17 @@ visible.
 ## `DELETE /api/profile/photos/[id]`
 
 Supprime la ligne **et** le fichier. Les positions restantes sont resserrées et
-la photo de profil est réattribuée à la suivante s'il le faut. Supprimer la
-dernière photo repasse donc `profile_completed` à 0.
+la photo de profil est réattribuée à la suivante s'il le faut.
+
+**La dernière photo ne peut pas être supprimée** : sans photo de profil le
+compte repasserait `profile_completed = 0`, alors que le sujet exige un profil
+complet pour utiliser le site. La garde est côté serveur, pas seulement dans le
+formulaire : un appel direct à la route est refusé de la même façon.
 
 | Code | Cas |
 | --- | --- |
 | `200` | supprimée |
+| `400` | `["last_photo_required"]` — c'était la seule photo |
 | `404` | `["photo not found"]` |
 
 ## `PUT /api/profile/photos/order`
@@ -547,6 +569,78 @@ confirmer que la photo existe.
 La réponse porte `X-Content-Type-Options: nosniff`. Le risque est faible — les
 octets servis sont toujours du WebP ré-encodé par sharp — mais l'en-tête coûte
 une ligne.
+
+---
+
+# Découverte
+
+## `GET /api/discovery`
+
+Le feed de suggestions et, à terme, la recherche avancée : le sujet impose les
+mêmes tris et les mêmes filtres pour les deux, une seule route les sert donc.
+
+**Paramètres**
+
+| Paramètre | Valeurs | Défaut |
+| --- | --- | --- |
+| `sort` | `distance`, `age`, `popularity`, `common_tags`, `last_seen`, `online`, `created` | tri composite : distance, puis affinités, puis note |
+| `direction` | `asc`, `desc` | `asc` |
+| `ageMin`, `ageMax` | 18 à 120 | — |
+| `ratingMin` | 0 à 5, entier | — |
+| `maxDistanceKm` | 0 à 20038 | — |
+| `tags` | identifiants séparés par des virgules | — |
+| `session` | identifiant d'une session ouverte | une nouvelle session |
+| `after`, `limit` | pagination dans la session | `0`, `20` |
+
+`online` ne trie pas sur la colonne `users.is_online`, jamais écrite, mais sur
+l'expression de présence `last_seen_at > now - 120s` — la même que partout
+ailleurs. `is_online` renvoyé dans les cartes vient de ce calcul, pas de la
+colonne.
+
+**Réponse**
+
+```json
+{
+  "session": "uuid", "reset": false, "next": 20, "total": 100,
+  "items": [
+    {
+      "id": "uuid", "username": "ana", "first_name": "Ana", "age": 31,
+      "gender": "woman", "orientation": "bi", "biography": "…",
+      "city": "Paris", "neighborhood": null, "distance_km": 4.2,
+      "common_tags": 3, "review_average": 4.2, "review_count": 12,
+      "photo_count": 3, "profile_photo_id": "uuid",
+      "photo_ids": "uuid,uuid,uuid", "tags": "books,cats",
+      "viewer_liked": 0, "is_online": 1, "last_seen_at": "…"
+    }
+  ]
+}
+```
+
+`photo_ids` liste **toutes** les photos, la photo de profil en premier
+(`ORDER BY is_profile DESC, created_at, id`), pour la galerie de la carte.
+`viewer_liked` dit si le cœur doit être plein au chargement.
+
+**Le feed est figé par session.** L'ordre est calculé une fois, stocké dans
+`feed_entries`, puis relu page par page : aucun doublon ni saut pendant le
+défilement, même si une note change entre deux pages. La session dure une heure.
+
+Les exclusions (bloqués dans un sens ou l'autre, orientation incompatible) sont
+**rejouées à chaque lecture** pour rester justes. Une seule exception : les
+profils likés restent visibles dans la session en cours — `readFeedPage` lit
+avec `includeLiked: true`. Sans cela, liker quelqu'un le faisait disparaître
+sous le doigt. Les tranches suivantes, elles, continuent d'exclure les likés :
+ils ne reviendront pas dans une session ultérieure.
+
+Comme `/feed` est une page serveur, chaque retour sur l'écran ouvrirait une
+session neuve. Le front mémorise donc l'identifiant de session et la position
+dans `sessionStorage`, et rejoue la session au retour.
+
+| Code | Cas |
+| --- | --- |
+| `200` | une page de résultats |
+| `400` | `["invalid sort key: …"]`, `["invalid sort direction: …"]`, `["unknown tags: …"]` |
+| `401` | pas de session |
+| `403` | `["profile_incomplete"]` — le visiteur n'a pas fini son profil |
 
 ---
 
@@ -634,6 +728,19 @@ sur le profil reste `review_average` de `GET /api/users/[id]` : la moyenne des
 avis sur 5, rien d'autre.
 
 Écrire ou supprimer un avis n'a **pas** encore de route.
+
+## `GET /api/profile/reviews`
+
+Mes propres avis reçus, pour la page `/me`. `GET /api/users/[id]/reviews` ne
+peut pas servir : elle refuse son propre identifiant avec un `400`.
+
+```json
+{ "ok": true, "review_average": 4.2, "review_count": 12, "reviews": [ ... ] }
+```
+
+Les avis ont la même forme que sur le profil public. Écrire ou supprimer un avis
+n'a **toujours pas de route** : la note de popularité ne peut donc bouger que
+par le seed.
 
 ## Quelle notification pour quelle action
 
@@ -1048,7 +1155,8 @@ Trois routes partagent la même forme de carte, produite par
 ```json
 {
   "id": "uuid", "username": "ana", "first_name": "Ana", "age": 31,
-  "city": "Paris", "neighborhood": null, "popularity_score": 60.4,
+  "city": "Paris", "neighborhood": null,
+  "review_average": 4.2, "review_count": 12,
   "photo_url": "/api/photos/uuid", "is_online": false, "last_seen_at": null
 }
 ```
@@ -1061,13 +1169,15 @@ n'est jamais lue.
 
 | Route | Renvoie | Champs ajoutés à la carte |
 | --- | --- | --- |
-| `GET /api/likes` | `{ "likers": [...] }` — qui m'a liké (§IV.2) | `liked_at` |
+| `GET /api/likes?scope=received` | `{ "likers": [...] }` — qui m'a liké (§IV.2) | `liked_at` |
+| `GET /api/likes?scope=sent` | `{ "likers": [...] }` — qui j'ai liké | `liked_at` |
 | `GET /api/views?scope=received` | `{ "views": [...] }` — qui a consulté mon profil (§IV.2) | `viewed_at`, `visit_count` |
 | `GET /api/views?scope=made` | `{ "views": [...] }` — mon historique de visites (§IV.5) | `viewed_at` |
 | `GET /api/blocks` | `{ "blocked": [...] }` — qui j'ai bloqué | `blocked_at` |
 
-`scope` vaut `received` par défaut ; toute autre valeur que `received` ou `made`
-donne `400 ["scope must be received or made"]`.
+`scope` vaut `received` par défaut. Sur `/api/views`, toute autre valeur que
+`received` ou `made` donne `400 ["scope must be received or made"]` ; sur
+`/api/likes`, `400 ["scope must be received or sent"]`.
 
 `GET /api/blocks` existe pour une raison pratique : sans liste, on ne peut pas
 débloquer quelqu'un qu'on ne retrouve plus.

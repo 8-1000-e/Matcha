@@ -1,7 +1,7 @@
-# Architecture — découverte et feed
+# Architecture — découverte, feed et chrome applicatif
 
-Complète `db-schema.md`, qui décrit les tables. Ce fichier décrit le mécanisme
-du feed, ajouté le 2026-08-14.
+Complète `db-schema.md`, qui décrit les tables. Décrit le mécanisme du feed
+(2026-08-14) puis le chrome applicatif et les cycles de fond (2026-08-15).
 
 ## Le feed figé par session
 
@@ -88,3 +88,58 @@ Ensuite `views/Feed/FeedPage.tsx` (client) ne charge la suite que depuis un
 `IntersectionObserver`, c'est-à-dire depuis une callback, ce qui est autorisé.
 
 Changer un filtre passe par un gestionnaire d'événement, jamais par un effet.
+
+## Le chrome applicatif
+
+`Screen` (`components/Layout/Screen.tsx`) rend l'ossature de toutes les pages.
+Deux options changent sa forme :
+
+- `nav` — ajoute le rail de gauche (`AppNav`) et passe l'ossature en ligne
+  flex. `PrivateScreen` l'active pour tout compte vérifié.
+- `fit` — l'écran tient dans la hauteur du viewport : `h-dvh`,
+  `overflow-hidden`, et une seule zone défilante à l'intérieur. Utilisé par le
+  feed pour que le deck défile carte par carte sans que la page bouge.
+
+**Piège rencontré** : `flex-1` sur l'ossature écrasait `h-dvh`. La base valant
+`0` et le `body` étant en `min-h-dvh`, le conteneur s'étirait à la hauteur du
+contenu, plus rien ne bornait le deck et toutes les cartes s'empilaient. En mode
+`fit` l'ossature est donc `flex h-dvh overflow-hidden`, sans `flex-1`.
+
+Le rail contient, de haut en bas : le bol (retour au feed), Suggestions,
+Messages, Likes reçus (`/likes`), Visites (`/views`), Réglages (`/settings`),
+puis en bas la photo de profil (`/me`) et la porte rouge de déconnexion.
+
+## Les cycles de fond
+
+Deux composants sans rendu, montés par `PrivateScreen` :
+
+`PresenceHeartbeat` — `POST /api/presence` toutes les 40 s tant que l'onglet est
+visible. La présence se lit ensuite partout comme
+`last_seen_at > now - 120 s` ; la colonne `users.is_online` n'est jamais écrite
+et ne doit pas servir.
+
+`LocationSync` — le suivi de position quotidien. Un serveur ne peut pas relever
+une position : seule l'API du navigateur la connaît, avec permission et onglet
+ouvert. Le cycle est donc opportuniste et piloté par la base :
+
+```
+au montage, puis toutes les heures
+        │
+        ├─ location_consent = 0 ?           → on s'arrête, la ville reste figée
+        ├─ location_updated_at < 24 h ?     → on s'arrête
+        └─ getCurrentPosition               → PUT /api/profile/location
+                                              (réécrit location_updated_at)
+```
+
+`maximumAge` autorise une position en cache de moins de 24 h, et tout échec
+(refus, timeout, navigateur sans géolocalisation) est silencieux : la dernière
+position connue reste. Conséquence assumée : un utilisateur absent trois jours
+garde sa position jusqu'à sa prochaine visite.
+
+## Une seule requête de profil par page
+
+`AppNav` (avatar) et `LocationSync` (consentement) ont besoin du profil au
+montage. Chacun appelait `GET /api/profile`, et le Strict Mode de développement
+doublait encore les effets : quatre requêtes par chargement. `sharedProfile()`
+mémorise la promesse 30 s et la partage ; chaque mutation du profil appelle
+`forgetProfile()`. Mesuré : 4 requêtes → 1.

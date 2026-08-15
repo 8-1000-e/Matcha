@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { MatchaBowl } from "@/components/Brand/Brand";
 import { logout } from "@/lib/auth/api";
-import { getProfile } from "@/lib/profile/client";
+import { sharedProfile } from "@/lib/profile/client";
 
 const LINK
 	= "flex size-11 items-center justify-center rounded-xl transition-colors duration-200 ease-out";
@@ -125,7 +125,7 @@ export function AppNav() {
 
 	useEffect(() => {
 		let live = true;
-		void getProfile().then((result) => {
+		void sharedProfile().then((result) => {
 			if (!live || !result.ok) {
 				return;
 			}
