@@ -296,24 +296,28 @@ export function FilterBar({
 
 					<div className="grid gap-4 sm:grid-cols-2">
 						<div className="flex flex-col gap-1.5">
-							<span className="text-xs text-muted">Ville</span>
 							{draft.city === undefined ? (
 								<CityPicker
+									title="Ville"
+									titleClassName="text-xs text-muted"
 									onPick={(place) => patch({ city: place.city })}
 								/>
 							) : (
-								<div className="flex items-center gap-2">
-									<span className="min-h-10 flex-1 truncate rounded-lg border border-edge/60 bg-white px-3 py-2 text-sm">
-										{draft.city}
-									</span>
-									<button
-										type="button"
-										onClick={() => patch({ city: undefined })}
-										className="min-h-10 cursor-pointer rounded-lg border border-edge/60 bg-white px-3 text-sm transition-colors duration-200 ease-out hover:border-matcha/60"
-									>
-										Effacer
-									</button>
-								</div>
+								<>
+									<span className="text-xs text-muted">Ville</span>
+									<div className="flex items-center gap-2">
+										<span className="min-h-10 flex-1 truncate rounded-lg border border-edge/60 bg-white px-3 py-2 text-sm">
+											{draft.city}
+										</span>
+										<button
+											type="button"
+											onClick={() => patch({ city: undefined })}
+											className="min-h-10 cursor-pointer rounded-lg border border-edge/60 bg-white px-3 text-sm transition-colors duration-200 ease-out hover:border-matcha/60"
+										>
+											Effacer
+										</button>
+									</div>
+								</>
 							)}
 						</div>
 

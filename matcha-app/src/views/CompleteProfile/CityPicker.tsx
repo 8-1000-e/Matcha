@@ -19,9 +19,17 @@ function detail(place: Place) {
 type CityPickerProps = {
 	defaultValue?: string;
 	error?: string;
+	title?: string;
+	titleClassName?: string;
 	onPick: (place: Place) => void;
 };
-export function CityPicker({ defaultValue = "", error, onPick }: CityPickerProps) {
+export function CityPicker({
+	defaultValue = "",
+	error,
+	title = "Votre ville",
+	titleClassName = "text-sm font-medium",
+	onPick,
+}: CityPickerProps) {
 	const id = useId();
 	const [query, setQuery] = useState(defaultValue);
 	const [open, setOpen] = useState(false);
@@ -37,7 +45,7 @@ export function CityPicker({ defaultValue = "", error, onPick }: CityPickerProps
 		places: [],
 		failed: false,
 	});
-	
+
 	const latest = useRef(0);
 	const field = useRef<HTMLInputElement>(null);
 	const [dropUp, setDropUp] = useState(false);
@@ -121,8 +129,8 @@ export function CityPicker({ defaultValue = "", error, onPick }: CityPickerProps
 
 	return (
 		<div className="relative min-w-0">
-			<label htmlFor={id} className="text-sm font-medium">
-				Votre ville
+			<label htmlFor={id} className={titleClassName}>
+				{title}
 			</label>
 
 			<input
