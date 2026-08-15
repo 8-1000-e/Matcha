@@ -25,6 +25,11 @@ const EXPIRED = "Votre session a expiré, reconnectez-vous.";
 const LINK_DEAD = "Ce lien n’est plus valide, demandez-en un nouveau.";
 
 const TRANSLATIONS: Record<string, AuthError> = {
+	last_photo_required: {
+		field: null,
+		message: "Gardez au moins une photo : votre profil doit rester complet.",
+	},
+
 	"email is required": { field: "email", message: REQUIRED },
 	"email is too short": { field: "email", message: "Cette adresse est trop courte." },
 	"email is too long": { field: "email", message: "Cette adresse dépasse 254 caractères." },

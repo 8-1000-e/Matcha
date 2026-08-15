@@ -58,6 +58,14 @@ export async function DELETE(_request: Request, context: Context)
 		return notFound();
 	}
 
+	if (photos.count({ user_id: session.user.id }) <= 1)
+	{
+		return Response.json(
+			{ errors: ["last_photo_required"] },
+			{ status: 400 },
+		);
+	}
+
 	if (!removePhoto(session.user.id, id))
 	{
 		return notFound();

@@ -276,6 +276,7 @@ function Photos({
 }) {
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const full = profile.photos.length >= 5;
 
 	async function upload(file: File) {
 		setBusy(true);
@@ -321,13 +322,37 @@ function Photos({
 
 	return (
 		<div className="flex flex-col gap-4">
-			<div className="flex flex-wrap items-center gap-3">
-				<label className={`${GHOST} ${busy ? "opacity-60" : ""}`}>
-					Ajouter une photo
+			<div className="flex flex-wrap items-center justify-between gap-3">
+				<h2 className="text-sm font-semibold">
+					Photos
+					<span className="ml-2 font-normal text-muted tabular-nums">
+						{profile.photos.length} / 5
+					</span>
+				</h2>
+
+				<label
+					className={`flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium transition-colors duration-200 ease-out ${
+						full || busy
+							? "cursor-not-allowed bg-leaf/40 text-muted"
+							: "cursor-pointer bg-matcha text-white hover:bg-matcha-dark"
+					}`}
+				>
+					<svg
+						viewBox="0 0 20 20"
+						className="size-4"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="1.8"
+						strokeLinecap="round"
+						aria-hidden="true"
+					>
+						<path d="M10 4.5v11M4.5 10h11" />
+					</svg>
+					{busy ? "Envoi…" : full ? "Maximum atteint" : "Ajouter une photo"}
 					<input
 						type="file"
 						accept="image/jpeg,image/png,image/webp"
-						disabled={busy || profile.photos.length >= 5}
+						disabled={busy || full}
 						onChange={(event) => {
 							const file = event.target.files?.[0];
 							event.target.value = "";
@@ -335,12 +360,9 @@ function Photos({
 								void upload(file);
 							}
 						}}
-						className="hidden"
+						className="sr-only"
 					/>
 				</label>
-				<span className="text-xs text-muted">
-					{profile.photos.length} / 5 photos
-				</span>
 			</div>
 
 			{error !== null ? <Alert>{error}</Alert> : null}
