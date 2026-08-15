@@ -215,10 +215,10 @@ export function FeedPage({
 		<PrivateScreen
 			width="full"
 			fit
-			title={`Des profils pour vous, ${firstName}`}
 			footer={null}
 		>
 			<FilterBar
+				firstName={firstName}
 				filters={filters}
 				onChange={changeFilters}
 				total={state.total}
@@ -254,7 +254,7 @@ export function FeedPage({
 						<li
 							key={candidate.id}
 							data-index={index}
-							className="mx-auto h-full max-w-4xl snap-start pb-3"
+							className="mx-auto h-full max-w-5xl snap-start pb-3"
 						>
 							<CandidateSlide candidate={candidate} />
 						</li>

@@ -59,6 +59,7 @@ export const config = {
 		"/users/:path*",
 		"/messages",
 		"/messages/:path*",
+		"/settings",
 		"/verify-email",
 		"/complete-profile",
 	],

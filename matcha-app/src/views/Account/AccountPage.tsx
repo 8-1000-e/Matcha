@@ -6,19 +6,13 @@ import { MatchaBowl } from "@/components/Brand/Brand";
 import { Alert } from "@/components/Form/Alert";
 import { ActionButton } from "@/components/Form/Button";
 import { PrivateScreen } from "@/components/Layout/Screen";
-import { PresenceAvatar } from "@/components/Presence/PresenceAvatar";
+import { TAG_LABELS } from "@/lib/db/schema/tags";
 import { MINIMUM_TAGS } from "@/lib/db/types";
-import {
-	listBlocked,
-	unblockUser,
-	type BlockedUser,
-} from "@/lib/moderation/client";
 import {
 	addPhoto,
 	getProfile,
 	pickProfilePhoto,
 	removePhoto,
-	saveLocation,
 	saveProfile,
 	saveTags,
 	type Gender,
@@ -40,6 +34,8 @@ const ORIENTATIONS: { value: Orientation; label: string }[] = [
 	{ value: "pan", label: "Pansexuel·le" },
 	{ value: "other", label: "Autre" },
 ];
+
+const MAXIMUM_TAGS = 10;
 
 const FIELD
 	= "min-h-10 w-full rounded-lg border border-edge/60 bg-white px-3 text-sm transition-colors duration-200 ease-out hover:border-matcha/60 focus-visible:border-matcha";
@@ -81,14 +77,25 @@ function Identity({
 	const [gender, setGender] = useState<Gender | "">(profile.gender ?? "");
 	const [orientation, setOrientation] = useState<Orientation>(profile.orientation);
 	const [biography, setBiography] = useState(profile.biography ?? "");
-	const [tags, setTags] = useState(profile.tags.join(", "));
+	const [wanted, setWanted] = useState<string[]>(profile.tags);
+	const [filter, setFilter] = useState("");
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
-	const wanted = tags
-		.split(",")
-		.map((tag) => tag.trim())
-		.filter(Boolean);
+	const visible = TAG_LABELS.filter((label) =>
+		label.toLowerCase().includes(filter.trim().toLowerCase()),
+	);
+
+	function toggle(label: string) {
+		setError(null);
+		setWanted((current) =>
+			current.includes(label)
+				? current.filter((entry) => entry !== label)
+				: current.length < MAXIMUM_TAGS
+					? [...current, label]
+					: current,
+		);
+	}
 
 	async function submit(event: React.FormEvent) {
 		event.preventDefault();
@@ -197,19 +204,50 @@ function Identity({
 				/>
 			</label>
 
-			<label className="flex flex-col gap-1.5">
-				<span className="text-xs text-muted">
-					Centres d’intérêt, séparés par des virgules
+			<div className="flex flex-col gap-2">
+				<label htmlFor="tagFilter" className="text-xs text-muted">
+					Centres d’intérêt
 					<span className="ml-2 tabular-nums">
-						{wanted.length} / {MINIMUM_TAGS} minimum
+						{wanted.length} sélectionné{wanted.length > 1 ? "s" : ""}, entre{" "}
+						{MINIMUM_TAGS} et {MAXIMUM_TAGS}
 					</span>
-				</span>
+				</label>
 				<input
-					value={tags}
-					onChange={(event) => setTags(event.target.value)}
+					id="tagFilter"
+					type="search"
+					value={filter}
+					onChange={(event) => setFilter(event.target.value)}
+					placeholder="Filtrer la liste"
 					className={FIELD}
 				/>
-			</label>
+				<div className="flex max-h-44 flex-wrap gap-1.5 overflow-y-auto rounded-lg border border-edge/40 bg-white/50 p-2">
+					{visible.map((label) => {
+						const active = wanted.includes(label);
+						return (
+							<button
+								key={label}
+								type="button"
+								onClick={() => toggle(label)}
+								aria-pressed={active}
+								disabled={!active && wanted.length >= MAXIMUM_TAGS}
+								className={`cursor-pointer rounded-full border px-3 py-1.5 text-sm transition-colors duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-40 ${
+									active
+										? "border-matcha bg-matcha font-medium text-white"
+										: "border-edge/60 bg-white/70 hover:border-matcha/50 hover:bg-leaf/40"
+								}`}
+							>
+								#{label}
+							</button>
+						);
+					})}
+
+					{visible.length === 0 ? (
+						<p className="px-1 py-2 text-xs text-muted">
+							Aucun centre d’intérêt ne correspond.
+						</p>
+					) : null}
+				</div>
+			</div>
 
 			{error !== null ? <Alert>{error}</Alert> : null}
 
@@ -314,42 +352,68 @@ function Photos({
 					{profile.photos.map((photo) => (
 						<li
 							key={photo.id}
-							className="flex w-[calc((100%-1rem)/3)] flex-col gap-2"
+							className="group relative aspect-square w-[calc((100%-1rem)/3)] overflow-hidden rounded-lg bg-leaf/40 ring-1 ring-edge/30"
 						>
-							<div className="relative aspect-square overflow-hidden rounded-lg bg-leaf/40 ring-1 ring-edge/30">
-								<Image
-									src={photo.url}
-									alt=""
-									fill
-									unoptimized
-									sizes="(min-width: 768px) 14rem, 33vw"
-									className="object-cover"
-								/>
-								{photo.is_profile ? (
-									<span className="absolute top-2 left-2 rounded-md bg-matcha px-2 py-0.5 text-xs font-medium text-white">
-										Profil
-									</span>
-								) : null}
-							</div>
+							<Image
+								src={photo.url}
+								alt=""
+								fill
+								unoptimized
+								sizes="(min-width: 768px) 14rem, 33vw"
+								className="object-cover"
+							/>
 
-							<div className="flex flex-wrap gap-2">
+							{photo.is_profile ? (
+								<span className="absolute top-2 left-2 rounded-md bg-matcha px-2 py-0.5 text-xs font-medium text-white">
+									Photo de profil
+								</span>
+							) : null}
+
+							<div className="absolute inset-x-0 bottom-0 flex justify-end gap-1.5 bg-linear-to-t from-ink/70 to-transparent p-2 opacity-0 transition-opacity duration-200 ease-out group-hover:opacity-100 focus-within:opacity-100">
 								{photo.is_profile ? null : (
 									<button
 										type="button"
 										disabled={busy}
 										onClick={() => void makeProfile(photo.id)}
-										className="cursor-pointer text-xs text-matcha underline decoration-matcha/40 underline-offset-4 hover:decoration-matcha disabled:cursor-progress"
+										aria-label="Définir comme photo de profil"
+										title="Définir comme photo de profil"
+										className="flex size-8 cursor-pointer items-center justify-center rounded-lg bg-white/90 text-ink transition-colors duration-200 ease-out hover:bg-white disabled:cursor-progress"
 									>
-										Photo de profil
+										<svg
+											viewBox="0 0 20 20"
+											className="size-4"
+											fill="none"
+											stroke="currentColor"
+											strokeWidth="1.8"
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											aria-hidden="true"
+										>
+											<path d="m4 10.5 4 4 8-8" />
+										</svg>
 									</button>
 								)}
+
 								<button
 									type="button"
 									disabled={busy}
 									onClick={() => void drop(photo.id, photo.is_profile)}
-									className="cursor-pointer text-xs text-muted underline decoration-edge/50 underline-offset-4 hover:text-ink disabled:cursor-progress"
+									aria-label="Supprimer la photo"
+									title="Supprimer la photo"
+									className="flex size-8 cursor-pointer items-center justify-center rounded-lg bg-white/90 text-red-700 transition-colors duration-200 ease-out hover:bg-white disabled:cursor-progress"
 								>
-									Supprimer
+									<svg
+										viewBox="0 0 20 20"
+										className="size-4"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="1.8"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										aria-hidden="true"
+									>
+										<path d="M4 6h12M8 6V4.5h4V6M6.5 6l.6 9h5.8l.6-9" />
+									</svg>
 								</button>
 							</div>
 						</li>
@@ -360,161 +424,8 @@ function Photos({
 	);
 }
 
-function Settings({
-	profile,
-	onChanged,
-}: {
-	profile: Profile;
-	onChanged: () => Promise<void>;
-}) {
-	const [busy, setBusy] = useState(false);
-	const [error, setError] = useState<string | null>(null);
-	const [blocked, setBlocked] = useState<BlockedUser[] | null>(null);
-
-	useEffect(() => {
-		let live = true;
-		void listBlocked().then((result) => {
-			if (live) {
-				setBlocked(result.ok ? result.data.blocked : []);
-			}
-		});
-		return () => {
-			live = false;
-		};
-	}, []);
-
-	function allow() {
-		setError(null);
-		if (!("geolocation" in navigator)) {
-			setError("Votre navigateur ne donne pas accès à la position.");
-			return;
-		}
-		setBusy(true);
-		navigator.geolocation.getCurrentPosition(
-			(position) => {
-				void saveLocation({
-					latitude: position.coords.latitude,
-					longitude: position.coords.longitude,
-				}).then(async (result) => {
-					setBusy(false);
-					if (!result.ok) {
-						setError(result.errors[0]?.message ?? null);
-						return;
-					}
-					await onChanged();
-				});
-			},
-			() => {
-				setBusy(false);
-				setError("Position refusée par le navigateur.");
-			},
-		);
-	}
-
-	async function revoke() {
-		if (profile.city === null) {
-			setError("Choisissez d’abord une ville avant de couper la géolocalisation.");
-			return;
-		}
-		setBusy(true);
-		setError(null);
-		const result = await saveLocation({ city: profile.city });
-		setBusy(false);
-		if (!result.ok) {
-			setError(result.errors[0]?.message ?? null);
-			return;
-		}
-		await onChanged();
-	}
-
-	async function release(id: string) {
-		setBusy(true);
-		const result = await unblockUser(id);
-		setBusy(false);
-		if (!result.ok) {
-			setError(result.errors[0]?.message ?? null);
-			return;
-		}
-		setBlocked((current) =>
-			current === null ? current : current.filter((entry) => entry.id !== id),
-		);
-	}
-
-	return (
-		<div className="flex flex-col gap-8">
-			<section className="flex flex-col gap-3">
-				<h2 className="text-sm font-semibold">Géolocalisation</h2>
-				<p className="text-sm text-muted">
-					{profile.location_consent
-						? "Votre position exacte est utilisée pour calculer les distances."
-						: "Seule votre ville est utilisée. Les distances restent approximatives."}
-				</p>
-				<p className="text-sm">
-					Position enregistrée : {profile.city ?? "aucune"}
-					{profile.neighborhood !== null ? `, ${profile.neighborhood}` : ""}
-				</p>
-
-				<div className="flex flex-wrap gap-3">
-					<button
-						type="button"
-						disabled={busy}
-						onClick={profile.location_consent ? () => void revoke() : allow}
-						className={GHOST}
-					>
-						{profile.location_consent
-							? "Ne plus utiliser ma position exacte"
-							: "Utiliser ma position exacte"}
-					</button>
-				</div>
-
-				{error !== null ? <Alert>{error}</Alert> : null}
-			</section>
-
-			<section className="flex flex-col gap-3">
-				<h2 className="text-sm font-semibold">Comptes bloqués</h2>
-
-				{blocked === null ? (
-					<p className="text-sm text-muted">Chargement…</p>
-				) : blocked.length === 0 ? (
-					<p className="text-sm text-muted">Vous n’avez bloqué personne.</p>
-				) : (
-					<ul className="flex flex-col divide-y divide-edge/20">
-						{blocked.map((entry) => (
-							<li key={entry.id} className="flex items-center gap-3 py-3">
-								<PresenceAvatar
-									url={entry.photo_url}
-									name={entry.first_name}
-									online={entry.is_online}
-									size="small"
-								/>
-								<span className="min-w-0 flex-1">
-									<span className="block truncate text-sm font-medium">
-										{entry.first_name}
-										<span className="ml-2 font-normal text-muted">
-											@{entry.username}
-										</span>
-									</span>
-								</span>
-								<button
-									type="button"
-									disabled={busy}
-									onClick={() => void release(entry.id)}
-									className={GHOST}
-								>
-									Débloquer
-								</button>
-							</li>
-						))}
-					</ul>
-				)}
-			</section>
-		</div>
-	);
-}
-
 export function AccountPage() {
 	const [profile, setProfile] = useState<Profile | null>(null);
-	const [tab, setTab] = useState<"profile" | "photos" | "settings">("profile");
 	const [editing, setEditing] = useState(false);
 
 	const reload = useCallback(async () => {
@@ -548,12 +459,6 @@ export function AccountPage() {
 	const photo = profile.photos.find((entry) => entry.is_profile)
 		?? profile.photos[0];
 
-	const tabs = [
-		{ key: "profile" as const, label: "Profil" },
-		{ key: "photos" as const, label: "Photos" },
-		{ key: "settings" as const, label: "Réglages" },
-	];
-
 	return (
 		<PrivateScreen width="wide" footer={null}>
 			<header className="flex gap-5 sm:gap-10">
@@ -582,10 +487,7 @@ export function AccountPage() {
 						</h1>
 						<button
 							type="button"
-							onClick={() => {
-								setEditing(!editing);
-								setTab("profile");
-							}}
+							onClick={() => setEditing(!editing)}
 							className={GHOST}
 						>
 							{editing ? "Fermer l’édition" : "Modifier le profil"}
@@ -633,40 +535,15 @@ export function AccountPage() {
 				</div>
 			</header>
 
-			<nav className="mt-8 flex justify-center gap-10 border-t border-edge/30">
-				{tabs.map((entry) => (
-					<button
-						key={entry.key}
-						type="button"
-						onClick={() => setTab(entry.key)}
-						aria-current={tab === entry.key}
-						className={`-mt-px cursor-pointer border-t-2 px-2 pt-4 pb-1 text-xs font-medium tracking-[0.12em] uppercase transition-colors duration-200 ease-out ${
-							tab === entry.key
-								? "border-matcha text-ink"
-								: "border-transparent text-muted hover:text-ink"
-						}`}
-					>
-						{entry.label}
-					</button>
-				))}
-			</nav>
-
-			<div className="mt-6">
-				{tab === "photos" ? (
-					<Photos profile={profile} onChanged={reload} />
-				) : tab === "settings" ? (
-					<Settings profile={profile} onChanged={reload} />
-				) : editing ? (
+			<div className="mt-8 border-t border-edge/30 pt-6">
+				{editing ? (
 					<Identity
 						profile={profile}
 						onSaved={reload}
 						onCancel={() => setEditing(false)}
 					/>
 				) : (
-					<p className="py-10 text-center text-sm text-muted">
-						« Modifier le profil » pour changer votre nom, votre genre, votre
-						biographie ou vos centres d’intérêt.
-					</p>
+					<Photos profile={profile} onChanged={reload} />
 				)}
 			</div>
 		</PrivateScreen>

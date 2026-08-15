@@ -64,11 +64,13 @@ function count(filters: FeedFilters): number {
 }
 
 export function FilterBar({
+	firstName,
 	filters,
 	onChange,
 	total,
 	position,
 }: {
+	firstName: string;
 	filters: FeedFilters;
 	onChange: (filters: FeedFilters) => void;
 	total: number;
@@ -95,8 +97,11 @@ export function FilterBar({
 	}
 
 	return (
-		<div className="mb-4 flex flex-col gap-3">
+		<div className="mb-3 flex flex-col gap-3">
 			<div className="flex items-center justify-between gap-3">
+				<h1 className="mr-2 truncate text-base font-semibold tracking-tight">
+					Des profils pour vous, {firstName}
+				</h1>
 				<button
 					type="button"
 					onClick={toggle}
@@ -117,7 +122,7 @@ export function FilterBar({
 					) : null}
 				</button>
 
-				<p className="text-sm text-muted tabular-nums" role="status">
+				<p className="ml-auto text-sm text-muted tabular-nums" role="status">
 					{total === 0 ? "Aucun profil" : `${Math.min(position + 1, total)} / ${total}`}
 				</p>
 			</div>
