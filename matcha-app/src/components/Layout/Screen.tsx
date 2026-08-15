@@ -3,6 +3,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { BrandLockup } from "@/components/Brand/Brand";
 import { BackLink } from "@/components/Form/Button";
 import { LogoutButton } from "@/components/Form/LogoutButton";
+import { AppNav } from "@/components/Layout/AppNav";
 import { Backdrop } from "@/components/Layout/Backdrop";
 import { NotificationBell } from "@/components/Notifications/NotificationBell";
 import { PresenceHeartbeat } from "@/components/Presence/PresenceHeartbeat";
@@ -14,6 +15,7 @@ type ScreenProps = {
 	center?: boolean;
 	centerTop?: boolean;
 	fit?: boolean;
+	nav?: boolean;
 	
 	width?: keyof typeof WIDTHS;
 };
@@ -31,13 +33,20 @@ export function Screen({
 	center = false,
 	centerTop = false,
 	fit = false,
+	nav = false,
 	width = "narrow",
 }: ScreenProps) {
 	const max = WIDTHS[width];
+	const shell = nav
+		? `flex flex-1 flex-col pl-16 ${fit ? "h-dvh overflow-hidden" : ""}`
+		: fit
+			? "flex h-dvh flex-col overflow-hidden"
+			: "contents";
 
 	return (
-		<div className={fit ? "flex h-dvh flex-col overflow-hidden" : "contents"}>
+		<div className={shell}>
 			<Backdrop />
+			{nav ? <AppNav /> : null}
 
 			<header
 				className={`mx-auto flex w-full ${max} px-6 pt-6 ${
@@ -92,13 +101,13 @@ export function PrivateScreen({
 			width={width}
 			center={center}
 			fit={fit}
+			nav={verified}
 			top={
 				<div className="flex w-full items-center justify-between gap-3">
 					{verified ? <PresenceHeartbeat /> : null}
 					<BrandLockup />
 					<div className="flex items-center gap-1">
-						{verified ? <NotificationBell /> : null}
-						<LogoutButton />
+						{verified ? <NotificationBell /> : <LogoutButton />}
 					</div>
 				</div>
 			}

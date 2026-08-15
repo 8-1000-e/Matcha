@@ -1,10 +1,12 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { MatchaBowl } from "@/components/Brand/Brand";
 import { BackLink } from "@/components/Form/Button";
 import { PrivateScreen } from "@/components/Layout/Screen";
+import { ModerationMenu } from "@/components/Moderation/ModerationMenu";
 import type { ProfilePhoto } from "@/lib/profile/profile";
 import type { PublicProfilePayload } from "@/lib/profile/public";
 import {
@@ -43,6 +45,23 @@ function when(iso: string) {
 		month: "long",
 		year: "numeric",
 	});
+}
+
+function lastSeen(iso: string) {
+	const minutes = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+	if (minutes < 60) {
+		return `Vu il y a ${Math.max(1, minutes)} min`;
+	}
+	if (minutes < 24 * 60) {
+		const hours = Math.round(minutes / 60);
+		return `Vu il y a ${hours} h`;
+	}
+	return `Vu le ${new Date(iso).toLocaleDateString("fr-FR", {
+		day: "numeric",
+		month: "long",
+		hour: "2-digit",
+		minute: "2-digit",
+	})}`;
 }
 
 function Stars({
@@ -358,6 +377,7 @@ export function PublicProfilePage({
 }) {
 	const [tab, setTab] = useState<"photos" | "reviews">("photos");
 	const seen = useRef(false);
+	const router = useRouter();
 
 	useEffect(() => {
 		if (seen.current) {
@@ -386,6 +406,14 @@ export function PublicProfilePage({
 							@{profile.username}
 						</h1>
 						<LikeAction profile={profile} />
+						<ModerationMenu
+							userId={profile.id}
+							name={profile.first_name}
+							onBlocked={() => {
+								router.push("/feed");
+								router.refresh();
+							}}
+						/>
 					</div>
 
 					<div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
@@ -441,11 +469,18 @@ export function PublicProfilePage({
 							{profile.neighborhood !== null ? ` · ${profile.neighborhood}` : ""}
 						</p>
 
-						{!profile.is_online && profile.last_seen_at !== null ? (
-							<p className="text-xs text-muted">
-								Vu le {when(profile.last_seen_at)}
-							</p>
-						) : null}
+						<p className="mt-0.5 text-xs">
+							{profile.is_online ? (
+								<span className="inline-flex items-center gap-1.5 font-medium text-matcha">
+									<span className="size-1.5 rounded-full bg-matcha" />
+									En ligne
+								</span>
+							) : profile.last_seen_at !== null ? (
+								<span className="text-muted">{lastSeen(profile.last_seen_at)}</span>
+							) : (
+								<span className="text-muted">Jamais connecté</span>
+							)}
+						</p>
 					</div>
 
 					{profile.tags.length > 0 ? (
