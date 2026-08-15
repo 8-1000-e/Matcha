@@ -18,6 +18,7 @@ const SORT_COLUMNS = {
 	common_tags: "common_tags",
 	last_seen: "last_seen_at",
 	created: "created_at",
+	online: onlineNow("candidate.last_seen_at"),
 } as const;
 
 export const SORT_KEYS = Object.keys(SORT_COLUMNS) as (keyof typeof SORT_COLUMNS)[];
@@ -85,7 +86,6 @@ const PUBLIC_COLUMNS = raw(
 		"city",
 		"neighborhood",
 		"location_consent",
-		"is_online",
 		"last_seen_at",
 		"created_at",
 	]
@@ -251,6 +251,7 @@ function discoveryConditions(
 
 function projection(viewer: UserRow): SqlFragment {
 	return sql`${PUBLIC_COLUMNS},
+		${raw(onlineNow("candidate.last_seen_at"))} AS is_online,
 		${raw(ageYears("candidate.birth_date"))} AS age,
 		distance_km(
 			${viewer.latitude}, ${viewer.longitude},

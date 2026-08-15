@@ -11,6 +11,7 @@ const SORTS: readonly { value: string; label: string }[] = [
 	{ value: "popularity", label: "Note" },
 	{ value: "age", label: "Âge" },
 	{ value: "last_seen", label: "Dernière connexion" },
+	{ value: "online", label: "En ligne" },
 ];
 
 const ORDERS: Record<string, { asc: string; desc: string; natural: "asc" | "desc" }> = {
@@ -29,6 +30,11 @@ const ORDERS: Record<string, { asc: string; desc: string; natural: "asc" | "desc
 	last_seen: {
 		asc: "Vus il y a longtemps",
 		desc: "Vus récemment",
+		natural: "desc",
+	},
+	online: {
+		asc: "Hors ligne d’abord",
+		desc: "En ligne d’abord",
 		natural: "desc",
 	},
 };
