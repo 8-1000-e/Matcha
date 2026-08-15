@@ -37,13 +37,17 @@ import { usePresence } from "@/lib/realtime/presence";
 function Header({
 	partner,
 	online,
+	gone,
 	onBlocked,
 }: {
 	partner: Partner | null;
 	online: boolean;
+	gone: boolean;
 	onBlocked: () => void;
 }) {
-	const name = partner?.first_name ?? partner?.username ?? "Conversation";
+	const name = gone
+		? "Utilisateur supprimé"
+		: (partner?.first_name ?? partner?.username ?? "Conversation");
 
 	return (
 		<header className="mx-auto flex w-full max-w-sm shrink-0 items-center gap-3 px-6 pt-6 pb-3">
@@ -58,18 +62,20 @@ function Header({
 
 			<div className="min-w-0 flex-1">
 				<p className="truncate font-medium">{name}</p>
-				<p className={`text-xs ${online ? "text-matcha-dark" : "text-muted"}`}>
-					{partner === null
-						? ""
-						: online
-							? "en ligne"
-							: lastSeenLabel(partner.last_seen_at)}
+				<p className={`text-xs ${online && !gone ? "text-matcha-dark" : "text-muted"}`}>
+					{gone
+						? "compte supprimé"
+						: partner === null
+							? ""
+							: online
+								? "en ligne"
+								: lastSeenLabel(partner.last_seen_at)}
 				</p>
 			</div>
 
 			<NotificationBell />
 
-			{partner === null ? null : (
+			{partner === null || gone ? null : (
 				<ModerationMenu
 					userId={partner.id}
 					name={name}
@@ -141,6 +147,7 @@ export function ThreadPage({
 	const [partner, setPartner] = useState<Partner | null>(null);
 	const [ready, setReady] = useState(false);
 	const [missing, setMissing] = useState(false);
+	const [gone, setGone] = useState(false);
 	const [older, setOlder] = useState(false);
 	const [exhausted, setExhausted] = useState(false);
 	const [draft, setDraft] = useState("");
@@ -183,6 +190,7 @@ export function ThreadPage({
 				return;
 			}
 			setPartner(result.data.partner);
+			setGone(result.data.partner_deleted);
 			setMessages(result.data.messages);
 			setExhausted(result.data.messages.length < PAGE_SIZE);
 			setReady(true);
@@ -356,6 +364,7 @@ export function ThreadPage({
 					<Header
 						partner={partner}
 						online={online}
+						gone={gone}
 						onBlocked={() => {
 							router.replace("/messages");
 						}}
@@ -420,14 +429,14 @@ export function ThreadPage({
 								value={draft}
 								onChange={(event) => setDraft(event.target.value)}
 								maxLength={1000}
-								disabled={missing}
-								placeholder="Votre message"
+								disabled={missing || gone}
+								placeholder={gone ? "Ce compte a été supprimé" : "Votre message"}
 								aria-label="Votre message"
 								className="min-h-12 flex-1 rounded-xl border border-edge bg-white/70 px-4 text-base text-ink placeholder:text-muted focus:border-matcha focus:outline-none disabled:opacity-60"
 							/>
 							<button
 								type="submit"
-								disabled={sending || missing || draft.trim().length === 0}
+								disabled={sending || missing || gone || draft.trim().length === 0}
 								aria-label="Envoyer"
 								className="inline-flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-matcha text-white transition-colors duration-200 ease-out hover:bg-matcha-dark disabled:cursor-not-allowed disabled:opacity-60"
 							>

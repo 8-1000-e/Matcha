@@ -132,3 +132,19 @@ export function removePhoto(id: string): Promise<ProfileResult> {
 	forgetProfile();
 	return request<Payload>(`/api/profile/photos/${id}`, { method: "DELETE" });
 }
+export function deleteAccount(
+	password: string,
+): Promise<ApiResult<{ purge_at: string; grace_days: number }>> {
+	return send<{ purge_at: string; grace_days: number }>(
+		"DELETE",
+		"/api/profile",
+		{ password },
+	);
+}
+
+export function restoreAccount(): Promise<ProfileResult> {
+	forgetProfile();
+	return request<{ profile: Profile }>("/api/profile/restore", {
+		method: "POST",
+	});
+}

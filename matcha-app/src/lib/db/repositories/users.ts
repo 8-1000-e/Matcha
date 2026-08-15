@@ -1,6 +1,12 @@
-import { execute, queryOne, queryScalar, transaction } from "../core/client";
+import {
+	execute,
+	queryAll,
+	queryOne,
+	queryScalar,
+	transaction,
+} from "../core/client";
 import { createRepository } from "../core/repository";
-import { sql } from "../core/sql";
+import { raw, sql } from "../core/sql";
 import { createId, nowIso, toFlag, type Flag } from "../core/values";
 import { MINIMUM_TAGS, type UserInsert, type UserRow } from "../types";
 
@@ -28,6 +34,7 @@ export const users = createRepository<UserRow, UserInsert>({
 		"is_online",
 		"last_seen_at",
 		"created_at",
+		"deleted_at",
 	],
 	defaultOrder: [{ column: "created_at", direction: "desc" }],
 });
@@ -131,4 +138,50 @@ export function refreshProfileCompletion(id: string): Flag {
 
 export function deleteUser(id: string): boolean {
 	return users.removeById(id);
+}
+
+export const DELETION_GRACE_DAYS = 14;
+
+export function markUserDeleted(id: string): string | null {
+	const at = nowIso();
+	return users.updateById(id, { deleted_at: at }) === undefined ? null : at;
+}
+
+export function restoreUser(id: string): boolean {
+	return (
+		execute(
+			sql`UPDATE users SET deleted_at = NULL
+				WHERE id = ${id} AND deleted_at IS NOT NULL`,
+		).changes === 1
+	);
+}
+
+export function purgeDate(deletedAt: string): string {
+	const at = new Date(deletedAt);
+	at.setUTCDate(at.getUTCDate() + DELETION_GRACE_DAYS);
+	return at.toISOString();
+}
+
+export interface ExpiredAccount {
+	id: string;
+	paths: string[];
+}
+
+export function listExpiredDeletions(): ExpiredAccount[] {
+	const rows = queryAll<{ id: string; paths: string | null }>(
+		sql`SELECT users.id AS id,
+				(
+					SELECT group_concat(photos.path) FROM photos
+					WHERE photos.user_id = users.id
+				) AS paths
+			FROM users
+			WHERE users.deleted_at IS NOT NULL
+				AND users.deleted_at <
+					strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-${raw(String(DELETION_GRACE_DAYS))} days')`,
+	);
+
+	return rows.map((row) => ({
+		id: row.id,
+		paths: row.paths === null ? [] : row.paths.split(","),
+	}));
 }

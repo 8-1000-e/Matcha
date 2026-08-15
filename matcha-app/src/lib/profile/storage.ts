@@ -1,3 +1,4 @@
+import { unlinkSync } from "node:fs";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import sharp from "sharp";
@@ -118,6 +119,23 @@ export async function readPhotoFile(
 	catch
 	{
 		return null;
+	}
+}
+
+export function removePhotoFileSync(name: string): void
+{
+	const target = locate(name);
+	if (target === null)
+	{
+		return;
+	}
+	try
+	{
+		unlinkSync(target);
+	}
+	catch
+	{
+		return;
 	}
 }
 

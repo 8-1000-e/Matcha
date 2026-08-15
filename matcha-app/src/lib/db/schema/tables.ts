@@ -40,6 +40,7 @@ export const TABLES: readonly string[] = [
 		is_online INTEGER NOT NULL DEFAULT 0 CHECK (is_online IN (0, 1)),
 		last_seen_at TEXT,
 		created_at TEXT NOT NULL DEFAULT ${TIMESTAMP_DEFAULT},
+		deleted_at TEXT,
 		CHECK (length(email) BETWEEN 3 AND 254),
 		CHECK (length(username) BETWEEN 3 AND 32),
 		CHECK (length(birth_date) = 10)

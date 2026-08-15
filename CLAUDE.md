@@ -34,9 +34,9 @@ restaurer le contexte complet de la session précédente.
 ## Current State
 
 - **Branche** : `fix/activity-and-deck`
-- **Statut** : feed en deck, profil public, mon profil, réglages, visites et
-  likes paginés, écran de profil bloqué, messages chiffrés en base. Reste la
-  recherche avancée et les manques listés dans `docs/current-task.md`.
+- **Statut** : feed en deck avec tous les filtres du §IV.3, avis, changement
+  d'e-mail, suppression de compte RGPD, messages chiffrés. Reste la recherche
+  avancée et les manques listés dans `docs/current-task.md`.
 - **Dernière mise à jour** : 2026-08-15
 
 ## Task Progress
@@ -57,11 +57,13 @@ restaurer le contexte complet de la session précédente.
 - [x] Visites et likes paginés (20/page), écran de profil bloqué
 - [x] Messages chiffrés en base (AES-256-GCM, réversible pour le RGPD)
 - [x] Feed en deck mono-carte (flèches, clavier, glisser)
+- [x] Filtres par centres d'intérêt et par ville dans la barre
+- [x] Écrire, modifier et supprimer un avis (match exigé)
+- [x] Changement d'adresse e-mail dans les réglages
+- [x] Suppression de compte RGPD (rétention 14 jours, restauration, purge)
 - [ ] **Recherche avancée** (même endpoint, écran dédié) <- EN COURS
-- [ ] Route d'export RGPD
-- [ ] Filtre par centres d'intérêt dans la barre de filtres
-- [ ] Repli IP quand la géolocalisation est refusée
-- [ ] Écrire et supprimer un avis (aucune route aujourd'hui)
+- [ ] Pied de page visible sur tous les écrans (§III)
+- [ ] Export RGPD — reporté à la fin du projet
 
 ## Key Decisions
 
@@ -87,3 +89,6 @@ restaurer le contexte complet de la session précédente.
   choix assumé, qui protège du vol du fichier SQLite et de rien d'autre.
 - **Le blocage n'est plus un `404`** sur `GET /api/users/[id]` seulement. Toutes
   les autres routes gardent le `404` indistinct.
+- **Compte supprimé = invisible tout de suite, effacé au 14ᵉ jour.** Le RGPD
+  n'accorde aucun délai de rétention ; il impose l'arrêt du traitement. Les 14
+  jours sont un garde-fou produit, la rétention reste technique et invisible.

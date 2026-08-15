@@ -54,6 +54,10 @@ Mise à jour : 2026-08-15.
 
 ### Levé le 2026-08-15
 
+- **Suppression de compte RGPD** — `DELETE /api/profile` (mot de passe exigé) et
+  `POST /api/profile/restore`. Disparition immédiate, rétention 14 jours,
+  effacement réel au terme, fichiers photos compris. Écran `/account-deleted`.
+
 - **Écriture d'avis** — `PUT` et `DELETE /api/users/[id]/reviews`, formulaire
   d'étoiles dans l'onglet Avis du profil public. Mesuré : la moyenne passe de
   0 à 5 puis à 3, et retombe à 0 après suppression. La « note de popularité »
@@ -66,17 +70,13 @@ Mise à jour : 2026-08-15.
 
 ## Ce qui manque pour le sujet
 
-1. **Recherche avancée** — écran dédié absent. Le back est prêt :
+1. **Recherche avancée** — écran dédié absent (§IV.4). Le back est prêt :
    `GET /api/discovery` accepte déjà tous les filtres et tris.
-2. **Filtre par centres d'intérêt** — la route accepte `tags=`, la barre de
-   filtres ne l'expose pas.
-3. **Repli IP pour la localisation** — le sujet demande de localiser par IP
-   quand l'utilisateur refuse le GPS. Aujourd'hui : ville choisie à la main.
-4. **Écrire un avis** — aucune route. `upsertReview` et `removeReview` existent
-   dans le repository mais ne sont appelés par personne, donc la note de
-   popularité ne peut bouger que par le seed.
-5. **Changer d'adresse e-mail** — `PATCH /api/profile` l'accepte et relance la
-   vérification, aucun écran ne le propose.
+2. **Pied de page vide** sur presque tous les écrans (§III).
+
+Le « repli IP » listé ici jusqu'au 2026-08-15 était une **erreur** : le §IV.2
+de la version 6.0 demande une saisie **manuelle** de la ville quand le GPS est
+refusé, pas une géolocalisation par IP. C'est déjà en place.
 
 ## Points ouverts
 
@@ -84,8 +84,8 @@ Mise à jour : 2026-08-15.
   `last_seen_at`. La colonne devrait disparaître du schéma.
 - Un profil peut être complet avec une ville mais sans coordonnées ; il sort
   alors du tri par distance.
-- Une **route d'export RGPD** reste à écrire. Le chiffrement des messages est
-  réversible exprès pour la rendre possible, mais rien ne l'appelle encore.
+- L'**export RGPD** (articles 15 et 20) reste à écrire — reporté à la fin du
+  projet. Le chiffrement des messages est réversible exprès pour le permettre.
 - `src/app/debug/` (non suivi) lit `popularity_score`, supprimé de
   `DiscoveryRow` le 2026-08-14 : `npm run build` et `tsc` échouent dessus.
 

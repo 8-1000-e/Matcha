@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/auth/session";
+import { purgeDate } from "@/lib/db";
 import { missingProfileFields } from "@/lib/profile/profile";
 
 export async function GET()
@@ -19,6 +20,8 @@ export async function GET()
 			is_verified: user.is_verified === 1,
 			profile_completed: user.profile_completed === 1,
 			missing: missingProfileFields(user),
+			deleted_at: user.deleted_at,
+			purge_at: user.deleted_at === null ? null : purgeDate(user.deleted_at),
 		},
 	});
 }

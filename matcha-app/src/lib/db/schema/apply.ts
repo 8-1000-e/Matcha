@@ -5,7 +5,7 @@ import { MESSAGE_MAX_STORED, messagesTable, TABLES } from "./tables";
 import { TAG_LABELS } from "./tags";
 import { TRIGGERS } from "./triggers";
 import { VIEWS } from "./views";
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 10;
 
 function addMissingColumns(database: Database.Database): void {
 	const columns = database.prepare("PRAGMA table_info(users)").all() as {
@@ -13,6 +13,9 @@ function addMissingColumns(database: Database.Database): void {
 	}[];
 	if (!columns.some((column) => column.name === "location_updated_at")) {
 		database.exec("ALTER TABLE users ADD COLUMN location_updated_at TEXT");
+	}
+	if (!columns.some((column) => column.name === "deleted_at")) {
+		database.exec("ALTER TABLE users ADD COLUMN deleted_at TEXT");
 	}
 }
 

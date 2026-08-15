@@ -3,6 +3,7 @@ import {
 	listUserTags,
 	MINIMUM_TAGS,
 	photos,
+	purgeDate,
 	refreshProfileCompletion,
 	userTags,
 	users,
@@ -39,6 +40,8 @@ export interface ProfilePayload {
 	is_verified: boolean;
 	profile_completed: boolean;
 	missing: string[];
+	deleted_at: string | null;
+	purge_at: string | null;
 }
 
 export function missingProfileFields(user: UserRow): string[]
@@ -97,6 +100,8 @@ export function buildProfile(user: UserRow): ProfilePayload
 		is_verified: user.is_verified === 1,
 		profile_completed: user.profile_completed === 1,
 		missing: missingProfileFields(user),
+		deleted_at: user.deleted_at,
+		purge_at: user.deleted_at === null ? null : purgeDate(user.deleted_at),
 	};
 }
 

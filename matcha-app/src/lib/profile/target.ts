@@ -52,6 +52,7 @@ export async function requireTarget(
 		target === undefined
 		|| target.is_verified !== 1
 		|| target.profile_completed !== 1
+		|| target.deleted_at !== null
 	)
 	{
 		return fail(["user not found"], 404);

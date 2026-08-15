@@ -196,6 +196,55 @@ l'utilisateur et ne serait qu'une fuite.
 
 ---
 
+## 2026-08-15 — Suppression de compte : invisible tout de suite, effacé au 14ᵉ jour
+
+**Ce que le RGPD demande vraiment.** L'article 17 dit « sans délai injustifié ».
+Il n'accorde **aucun** délai de rétention à l'utilisateur : les 14 ou 30 jours
+de Meta et consorts sont un garde-fou produit contre le clic regretté, pas une
+obligation. Ce qui est imposé, c'est que le **traitement cesse dès la demande**.
+
+**Décision.** `users.deleted_at`. Dès la demande, le compte disparaît partout ;
+les données restent 14 jours pour permettre le retour en arrière ; au terme,
+effacement réel. La rétention est technique, jamais visible.
+
+**Écarté :** garder le profil visible pendant les 14 jours — ce serait
+continuer à traiter les données après la demande d'effacement. Écarté aussi :
+convertir en compte fantôme permanent au 14ᵉ jour — conserver indéfiniment les
+données de quelqu'un qui a demandé leur effacement est l'inverse de l'article 17.
+
+**Le levier, c'est la vue.** `user_profiles` gagne `WHERE deleted_at IS NULL`,
+et les **dix** requêtes qui la traversent héritent de l'exclusion sans une ligne
+de plus : résumés, likes dans les deux sens, visites dans les deux sens, comptes
+bloqués. Restent quatre points qui lisent `users` en direct et qu'il a fallu
+traiter à la main : `discoveryConditions`, `requireTarget`, la conversation, et
+les notifications.
+
+**Pierre tombale dans les conversations.** Le correspondant garde l'accès en
+lecture à l'historique, sous « Utilisateur supprimé », et le composeur est
+fermé (`403 partner_deleted` côté serveur). Un écran vide aurait été plus
+simple mais incompréhensible pour lui. Tout part au 14ᵉ jour.
+
+**L'ordre de la purge n'est pas négociable.** `purgeDeletedAccounts` supprime
+**d'abord les fichiers `.webp`, ensuite la ligne**. Les fichiers ne sont pas
+couverts par `ON DELETE CASCADE` : dans l'autre ordre on perd le chemin et les
+photos restent sur le disque pour toujours — un effacement en trompe-l'œil,
+exactement ce que l'article 17 interdit. Vérifié de bout en bout : ligne,
+cascade et fichier disparus.
+
+**Pas de cron.** La purge rejoint `purgeExpiredTokens` et `purgeFeedSessions`
+dans `purgeIfDue`, déclenchée par les requêtes, au plus une fois par heure.
+Aucun worker n'est introduit.
+
+**Le mot de passe est exigé** à la suppression : un effacement déclenché depuis
+une session volée serait indéfendable. Les jetons ne sont pas révoqués, sinon la
+restauration serait impossible.
+
+**Hors sujet, assumé.** Le sujet ne cite le RGPD qu'en note 4, à propos du
+consentement de géolocalisation, déjà en place. L'export (articles 15 et 20)
+reste à écrire ; il a été reporté à la fin du projet.
+
+---
+
 ## 2026-08-15 — Noter quelqu'un exige un match, et c'est la base qui l'impose
 
 **Décision.** `PUT` et `DELETE /api/users/[id]/reviews`. `PUT` et non `POST` :
