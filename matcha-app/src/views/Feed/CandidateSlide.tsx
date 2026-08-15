@@ -220,7 +220,7 @@ export function CandidateSlide({ candidate }: { candidate: Candidate }) {
 					)}
 				</div>
 
-				<div className="flex flex-col gap-3 px-5 py-4">
+				<div className="flex flex-col gap-4 px-5 pt-5 pb-5">
 					{tags.length > 0 ? (
 						<ul className="flex flex-wrap gap-2 text-sm text-matcha-dark">
 							{tags.map((tag) => (
