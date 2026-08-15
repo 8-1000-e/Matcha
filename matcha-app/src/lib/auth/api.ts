@@ -30,6 +30,8 @@ export interface CurrentUser extends SessionUser {
 	is_verified: boolean;
 	profile_completed: boolean;
 	missing: string[];
+	deleted_at: string | null;
+	purge_at: string | null;
 }
 
 export type AuthResult<T> = ApiResult<T>;

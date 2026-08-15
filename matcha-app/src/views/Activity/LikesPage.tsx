@@ -1,83 +1,52 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback } from "react";
+import { Footer } from "@/components/Layout/Footer";
 import { PrivateScreen } from "@/components/Layout/Screen";
 import { fetchLikers } from "@/lib/profile/views";
-import { PeopleList, type Person } from "./PeopleList";
+import { ActivityTabs, type Tab } from "./ActivityTabs";
+
+type Scope = "received" | "sent";
+
+const TABS: readonly Tab<Scope>[] = [
+	{
+		key: "received",
+		label: "Qui m’a liké",
+		empty: "Personne ne vous a encore liké.",
+	},
+	{
+		key: "sent",
+		label: "Mes likes",
+		empty: "Vous n’avez encore liké personne.",
+	},
+];
 
 export function LikesPage() {
-	const [scope, setScope] = useState<"received" | "sent">("received");
-	const [people, setPeople] = useState<Person[] | null>(null);
-	const [error, setError] = useState<string | null>(null);
-
-	useEffect(() => {
-		let live = true;
-		void fetchLikers(scope).then((result) => {
-			if (!live) {
-				return;
-			}
-			if (result.ok) {
-				setPeople(
-					result.data.likers.map((liker) => ({ ...liker, at: liker.liked_at })),
-				);
-				setError(null);
-				return;
-			}
-			setPeople([]);
-			setError(result.errors[0]?.message ?? "Chargement impossible.");
-		});
-		return () => {
-			live = false;
+	const load = useCallback(async (scope: Scope, page: number) => {
+		const result = await fetchLikers(scope, page);
+		if (!result.ok) {
+			return result;
+		}
+		return {
+			ok: true as const,
+			data: {
+				...result.data,
+				people: result.data.likers.map((liker) => ({
+					...liker,
+					at: liker.liked_at,
+				})),
+			},
 		};
-	}, [scope]);
-
-	const tabs = [
-		{ key: "received" as const, label: "Qui m’a liké" },
-		{ key: "sent" as const, label: "Mes likes" },
-	];
+	}, []);
 
 	return (
 		<PrivateScreen
 			width="wide"
 			title="Likes"
 			intro="Les profils que vous avez likés et ceux qui vous ont liké."
-			footer={null}
+			footer={<Footer />}
 		>
-			<nav className="flex justify-center gap-10 border-t border-edge/30">
-				{tabs.map((entry) => (
-					<button
-						key={entry.key}
-						type="button"
-						onClick={() => {
-							setScope(entry.key);
-							setPeople(null);
-						}}
-						aria-current={scope === entry.key}
-						className={`-mt-px cursor-pointer border-t-2 px-2 pt-4 pb-1 text-xs font-medium tracking-[0.12em] uppercase transition-colors duration-200 ease-out ${
-							scope === entry.key
-								? "border-matcha text-ink"
-								: "border-transparent text-muted hover:text-ink"
-						}`}
-					>
-						{entry.label}
-					</button>
-				))}
-			</nav>
-
-			<div className="mt-4">
-				{error !== null ? (
-					<p className="py-16 text-center text-sm text-muted">{error}</p>
-				) : (
-					<PeopleList
-						people={people}
-						empty={
-							scope === "received"
-								? "Personne ne vous a encore liké."
-								: "Vous n’avez encore liké personne."
-						}
-					/>
-				)}
-			</div>
+			<ActivityTabs tabs={TABS} load={load} />
 		</PrivateScreen>
 	);
 }

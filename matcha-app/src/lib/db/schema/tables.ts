@@ -1,5 +1,19 @@
 const TIMESTAMP_DEFAULT = "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))";
 
+export const MESSAGE_MAX_STORED = 8000;
+
+export function messagesTable(name: string): string {
+	return `CREATE TABLE IF NOT EXISTS ${name} (
+		id TEXT PRIMARY KEY,
+		match_id TEXT NOT NULL REFERENCES matches (id) ON DELETE CASCADE,
+		sender_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+		body TEXT NOT NULL,
+		sent_at TEXT NOT NULL DEFAULT ${TIMESTAMP_DEFAULT},
+		read_at TEXT,
+		CHECK (length(body) BETWEEN 1 AND ${MESSAGE_MAX_STORED})
+	) STRICT`;
+}
+
 export const TABLES: readonly string[] = [
 	`CREATE TABLE IF NOT EXISTS users (
 		id TEXT PRIMARY KEY,
@@ -26,6 +40,7 @@ export const TABLES: readonly string[] = [
 		is_online INTEGER NOT NULL DEFAULT 0 CHECK (is_online IN (0, 1)),
 		last_seen_at TEXT,
 		created_at TEXT NOT NULL DEFAULT ${TIMESTAMP_DEFAULT},
+		deleted_at TEXT,
 		CHECK (length(email) BETWEEN 3 AND 254),
 		CHECK (length(username) BETWEEN 3 AND 32),
 		CHECK (length(birth_date) = 10)
@@ -88,15 +103,7 @@ export const TABLES: readonly string[] = [
 		UNIQUE (user_a_id, user_b_id),
 		CHECK (user_a_id < user_b_id)
 	) STRICT`,
-	`CREATE TABLE IF NOT EXISTS messages (
-		id TEXT PRIMARY KEY,
-		match_id TEXT NOT NULL REFERENCES matches (id) ON DELETE CASCADE,
-		sender_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-		body TEXT NOT NULL,
-		sent_at TEXT NOT NULL DEFAULT ${TIMESTAMP_DEFAULT},
-		read_at TEXT,
-		CHECK (length(body) BETWEEN 1 AND 2000)
-	) STRICT`,
+	messagesTable("messages"),
 	`CREATE TABLE IF NOT EXISTS reviews (
 		id TEXT PRIMARY KEY,
 		author_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,

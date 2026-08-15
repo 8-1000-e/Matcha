@@ -1,4 +1,4 @@
-import { request, type ApiResult } from "@/lib/http/client";
+import { request, send, type ApiResult } from "@/lib/http/client";
 import type { PublicProfilePayload } from "./public";
 
 export interface ReviewPayload {
@@ -56,4 +56,18 @@ export function fetchReviews(
 	id: string,
 ): Promise<ApiResult<{ ok: boolean; reviews: ReviewPayload[] }>> {
 	return request(`/api/users/${id}/reviews`, { method: "GET" });
+}
+
+export function saveReview(
+	id: string,
+	score: number,
+	body: string | null,
+): Promise<ApiResult<{ ok: boolean; review: ReviewPayload }>> {
+	return send("PUT", `/api/users/${id}/reviews`, { score, body });
+}
+
+export function deleteReview(
+	id: string,
+): Promise<ApiResult<{ ok: boolean; removed: boolean }>> {
+	return request(`/api/users/${id}/reviews`, { method: "DELETE" });
 }

@@ -31,8 +31,17 @@ export function emitLiked(recipientId: string, actorId: string): void {
 	emit({ recipient_id: recipientId, actor_id: actorId, type: "LIKED" });
 }
 
-export function emitMatch(recipientId: string, actorId: string): void {
-	emit({ recipient_id: recipientId, actor_id: actorId, type: "MATCH" });
+export function emitMatch(
+	recipientId: string,
+	actorId: string,
+	matchId: string,
+): void {
+	emit({
+		recipient_id: recipientId,
+		actor_id: actorId,
+		type: "MATCH",
+		link: conversationLink(matchId),
+	});
 }
 
 export function emitUnliked(recipientId: string, actorId: string): void {

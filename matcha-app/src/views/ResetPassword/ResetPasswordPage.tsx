@@ -1,4 +1,5 @@
 import { ResetPasswordForm } from "@/components/Form/AuthForms";
+import { Footer } from "@/components/Layout/Footer";
 import { FlowScreen } from "@/components/Layout/Screen";
 
 export function ResetPasswordPage({ token }: { token: string }) {
@@ -7,7 +8,7 @@ export function ResetPasswordPage({ token }: { token: string }) {
 			back="/login"
 			title="Nouveau mot de passe"
 			intro="Choisissez un nouveau mot de passe. Vos autres sessions seront déconnectées."
-			footer={null}
+			footer={<Footer />}
 		>
 			<ResetPasswordForm token={token} />
 		</FlowScreen>

@@ -53,6 +53,7 @@ export interface UserRow {
 	is_online: Flag;
 	last_seen_at: string | null;
 	created_at: string;
+	deleted_at: string | null;
 }
 
 export interface UserInsert {
@@ -77,6 +78,7 @@ export interface UserInsert {
 	is_online?: Flag;
 	last_seen_at?: string | null;
 	created_at?: string;
+	deleted_at?: string | null;
 }
 
 export interface EmailTokenRow {

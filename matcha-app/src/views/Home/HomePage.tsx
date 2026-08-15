@@ -1,5 +1,6 @@
 import { BrandLockup, MatchaBowl, Wordmark } from "@/components/Brand/Brand";
 import { ActionLink } from "@/components/Form/Button";
+import { Footer } from "@/components/Layout/Footer";
 import { Screen } from "@/components/Layout/Screen";
 
 export function HomePage() {
@@ -8,7 +9,7 @@ export function HomePage() {
 			center
 			centerTop
 			top={<BrandLockup />}
-			footer={null}
+			footer={<Footer />}
 		>
 			<div className="stagger flex flex-col">
 				<div className="mx-auto flex size-44 items-center justify-center rounded-full bg-white/50 ring-1 ring-matcha/15">

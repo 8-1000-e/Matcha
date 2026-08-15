@@ -70,6 +70,7 @@ export function getConversations(options?: {
 
 export interface Thread {
 	partner: Partner | null;
+	partner_deleted: boolean;
 	messages: ChatMessage[];
 }
 

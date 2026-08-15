@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { fetchCurrentUser } from "@/lib/auth/serverUser";
+import { requirePrivateUser } from "@/lib/auth/serverUser";
+import { listTags } from "@/lib/db";
 import { fetchInitialFeed } from "@/lib/discovery/serverFeed";
 import { FeedPage } from "@/views/Feed/FeedPage";
 
@@ -10,18 +10,12 @@ export const metadata: Metadata = {
 };
 
 export default async function Page() {
-	const user = await fetchCurrentUser();
-	if (!user) {
-		redirect("/login");
-	}
-	if (!user.is_verified) {
-		redirect("/verify-email");
-	}
-	if (user.missing.length > 0) {
-		redirect("/complete-profile");
-	}
+	const user = await requirePrivateUser();
 
 	const initial = await fetchInitialFeed();
+	const tags = listTags().map((tag) => ({ id: tag.id, label: tag.label }));
 
-	return <FeedPage firstName={user.first_name} initial={initial} />;
+	return (
+		<FeedPage firstName={user.first_name} initial={initial} tags={tags} />
+	);
 }

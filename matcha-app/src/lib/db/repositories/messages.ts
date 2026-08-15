@@ -1,3 +1,4 @@
+import { encryptMessage } from "@/lib/crypto/messages";
 import { execute, queryAll, queryScalar } from "../core/client";
 import { DatabaseError } from "../core/errors";
 import { boundedInteger } from "../core/identifiers";
@@ -25,7 +26,7 @@ export function sendMessage(
 		id: createId(),
 		match_id: matchId,
 		sender_id: senderId,
-		body,
+		body: encryptMessage(body),
 	});
 }
 

@@ -1,4 +1,5 @@
 import { requireSession } from "@/lib/auth/guards";
+import { decryptMessage } from "@/lib/crypto/messages";
 import {
 	countUnreadMessages,
 	findUserSummary,
@@ -16,7 +17,7 @@ function lastMessage(match: MatchListRow, viewerId: string)
 		return null;
 	}
 	return {
-		body: match.last_body,
+		body: decryptMessage(match.last_body),
 		sent_at: match.last_sent_at,
 		mine: match.last_sender_id === viewerId,
 	};

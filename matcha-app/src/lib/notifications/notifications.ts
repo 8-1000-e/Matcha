@@ -16,6 +16,23 @@ export function conversationLink(matchId: string): string {
 	return `/messages/${matchId}`;
 }
 
+export function profileLink(actorId: string): string {
+	return `/users/${actorId}`;
+}
+
+function fallbackLink(
+	type: NotificationType,
+	actorId: string | null,
+): string | null {
+	if (actorId === null) {
+		return null;
+	}
+	if (type === "MESSAGE") {
+		return null;
+	}
+	return profileLink(actorId);
+}
+
 export const NOTIFICATION_LABELS: Record<
 	NotificationType,
 	(actor: string) => string
@@ -36,7 +53,7 @@ export function serializeNotification(
 		type: row.type,
 		actor_id: row.actor_id,
 		actor_username: actorUsername,
-		link: row.link,
+		link: row.link ?? fallbackLink(row.type, row.actor_id),
 		created_at: row.created_at,
 		read: row.read_at !== null,
 	};

@@ -1,23 +1,30 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Alert } from "@/components/Form/Alert";
+import { Footer } from "@/components/Layout/Footer";
 import { PrivateScreen } from "@/components/Layout/Screen";
 import { PresenceAvatar } from "@/components/Presence/PresenceAvatar";
+import type { AuthError } from "@/lib/auth/errorMessages";
 import {
 	listBlocked,
 	unblockUser,
 	type BlockedUser,
 } from "@/lib/moderation/client";
 import {
+	changePassword,
+	deleteAccount,
 	getProfile,
 	saveLocation,
+	saveProfile,
 	setLocationConsent,
 	type Place,
 	type Profile,
 } from "@/lib/profile/client";
 import { syncDue } from "@/lib/profile/locationSync";
 import { CityPicker } from "@/views/CompleteProfile/CityPicker";
+import { Errors } from "@/views/CompleteProfile/StepBase";
 
 const GHOST
 	= "flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-edge bg-white/70 px-3 text-sm font-medium transition-colors duration-200 ease-out hover:bg-leaf/50 disabled:cursor-progress";
@@ -289,7 +296,104 @@ function Blocked() {
 	);
 }
 
-function Account({ profile }: { profile: Profile }) {
+function EmailForm({
+	profile,
+	onSaved,
+}: {
+	profile: Profile;
+	onSaved: () => void;
+}) {
+	const [open, setOpen] = useState(false);
+	const [email, setEmail] = useState(profile.email);
+	const [errors, setErrors] = useState<AuthError[]>([]);
+	const [sent, setSent] = useState(false);
+	const [pending, setPending] = useState(false);
+
+	function start() {
+		setEmail(profile.email);
+		setErrors([]);
+		setSent(false);
+		setOpen(true);
+	}
+
+	async function submit(event: React.FormEvent) {
+		event.preventDefault();
+		setErrors([]);
+		setPending(true);
+
+		const result = await saveProfile({ email: email.trim().toLowerCase() });
+		setPending(false);
+
+		if (!result.ok) {
+			setErrors(result.errors);
+			return;
+		}
+
+		setOpen(false);
+		setSent(true);
+		onSaved();
+	}
+
+	if (!open) {
+		return (
+			<div className="flex flex-col gap-2">
+				<button type="button" className={GHOST} onClick={start}>
+					Changer d’adresse e-mail
+				</button>
+				{sent ? (
+					<p className="text-xs text-muted">
+						Un lien de vérification vient d’être envoyé à votre nouvelle adresse.
+					</p>
+				) : null}
+			</div>
+		);
+	}
+
+	return (
+		<form onSubmit={(event) => void submit(event)} className="flex flex-col gap-3">
+			<p className="rounded-lg bg-leaf/40 px-3 py-2 text-xs text-ink">
+				Changer d’adresse suspend la vérification de votre compte : vous devrez
+				cliquer sur le lien envoyé à la nouvelle adresse avant de pouvoir
+				réutiliser Brewmance.
+			</p>
+
+			<label className="flex flex-col gap-1.5">
+				<span className="text-xs text-muted">Nouvelle adresse e-mail</span>
+				<input
+					type="email"
+					required
+					autoComplete="email"
+					value={email}
+					onChange={(event) => setEmail(event.target.value)}
+					className="min-h-10 w-full rounded-lg border border-edge/60 bg-white px-3 text-sm transition-colors duration-200 ease-out hover:border-matcha/60 focus-visible:border-matcha"
+				/>
+			</label>
+
+			<Errors errors={errors} />
+
+			<div className="flex gap-2">
+				<button
+					type="submit"
+					className={PRIMARY}
+					disabled={pending || email.trim().toLowerCase() === profile.email}
+				>
+					Envoyer le lien
+				</button>
+				<button type="button" className={GHOST} onClick={() => setOpen(false)}>
+					Annuler
+				</button>
+			</div>
+		</form>
+	);
+}
+
+function Account({
+	profile,
+	onSaved,
+}: {
+	profile: Profile;
+	onSaved: () => void;
+}) {
 	return (
 		<Card
 			title="Compte"
@@ -319,7 +423,237 @@ function Account({ profile }: { profile: Profile }) {
 					</dd>
 				</div>
 			</dl>
+
+			<div className="mt-5 border-t border-edge/30 pt-4">
+				<EmailForm profile={profile} onSaved={onSaved} />
+			</div>
+
+			<div className="mt-5 border-t border-edge/30 pt-4">
+				<PasswordForm />
+			</div>
+
+			<div className="mt-5 border-t border-edge/30 pt-4">
+				<DeleteAccount />
+			</div>
 		</Card>
+	);
+}
+
+const FIELD
+	= "min-h-10 w-full rounded-lg border border-edge/60 bg-white px-3 text-sm"
+	+ " transition-colors duration-200 ease-out hover:border-matcha/60"
+	+ " focus-visible:border-matcha";
+
+function PasswordForm() {
+	const [open, setOpen] = useState(false);
+	const [current, setCurrent] = useState("");
+	const [password, setPassword] = useState("");
+	const [confirm, setConfirm] = useState("");
+	const [errors, setErrors] = useState<AuthError[]>([]);
+	const [done, setDone] = useState(false);
+	const [pending, setPending] = useState(false);
+
+	function close() {
+		setCurrent("");
+		setPassword("");
+		setConfirm("");
+		setErrors([]);
+		setOpen(false);
+	}
+
+	async function submit(event: React.FormEvent) {
+		event.preventDefault();
+		setDone(false);
+
+		if (password !== confirm) {
+			setErrors([{ field: null, message: "Les deux mots de passe diffèrent." }]);
+			return;
+		}
+
+		setErrors([]);
+		setPending(true);
+		const result = await changePassword(current, password);
+		setPending(false);
+
+		if (!result.ok) {
+			setErrors(result.errors);
+			return;
+		}
+
+		close();
+		setDone(true);
+	}
+
+	if (!open) {
+		return (
+			<div className="flex flex-col gap-2">
+				<button
+					type="button"
+					className={GHOST}
+					onClick={() => {
+						setDone(false);
+						setOpen(true);
+					}}
+				>
+					Changer de mot de passe
+				</button>
+				{done ? (
+					<p className="text-xs text-muted">
+						Mot de passe modifié. Vos autres appareils ont été déconnectés.
+					</p>
+				) : null}
+			</div>
+		);
+	}
+
+	return (
+		<form onSubmit={(event) => void submit(event)} className="flex flex-col gap-3">
+			<p className="rounded-lg bg-leaf/40 px-3 py-2 text-xs text-ink">
+				Changer de mot de passe déconnecte vos autres appareils. Celui-ci reste
+				connecté.
+			</p>
+
+			<label className="flex flex-col gap-1.5">
+				<span className="text-xs text-muted">Mot de passe actuel</span>
+				<input
+					type="password"
+					required
+					autoComplete="current-password"
+					value={current}
+					onChange={(event) => setCurrent(event.target.value)}
+					className={FIELD}
+				/>
+			</label>
+
+			<label className="flex flex-col gap-1.5">
+				<span className="text-xs text-muted">Nouveau mot de passe</span>
+				<input
+					type="password"
+					required
+					autoComplete="new-password"
+					value={password}
+					onChange={(event) => setPassword(event.target.value)}
+					className={FIELD}
+				/>
+			</label>
+
+			<label className="flex flex-col gap-1.5">
+				<span className="text-xs text-muted">Confirmer le nouveau</span>
+				<input
+					type="password"
+					required
+					autoComplete="new-password"
+					value={confirm}
+					onChange={(event) => setConfirm(event.target.value)}
+					className={FIELD}
+				/>
+			</label>
+
+			<Errors errors={errors} />
+
+			<div className="flex gap-2">
+				<button
+					type="submit"
+					className={PRIMARY}
+					disabled={
+						pending
+						|| current.length === 0
+						|| password.length === 0
+						|| confirm.length === 0
+					}
+				>
+					Enregistrer
+				</button>
+				<button type="button" className={GHOST} onClick={close}>
+					Annuler
+				</button>
+			</div>
+		</form>
+	);
+}
+
+function DeleteAccount() {
+	const router = useRouter();
+	const [open, setOpen] = useState(false);
+	const [password, setPassword] = useState("");
+	const [error, setError] = useState<string | null>(null);
+	const [pending, setPending] = useState(false);
+
+	async function submit(event: React.FormEvent) {
+		event.preventDefault();
+		setError(null);
+		setPending(true);
+
+		const result = await deleteAccount(password);
+		if (!result.ok) {
+			setPending(false);
+			setError(result.errors[0]?.message ?? "Suppression impossible.");
+			return;
+		}
+
+		router.replace("/account-deleted");
+		router.refresh();
+	}
+
+	if (!open) {
+		return (
+			<div className="flex flex-col gap-2">
+				<button
+					type="button"
+					className="flex h-9 w-fit cursor-pointer items-center gap-2 rounded-lg border border-red-300 bg-white/70 px-3 text-sm font-medium text-red-700 transition-colors duration-200 ease-out hover:bg-red-50"
+					onClick={() => {
+						setPassword("");
+						setError(null);
+						setOpen(true);
+					}}
+				>
+					Supprimer mon compte
+				</button>
+				<p className="text-xs text-muted">
+					Votre profil disparaît immédiatement. Vos données sont conservées 14
+					jours, le temps de changer d’avis, puis effacées définitivement.
+				</p>
+			</div>
+		);
+	}
+
+	return (
+		<form onSubmit={(event) => void submit(event)} className="flex flex-col gap-3">
+			<p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-800">
+				Votre profil, vos photos, vos likes, vos visites, vos avis et vos
+				conversations seront effacés le quatorzième jour. Passé ce délai, rien
+				n’est récupérable.
+			</p>
+
+			<label className="flex flex-col gap-1.5">
+				<span className="text-xs text-muted">
+					Confirmez avec votre mot de passe
+				</span>
+				<input
+					type="password"
+					required
+					autoComplete="current-password"
+					value={password}
+					onChange={(event) => setPassword(event.target.value)}
+					className="min-h-10 w-full rounded-lg border border-edge/60 bg-white px-3 text-sm transition-colors duration-200 ease-out hover:border-matcha/60 focus-visible:border-matcha"
+				/>
+			</label>
+
+			{error !== null ? <Alert>{error}</Alert> : null}
+
+			<div className="flex gap-2">
+				<button
+					type="submit"
+					disabled={pending || password.length === 0}
+					className="flex h-9 cursor-pointer items-center rounded-lg bg-red-700 px-4 text-sm font-medium text-white transition-colors duration-200 ease-out hover:bg-red-800 disabled:cursor-progress disabled:opacity-60"
+				>
+					Supprimer définitivement
+				</button>
+				<button type="button" className={GHOST} onClick={() => setOpen(false)}>
+					Annuler
+				</button>
+			</div>
+		</form>
 	);
 }
 
@@ -351,7 +685,7 @@ export function SettingsPage() {
 			width="wide"
 			title="Réglages"
 			intro="Votre position, les comptes que vous avez bloqués et les informations de votre compte."
-			footer={null}
+			footer={<Footer />}
 		>
 			{profile === null ? (
 				<p className="py-16 text-center text-sm text-muted">Chargement…</p>
@@ -381,7 +715,7 @@ export function SettingsPage() {
 						) : section === "blocked" ? (
 							<Blocked />
 						) : (
-							<Account profile={profile} />
+							<Account profile={profile} onSaved={() => void reload()} />
 						)}
 					</div>
 				</div>

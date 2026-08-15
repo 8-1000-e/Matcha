@@ -8,6 +8,7 @@ import {
 	markConversationRead,
 	markLinkedNotificationsRead,
 	sendMessage,
+	users,
 	type MatchRow,
 	type UserRow,
 } from "@/lib/db";
@@ -28,7 +29,13 @@ interface Context {
 }
 
 type Conversation =
-	| { ok: true; user: UserRow; match: MatchRow; partnerId: string }
+	| {
+		ok: true;
+		user: UserRow;
+		match: MatchRow;
+		partnerId: string;
+		partnerDeleted: boolean;
+	}
 	| { ok: false; response: Response };
 
 function notFound(): Response
@@ -57,7 +64,19 @@ async function conversation(matchId: string): Promise<Conversation>
 		return { ok: false, response: notFound() };
 	}
 
-	return { ok: true, user: session.user, match, partnerId };
+	const partner = users.findById(partnerId);
+	if (partner === undefined)
+	{
+		return { ok: false, response: notFound() };
+	}
+
+	return {
+		ok: true,
+		user: session.user,
+		match,
+		partnerId,
+		partnerDeleted: partner.deleted_at !== null,
+	};
 }
 
 export async function GET(request: Request, context: Context)
@@ -86,6 +105,7 @@ export async function GET(request: Request, context: Context)
 	return Response.json({
 		ok: true,
 		partner: partner === undefined ? null : serializeUserSummary(partner),
+		partner_deleted: guarded.partnerDeleted,
 		messages: rows.map(serializeMessage),
 	});
 }
@@ -97,6 +117,11 @@ export async function POST(request: Request, context: Context)
 	if (!guarded.ok)
 	{
 		return guarded.response;
+	}
+
+	if (guarded.partnerDeleted)
+	{
+		return Response.json({ errors: ["partner_deleted"] }, { status: 403 });
 	}
 
 	const body = await readJsonBody(request);

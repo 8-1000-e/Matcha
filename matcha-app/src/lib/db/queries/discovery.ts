@@ -224,6 +224,7 @@ function discoveryConditions(
 		sql`candidate.id <> ${viewer.id}`,
 		raw("candidate.profile_completed = 1"),
 		raw("candidate.is_verified = 1"),
+		raw("candidate.deleted_at IS NULL"),
 		sql`NOT EXISTS (
 			SELECT 1 FROM blocks
 			WHERE (blocks.blocker_id = ${viewer.id} AND blocks.blocked_id = candidate.id)

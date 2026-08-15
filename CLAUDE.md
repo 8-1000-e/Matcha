@@ -33,11 +33,10 @@ restaurer le contexte complet de la session précédente.
 
 ## Current State
 
-- **Branche** : `front/profile`
-- **Statut** : feed, profil public, mon profil, réglages, visites et likes
-  terminés et vérifiés au navigateur. Messagerie et modération reprises de la
-  PR #17. Reste la recherche avancée et les manques listés dans
-  `docs/current-task.md`.
+- **Branche** : `fix/activity-and-deck`
+- **Statut** : feed en deck avec tous les filtres du §IV.3, avis, changement
+  d'e-mail, suppression de compte RGPD, messages chiffrés. Reste la recherche
+  avancée et les manques listés dans `docs/current-task.md`.
 - **Dernière mise à jour** : 2026-08-15
 
 ## Task Progress
@@ -55,10 +54,18 @@ restaurer le contexte complet de la session précédente.
 - [x] Chat temps réel, notifications (repris de la PR #17)
 - [x] Blocage / signalement, statut en ligne
 - [x] Chrome applicatif global (rail gauche, cloche, déconnexion)
+- [x] Visites et likes paginés (20/page), écran de profil bloqué
+- [x] Messages chiffrés en base (AES-256-GCM, réversible pour le RGPD)
+- [x] Feed en deck mono-carte (flèches, clavier, glisser)
+- [x] Filtres par centres d'intérêt et par ville dans la barre
+- [x] Écrire, modifier et supprimer un avis (match exigé)
+- [x] Changement d'adresse e-mail dans les réglages
+- [x] Suppression de compte RGPD (rétention 14 jours, restauration, purge)
 - [ ] **Recherche avancée** (même endpoint, écran dédié) <- EN COURS
-- [ ] Filtre par centres d'intérêt dans la barre de filtres
-- [ ] Repli IP quand la géolocalisation est refusée
-- [ ] Écrire et supprimer un avis (aucune route aujourd'hui)
+- [x] Changement de mot de passe dans les réglages
+- [x] Page `/privacy` (article 13) et composant `Footer`
+- [ ] Pied de page visible sur tous les écrans (§III) — `Footer` prêt à poser
+- [ ] Export RGPD — reporté à la fin du projet
 
 ## Key Decisions
 
@@ -76,3 +83,14 @@ restaurer le contexte complet de la session précédente.
   accepté.
 - **Villes embarquées** dans le dépôt (`data/cities.tsv.gz`) et chargées à
   l'ouverture de la base : ce sont des données de référence, pas un seed.
+- **Pagination par `LIMIT/OFFSET`** sur les listes d'activité, contrairement au
+  feed : elles sont ordonnées par un horodatage figé, pas par un critère
+  volatil, donc le raisonnement du feed figé ne s'y applique pas.
+- **Messages chiffrés, pas hachés** : un hachage est à sens unique et rendrait
+  l'export RGPD impossible. Le sujet ne demande pas de chiffrement ; c'est un
+  choix assumé, qui protège du vol du fichier SQLite et de rien d'autre.
+- **Le blocage n'est plus un `404`** sur `GET /api/users/[id]` seulement. Toutes
+  les autres routes gardent le `404` indistinct.
+- **Compte supprimé = invisible tout de suite, effacé au 14ᵉ jour.** Le RGPD
+  n'accorde aucun délai de rétention ; il impose l'arrêt du traitement. Les 14
+  jours sont un garde-fou produit, la rétention reste technique et invisible.

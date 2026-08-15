@@ -1,18 +1,20 @@
 import { requireSession } from "@/lib/auth/guards";
 import {
+	blockDirection,
 	hasProfilePhoto,
-	isBlockedEitherWay,
 	users,
+	type BlockDirection,
 	type UserRow,
 } from "@/lib/db";
 
 export interface TargetOptions {
 	selfError: string;
 	requireProfilePhoto?: boolean;
+	allowBlocked?: boolean;
 }
 
 export type TargetResult =
-	| { ok: true; viewer: UserRow; target: UserRow }
+	| { ok: true; viewer: UserRow; target: UserRow; blocked: BlockDirection }
 	| { ok: false; response: Response };
 
 function fail(errors: string[], status: number): TargetResult
@@ -50,13 +52,19 @@ export async function requireTarget(
 		target === undefined
 		|| target.is_verified !== 1
 		|| target.profile_completed !== 1
-		|| isBlockedEitherWay(viewer.id, targetId)
+		|| target.deleted_at !== null
 	)
 	{
 		return fail(["user not found"], 404);
 	}
 
-	return { ok: true, viewer, target };
+	const blocked = blockDirection(viewer.id, targetId);
+	if ((blocked.mine || blocked.theirs) && options.allowBlocked !== true)
+	{
+		return fail(["user not found"], 404);
+	}
+
+	return { ok: true, viewer, target, blocked };
 }
 
 export async function requireModerationTarget(
@@ -82,5 +90,5 @@ export async function requireModerationTarget(
 		return fail(["user not found"], 404);
 	}
 
-	return { ok: true, viewer, target };
+	return { ok: true, viewer, target, blocked: blockDirection(viewer.id, targetId) };
 }

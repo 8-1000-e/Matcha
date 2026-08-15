@@ -34,5 +34,6 @@ export const VIEWS: readonly string[] = [
 		(SELECT COUNT(*) FROM user_tags WHERE user_tags.user_id = users.id)
 			AS tag_count
 	FROM users
-	JOIN user_popularity ON user_popularity.user_id = users.id`,
+	JOIN user_popularity ON user_popularity.user_id = users.id
+	WHERE users.deleted_at IS NULL`,
 ];

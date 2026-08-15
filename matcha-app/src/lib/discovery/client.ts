@@ -1,28 +1,11 @@
 import { request, type ApiResult } from "@/lib/http/client";
+import type { CandidatePayload } from "./candidate";
 
-export interface Candidate {
-	id: string;
-	username: string;
-	first_name: string;
-	last_name: string;
-	age: number;
-	gender: string | null;
-	orientation: string;
-	biography: string | null;
-	city: string | null;
-	neighborhood: string | null;
-	distance_km: number | null;
-	common_tags: number;
-	review_average: number;
-	review_count: number;
-	photo_count: number;
-	profile_photo_path: string | null;
-	profile_photo_id: string | null;
-	photo_ids: string | null;
-	tags: string | null;
-	viewer_liked?: number;
-	is_online: number;
-	last_seen_at: string | null;
+export type Candidate = CandidatePayload;
+
+export interface TagOption {
+	id: number;
+	label: string;
 }
 
 export interface FeedFilters {
@@ -30,7 +13,9 @@ export interface FeedFilters {
 	ageMax?: number;
 	ratingMin?: number;
 	maxDistanceKm?: number;
+	city?: string;
 	tags?: number[];
+	tagMode?: "any" | "all";
 	sort?: string;
 	direction?: "asc" | "desc";
 }

@@ -1,8 +1,12 @@
 import { requireAnySession, requireSession } from "@/lib/auth/guards";
+import { verifyPassword } from "@/lib/auth/password";
 import { createEmailToken, EMAIL_TTL } from "@/lib/auth/tokens";
 import {
+	DELETION_GRACE_DAYS,
 	isEmailTaken,
 	issueEmailToken,
+	markUserDeleted,
+	purgeDate,
 	revokeEmailTokens,
 	users,
 	type UserInsert,
@@ -10,7 +14,7 @@ import {
 import { readJsonBody } from "@/lib/http/body";
 import { sendMail } from "@/lib/mail/mailer";
 import { buildProfile, refreshedProfile } from "@/lib/profile/profile";
-import { validateProfilePatch } from "@/lib/profile/validation";
+import { isRecord, validateProfilePatch } from "@/lib/profile/validation";
 
 async function sendVerification(
 	userId: string,
@@ -113,5 +117,51 @@ export async function PATCH(request: Request)
 		ok: true,
 		email_verification_sent: email !== undefined,
 		profile,
+	});
+}
+export async function DELETE(request: Request)
+{
+	const session = await requireAnySession();
+	if (!session.ok)
+	{
+		return session.response;
+	}
+
+	if (session.user.deleted_at !== null)
+	{
+		return Response.json(
+			{ errors: ["account_deleted"], purge_at: purgeDate(session.user.deleted_at) },
+			{ status: 409 },
+		);
+	}
+
+	const body = await readJsonBody(request);
+	if (!body.ok)
+	{
+		return body.response;
+	}
+
+	const password = isRecord(body.value) ? body.value.password : undefined;
+	if (typeof password !== "string" || password.length === 0)
+	{
+		return Response.json({ errors: ["password is required"] }, { status: 400 });
+	}
+
+	if (!(await verifyPassword(password, session.user.password_hash)))
+	{
+		return Response.json({ errors: ["invalid password"] }, { status: 403 });
+	}
+
+	const deletedAt = markUserDeleted(session.user.id);
+	if (deletedAt === null)
+	{
+		return Response.json({ errors: ["unauthorized"] }, { status: 401 });
+	}
+
+	return Response.json({
+		ok: true,
+		deleted_at: deletedAt,
+		purge_at: purgeDate(deletedAt),
+		grace_days: DELETION_GRACE_DAYS,
 	});
 }

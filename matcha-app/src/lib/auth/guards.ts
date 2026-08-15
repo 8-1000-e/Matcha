@@ -19,6 +19,13 @@ export async function requireAnySession(): Promise<SessionResult>
 export async function requireSession(): Promise<SessionResult>
 {
 	const session = await requireAnySession();
+	if (session.ok && session.user.deleted_at !== null)
+	{
+		return {
+			ok: false,
+			response: Response.json({ errors: ["account_deleted"] }, { status: 403 }),
+		};
+	}
 	if (session.ok && session.user.is_verified !== 1)
 	{
 		return {

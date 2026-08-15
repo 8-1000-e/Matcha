@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
 	Fragment,
@@ -11,8 +12,11 @@ import {
 	type FormEvent,
 } from "react";
 import { BackLink } from "@/components/Form/Button";
+import { AppNav } from "@/components/Layout/AppNav";
 import { Backdrop } from "@/components/Layout/Backdrop";
 import { ModerationMenu } from "@/components/Moderation/ModerationMenu";
+import { NotificationBell } from "@/components/Notifications/NotificationBell";
+import { LocationSync } from "@/components/Presence/LocationSync";
 import { PresenceAvatar } from "@/components/Presence/PresenceAvatar";
 import { PresenceHeartbeat } from "@/components/Presence/PresenceHeartbeat";
 import {
@@ -31,40 +35,82 @@ import { chatChannel } from "@/lib/realtime/channels";
 import { subscribe } from "@/lib/realtime/client";
 import { usePresence } from "@/lib/realtime/presence";
 
+function Identity({
+	partner,
+	online,
+	gone,
+	name,
+}: {
+	partner: Partner | null;
+	online: boolean;
+	gone: boolean;
+	name: string;
+}) {
+	const body = (
+		<>
+			<PresenceAvatar
+				url={gone ? null : (partner?.photo_url ?? null)}
+				name={name}
+				online={online && !gone}
+				size="small"
+			/>
+
+			<span className="min-w-0 flex-1">
+				<span className="block truncate font-medium">{name}</span>
+				<span
+					className={`block text-xs ${online && !gone ? "text-matcha-dark" : "text-muted"}`}
+				>
+					{gone
+						? "compte supprimé"
+						: partner === null
+							? ""
+							: online
+								? "en ligne"
+								: lastSeenLabel(partner.last_seen_at)}
+				</span>
+			</span>
+		</>
+	);
+
+	if (partner === null || gone) {
+		return <div className="flex min-w-0 flex-1 items-center gap-3">{body}</div>;
+	}
+
+	return (
+		<Link
+			href={`/users/${partner.id}`}
+			aria-label={`Voir le profil de ${name}`}
+			className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-1 py-0.5 transition-colors duration-200 ease-out hover:bg-leaf/40"
+		>
+			{body}
+		</Link>
+	);
+}
+
 function Header({
 	partner,
 	online,
+	gone,
 	onBlocked,
 }: {
 	partner: Partner | null;
 	online: boolean;
+	gone: boolean;
 	onBlocked: () => void;
 }) {
-	const name = partner?.first_name ?? partner?.username ?? "Conversation";
+	const name = gone
+		? "Utilisateur supprimé"
+		: (partner?.first_name ?? partner?.username ?? "Conversation");
 
 	return (
 		<header className="mx-auto flex w-full max-w-sm shrink-0 items-center gap-3 px-6 pt-6 pb-3">
-			<BackLink href="/messages" />
+			<BackLink href="/messages" compact />
 
-			<PresenceAvatar
-				url={partner?.photo_url ?? null}
-				name={name}
-				online={online}
-				size="small"
-			/>
+			<Identity partner={partner} online={online} gone={gone} name={name} />
 
-			<div className="min-w-0 flex-1">
-				<p className="truncate font-medium">{name}</p>
-				<p className={`text-xs ${online ? "text-matcha-dark" : "text-muted"}`}>
-					{partner === null
-						? ""
-						: online
-							? "en ligne"
-							: lastSeenLabel(partner.last_seen_at)}
-				</p>
-			</div>
+			<NotificationBell />
 
-			{partner === null ? null : (
+			{partner === null || gone ? null : (
 				<ModerationMenu
 					userId={partner.id}
 					name={name}
@@ -136,6 +182,7 @@ export function ThreadPage({
 	const [partner, setPartner] = useState<Partner | null>(null);
 	const [ready, setReady] = useState(false);
 	const [missing, setMissing] = useState(false);
+	const [gone, setGone] = useState(false);
 	const [older, setOlder] = useState(false);
 	const [exhausted, setExhausted] = useState(false);
 	const [draft, setDraft] = useState("");
@@ -178,6 +225,7 @@ export function ThreadPage({
 				return;
 			}
 			setPartner(result.data.partner);
+			setGone(result.data.partner_deleted);
 			setMessages(result.data.messages);
 			setExhausted(result.data.messages.length < PAGE_SIZE);
 			setReady(true);
@@ -342,101 +390,107 @@ export function ThreadPage({
 		<>
 			<Backdrop />
 			<PresenceHeartbeat />
+			<LocationSync />
 
-			<div className="flex h-dvh flex-col">
-				<Header
-					partner={partner}
-					online={online}
-					onBlocked={() => {
-						router.replace("/messages");
-					}}
-				/>
+			<div className="flex h-dvh overflow-hidden">
+				<AppNav />
 
-				<main
-					ref={thread}
-					onScroll={onScroll}
-					className="mx-auto w-full max-w-sm flex-1 overflow-y-auto overscroll-contain px-6"
-				>
-					{missing ? (
-						<p className="py-8 text-sm text-muted">
+				<div className="flex min-h-0 min-w-0 flex-1 flex-col">
+					<Header
+						partner={partner}
+						online={online}
+						gone={gone}
+						onBlocked={() => {
+							router.replace("/messages");
+						}}
+					/>
+
+					<main
+						ref={thread}
+						onScroll={onScroll}
+						className="mx-auto w-full max-w-sm flex-1 overflow-y-auto overscroll-contain px-6"
+					>
+						{missing ? (
+							<p className="py-8 text-sm text-muted">
 							Cette conversation n’est plus disponible. Vous n’êtes plus
 							connectés, ou l’un de vous a bloqué l’autre.
-						</p>
-					) : (
-						<>
-							<div ref={sentinel} aria-hidden="true" className="h-px" />
+							</p>
+						) : (
+							<>
+								<div ref={sentinel} aria-hidden="true" className="h-px" />
 
-							{older ? (
-								<p className="py-2 text-center text-xs text-muted">
+								{older ? (
+									<p className="py-2 text-center text-xs text-muted">
 									Chargement…
-								</p>
-							) : null}
+									</p>
+								) : null}
 
-							{exhausted && messages.length > 0 ? (
-								<p className="py-3 text-center text-xs text-muted">
+								{exhausted && messages.length > 0 ? (
+									<p className="py-3 text-center text-xs text-muted">
 									Début de la conversation.
-								</p>
-							) : null}
+									</p>
+								) : null}
 
-							{ready && messages.length === 0 ? (
-								<p className="py-8 text-sm text-muted">
+								{ready && messages.length === 0 ? (
+									<p className="py-8 text-sm text-muted">
 									Aucun message. Lancez la conversation.
-								</p>
-							) : null}
+									</p>
+								) : null}
 
-							<ul className="flex flex-col gap-2 pb-4">
-								{messages.map((message, index) => (
-									<Fragment key={message.id}>
-										{index === 0
+								<ul className="flex flex-col gap-2 pb-4">
+									{messages.map((message, index) => (
+										<Fragment key={message.id}>
+											{index === 0
 										|| !sameDay(messages[index - 1].sent_at, message.sent_at) ? (
-												<li className="py-2 text-center text-xs text-muted">
-													{dayLabel(message.sent_at)}
-												</li>
-											) : null}
-										<Bubble
-											message={message}
-											mine={message.sender_id === userId}
-										/>
-									</Fragment>
-								))}
-							</ul>
-						</>
-					)}
-				</main>
+													<li className="py-2 text-center text-xs text-muted">
+														{dayLabel(message.sent_at)}
+													</li>
+												) : null}
+											<Bubble
+												message={message}
+												mine={message.sender_id === userId}
+											/>
+										</Fragment>
+									))}
+								</ul>
+							</>
+						)}
+					</main>
 
-				<footer className="mx-auto w-full max-w-sm shrink-0 px-6 pt-2 pb-6">
-					<form onSubmit={onSend} className="flex items-end gap-2">
-						<input
-							type="text"
-							value={draft}
-							onChange={(event) => setDraft(event.target.value)}
-							maxLength={1000}
-							disabled={missing}
-							placeholder="Votre message"
-							aria-label="Votre message"
-							className="min-h-12 flex-1 rounded-xl border border-edge bg-white/70 px-4 text-base text-ink placeholder:text-muted focus:border-matcha focus:outline-none disabled:opacity-60"
-						/>
-						<button
-							type="submit"
-							disabled={sending || missing || draft.trim().length === 0}
-							aria-label="Envoyer"
-							className="inline-flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-matcha text-white transition-colors duration-200 ease-out hover:bg-matcha-dark disabled:cursor-not-allowed disabled:opacity-60"
-						>
-							<svg
-								viewBox="0 0 20 20"
-								aria-hidden="true"
-								className="size-5"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="1.8"
-								strokeLinecap="round"
-								strokeLinejoin="round"
+					<footer className="mx-auto w-full max-w-sm shrink-0 px-6 pt-2 pb-6">
+						<form onSubmit={onSend} className="flex items-end gap-2">
+							<input
+								type="text"
+								value={draft}
+								onChange={(event) => setDraft(event.target.value)}
+								maxLength={1000}
+								disabled={missing || gone}
+								placeholder={gone ? "Ce compte a été supprimé" : "Votre message"}
+								aria-label="Votre message"
+								className="min-h-12 flex-1 rounded-xl border border-edge bg-white/70 px-4 text-base text-ink placeholder:text-muted focus:border-matcha focus:outline-none disabled:opacity-60"
+							/>
+							<button
+								type="submit"
+								disabled={sending || missing || gone || draft.trim().length === 0}
+								aria-label="Envoyer"
+								className="inline-flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-matcha text-white transition-colors duration-200 ease-out hover:bg-matcha-dark disabled:cursor-not-allowed disabled:opacity-60"
 							>
-								<path d="M3 10.5 17 3l-4.5 14-2.5-6z" />
-							</svg>
-						</button>
-					</form>
-				</footer>
+								<svg
+									viewBox="0 0 20 20"
+									aria-hidden="true"
+									className="size-5"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="1.8"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+								>
+									<path d="M3 10.5 17 3l-4.5 14-2.5-6z" />
+								</svg>
+							</button>
+						</form>
+					</footer>
+				</div>
 			</div>
 		</>
 	);

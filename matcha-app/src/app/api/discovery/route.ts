@@ -7,6 +7,7 @@ import {
 	purgeIfDue,
 	readFeedPage,
 } from "@/lib/db";
+import { serializeCandidate } from "@/lib/discovery/candidate";
 import { filtersHash, validateDiscoveryQuery } from "@/lib/discovery/query";
 
 export async function GET(request: Request)
@@ -50,7 +51,7 @@ export async function GET(request: Request)
 		return Response.json({
 			session: page.session.id,
 			reset: existing === null,
-			items: page.items,
+			items: page.items.map(serializeCandidate),
 			next: page.next,
 			total: page.session.total,
 		});

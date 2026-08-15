@@ -1,5 +1,6 @@
+import { unlinkSync } from "node:fs";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import sharp from "sharp";
 
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
@@ -9,7 +10,7 @@ const MAX_SIDE = 1200;
 const MAX_INPUT_PIXELS = 50_000_000;
 const QUALITY = 82;
 
-const DIRECTORY = resolve(process.env.UPLOAD_DIR ?? "./data/uploads");
+const DIRECTORY = join(process.cwd(), "data", "uploads");
 const FILE_NAME_RE = /^[A-Za-z0-9_-]+\.(jpg|png|webp)$/;
 
 const MIME_TYPES: Record<string, string> = {
@@ -112,11 +113,29 @@ export async function readPhotoFile(
 	const extension = name.slice(name.lastIndexOf(".") + 1);
 	try
 	{
-		return { bytes: await readFile(target), mime: MIME_TYPES[extension] };
+		const bytes = await readFile(join(process.cwd(), "data", "uploads", name));
+		return { bytes, mime: MIME_TYPES[extension] };
 	}
 	catch
 	{
 		return null;
+	}
+}
+
+export function removePhotoFileSync(name: string): void
+{
+	const target = locate(name);
+	if (target === null)
+	{
+		return;
+	}
+	try
+	{
+		unlinkSync(target);
+	}
+	catch
+	{
+		return;
 	}
 }
 

@@ -203,6 +203,7 @@ export function AppNav() {
 							src={avatar}
 							alt=""
 							fill
+							priority
 							unoptimized
 							sizes="40px"
 							className="object-cover"

@@ -1,3 +1,4 @@
+import { decryptMessage } from "@/lib/crypto/messages";
 import type { MessageRow } from "@/lib/db";
 
 export interface MessagePayload {
@@ -14,7 +15,7 @@ export function serializeMessage(row: MessageRow): MessagePayload {
 		id: row.id,
 		match_id: row.match_id,
 		sender_id: row.sender_id,
-		body: row.body,
+		body: decryptMessage(row.body),
 		sent_at: row.sent_at,
 		read: row.read_at !== null,
 	};
