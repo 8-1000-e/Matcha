@@ -20,6 +20,7 @@ export interface Candidate {
 	profile_photo_id: string | null;
 	photo_ids: string | null;
 	tags: string | null;
+	viewer_liked?: number;
 	is_online: number;
 	last_seen_at: string | null;
 }

@@ -1,9 +1,11 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useState } from "react";
 import { MatchaBowl } from "@/components/Brand/Brand";
 import type { Candidate } from "@/lib/discovery/client";
+import { likeUser, unlikeUser } from "@/lib/profile/publicClient";
 
 const GENDERS: Record<string, string> = {
 	woman: "Femme",
@@ -115,45 +117,66 @@ function Gallery({ candidate }: { candidate: Candidate }) {
 	);
 }
 
-function LikeButton({
-	liked,
-	onToggle,
-}: {
-	liked: boolean;
-	onToggle: () => void;
-}) {
+function LikeButton({ candidate }: { candidate: Candidate }) {
+	const [liked, setLiked] = useState(candidate.viewer_liked === 1);
+	const [error, setError] = useState<string | null>(null);
+	const [pending, setPending] = useState(false);
+
+	async function toggle() {
+		const next = !liked;
+		setLiked(next);
+		setError(null);
+		setPending(true);
+
+		const result = next
+			? await likeUser(candidate.id)
+			: await unlikeUser(candidate.id);
+		setPending(false);
+
+		if (!result.ok) {
+			setLiked(!next);
+			setError(result.errors[0]?.message ?? null);
+		}
+	}
+
 	return (
-		<button
-			type="button"
-			aria-pressed={liked}
-			aria-label={liked ? "Retirer le like" : "Liker ce profil"}
-			onClick={onToggle}
-			className={`flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full ring-1 transition-transform duration-200 ease-out hover:scale-105 active:scale-95 ${
-				liked
-					? "bg-matcha text-white ring-matcha"
-					: "bg-white text-matcha ring-edge/40"
-			}`}
-		>
-			<svg
-				viewBox="0 0 20 20"
-				className={`size-6 ${liked ? "motion-safe:animate-[pop-in_250ms_ease-out]" : ""}`}
-				aria-hidden="true"
+		<div className="flex flex-col items-end gap-1">
+			<button
+				type="button"
+				aria-pressed={liked}
+				aria-label={liked ? "Retirer le like" : "Liker ce profil"}
+				disabled={pending}
+				onClick={() => void toggle()}
+				className={`flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full ring-1 transition-transform duration-200 ease-out hover:scale-105 active:scale-95 disabled:cursor-progress ${
+					liked
+						? "bg-matcha text-white ring-matcha"
+						: "bg-white text-matcha ring-edge/40"
+				}`}
 			>
-				<path
-					d="M10 17S2.5 12.5 2.5 7.6A4.1 4.1 0 0 1 10 5.3a4.1 4.1 0 0 1 7.5 2.3C17.5 12.5 10 17 10 17Z"
-					fill={liked ? "currentColor" : "none"}
-					stroke="currentColor"
-					strokeWidth="1.6"
-					strokeLinejoin="round"
-				/>
-			</svg>
-		</button>
+				<svg
+					viewBox="0 0 20 20"
+					className={`size-6 ${liked ? "motion-safe:animate-[pop-in_250ms_ease-out]" : ""}`}
+					aria-hidden="true"
+				>
+					<path
+						d="M10 17S2.5 12.5 2.5 7.6A4.1 4.1 0 0 1 10 5.3a4.1 4.1 0 0 1 7.5 2.3C17.5 12.5 10 17 10 17Z"
+						fill={liked ? "currentColor" : "none"}
+						stroke="currentColor"
+						strokeWidth="1.6"
+						strokeLinejoin="round"
+					/>
+				</svg>
+			</button>
+
+			{error !== null ? (
+				<span className="max-w-40 text-right text-xs text-muted">{error}</span>
+			) : null}
+		</div>
 	);
 }
 
 export function CandidateSlide({ candidate }: { candidate: Candidate }) {
 	const tags = (candidate.tags ?? "").split(",").filter(Boolean).slice(0, 8);
-	const [liked, setLiked] = useState(false);
 
 	return (
 		<article className="grid size-full gap-3 overflow-hidden rounded-3xl bg-white/60 p-3 ring-1 ring-edge/30 md:grid-cols-2">
@@ -167,7 +190,7 @@ export function CandidateSlide({ candidate }: { candidate: Candidate }) {
 							<span className="font-normal text-muted">{candidate.age}</span>
 						</h2>
 
-						<LikeButton liked={liked} onToggle={() => setLiked(!liked)} />
+						<LikeButton candidate={candidate} />
 					</div>
 
 					<p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
@@ -197,7 +220,7 @@ export function CandidateSlide({ candidate }: { candidate: Candidate }) {
 					)}
 				</div>
 
-				<div className="px-5 py-4">
+				<div className="flex flex-col gap-3 px-5 py-4">
 					{tags.length > 0 ? (
 						<ul className="flex flex-wrap gap-2 text-sm text-matcha-dark">
 							{tags.map((tag) => (
@@ -209,6 +232,13 @@ export function CandidateSlide({ candidate }: { candidate: Candidate }) {
 					) : (
 						<p className="text-sm text-muted">Aucun centre d’intérêt renseigné.</p>
 					)}
+
+					<Link
+						href={`/users/${candidate.id}`}
+						className="self-start text-sm text-matcha underline decoration-matcha/40 underline-offset-4 transition-colors duration-200 ease-out hover:decoration-matcha"
+					>
+						Voir le profil
+					</Link>
 				</div>
 			</div>
 		</article>
