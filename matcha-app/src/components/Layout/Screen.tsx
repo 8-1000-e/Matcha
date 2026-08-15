@@ -13,6 +13,7 @@ type ScreenProps = {
 	footer: ReactNode;
 	center?: boolean;
 	centerTop?: boolean;
+	fit?: boolean;
 	
 	width?: keyof typeof WIDTHS;
 };
@@ -29,12 +30,13 @@ export function Screen({
 	footer,
 	center = false,
 	centerTop = false,
+	fit = false,
 	width = "narrow",
 }: ScreenProps) {
 	const max = WIDTHS[width];
 
 	return (
-		<>
+		<div className={fit ? "flex h-dvh flex-col overflow-hidden" : "contents"}>
 			<Backdrop />
 
 			<header
@@ -48,7 +50,7 @@ export function Screen({
 			<main
 				className={`mx-auto flex w-full ${max} flex-1 flex-col px-6 ${
 					width === "narrow" ? "py-10" : "py-6"
-				} ${center ? "justify-center" : ""}`}
+				} ${center ? "justify-center" : ""} ${fit ? "min-h-0 overflow-hidden" : ""}`}
 			>
 				{children}
 			</main>
@@ -60,7 +62,7 @@ export function Screen({
 			>
 				{footer}
 			</footer>
-		</>
+		</div>
 	);
 }
 
@@ -71,6 +73,7 @@ type PrivateScreenProps = {
 	footer: ReactNode;
 	width?: keyof typeof WIDTHS;
 	center?: boolean;
+	fit?: boolean;
 	verified?: boolean;
 };
 
@@ -81,12 +84,14 @@ export function PrivateScreen({
 	footer,
 	width = "narrow",
 	center = false,
+	fit = false,
 	verified = true,
 }: PrivateScreenProps) {
 	return (
 		<Screen
 			width={width}
 			center={center}
+			fit={fit}
 			top={
 				<div className="flex w-full items-center justify-between gap-3">
 					{verified ? <PresenceHeartbeat /> : null}
@@ -114,7 +119,11 @@ export function PrivateScreen({
 				</p>
 			) : null}
 
-			<div className={title || intro ? (width === "narrow" ? "mt-8" : "mt-6") : ""}>
+			<div
+				className={`${title || intro ? (width === "narrow" ? "mt-8" : "mt-6") : ""} ${
+					fit ? "flex min-h-0 flex-1 flex-col" : ""
+				}`}
+			>
 				{children}
 			</div>
 		</Screen>
