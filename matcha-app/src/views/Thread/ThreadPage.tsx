@@ -14,7 +14,7 @@ import { BackLink } from "@/components/Form/Button";
 import { Backdrop } from "@/components/Layout/Backdrop";
 import { ModerationMenu } from "@/components/Moderation/ModerationMenu";
 import { PresenceAvatar } from "@/components/Presence/PresenceAvatar";
-import { PRESENCE_BEAT_MS } from "@/lib/db/schema/views";
+import { PresenceHeartbeat } from "@/components/Presence/PresenceHeartbeat";
 import {
 	getMessages,
 	getPartner,
@@ -27,13 +27,17 @@ import {
 import { dayLabel, lastSeenLabel, messageTime, sameDay } from "@/lib/messages/dates";
 import { openConversation } from "@/lib/notifications/active";
 import { conversationLink } from "@/lib/notifications/notifications";
+import { chatChannel } from "@/lib/realtime/channels";
 import { subscribe } from "@/lib/realtime/client";
+import { usePresence } from "@/lib/realtime/presence";
 
 function Header({
 	partner,
+	online,
 	onBlocked,
 }: {
 	partner: Partner | null;
+	online: boolean;
 	onBlocked: () => void;
 }) {
 	const name = partner?.first_name ?? partner?.username ?? "Conversation";
@@ -45,20 +49,16 @@ function Header({
 			<PresenceAvatar
 				url={partner?.photo_url ?? null}
 				name={name}
-				online={partner?.is_online ?? false}
+				online={online}
 				size="small"
 			/>
 
 			<div className="min-w-0 flex-1">
 				<p className="truncate font-medium">{name}</p>
-				<p
-					className={`text-xs ${
-						partner?.is_online ? "text-matcha-dark" : "text-muted"
-					}`}
-				>
+				<p className={`text-xs ${online ? "text-matcha-dark" : "text-muted"}`}>
 					{partner === null
 						? ""
-						: partner.is_online
+						: online
 							? "en ligne"
 							: lastSeenLabel(partner.last_seen_at)}
 				</p>
@@ -75,7 +75,7 @@ function Header({
 	);
 }
 
-const PRESENCE_REFRESH_MS = PRESENCE_BEAT_MS;
+const LIVENESS_MS = 60_000;
 
 function Ticks({ read }: { read: boolean }) {
 	return (
@@ -192,6 +192,12 @@ export function ThreadPage({
 		};
 	}, [matchId, userId, flushRead]);
 
+	const partnerId = partner?.id ?? null;
+	const presence = usePresence(partnerId, () => {
+		setMissing(true);
+	});
+	const online = presence ?? partner?.is_online ?? false;
+
 	useEffect(() => {
 		if (missing) {
 			return;
@@ -209,7 +215,7 @@ export function ThreadPage({
 					setMissing(true);
 				}
 			});
-		}, PRESENCE_REFRESH_MS);
+		}, LIVENESS_MS);
 		return () => {
 			window.clearInterval(timer);
 		};
@@ -220,7 +226,7 @@ export function ThreadPage({
 	}, [matchId]);
 
 	useEffect(() => {
-		return subscribe(`private-chat-${matchId}`, "closed", () => {
+		return subscribe(chatChannel(matchId), "closed", () => {
 			setMissing(true);
 		});
 	}, [matchId]);
@@ -233,7 +239,7 @@ export function ThreadPage({
 	}, [flushRead]);
 
 	useEffect(() => {
-		return subscribe(`private-chat-${matchId}`, "message", (payload) => {
+		return subscribe(chatChannel(matchId), "message", (payload) => {
 			const incoming = payload as ChatMessage;
 			add([incoming], false);
 			if (incoming.sender_id !== userId) {
@@ -244,7 +250,7 @@ export function ThreadPage({
 	}, [matchId, userId, add, flushRead]);
 
 	useEffect(() => {
-		return subscribe(`private-chat-${matchId}`, "read", () => {
+		return subscribe(chatChannel(matchId), "read", () => {
 			setMessages((current) =>
 				current.map((entry) =>
 					entry.sender_id === userId ? { ...entry, read: true } : entry,
@@ -335,10 +341,12 @@ export function ThreadPage({
 	return (
 		<>
 			<Backdrop />
+			<PresenceHeartbeat />
 
 			<div className="flex h-dvh flex-col">
 				<Header
 					partner={partner}
+					online={online}
 					onBlocked={() => {
 						router.replace("/messages");
 					}}

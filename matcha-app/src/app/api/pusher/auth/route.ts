@@ -1,29 +1,27 @@
 import { requireSession } from "@/lib/auth/guards";
 import {
 	findActiveMatchForUsers,
+	findMatchBetween,
 	isBlockedEitherWay,
 	type UserRow,
 } from "@/lib/db";
-import { authorizeChannel, chatChannel, userChannel } from "@/lib/realtime/server";
+import {
+	authorizeChannel,
+	chatChannel,
+	presenceUserChannel,
+	userChannel,
+} from "@/lib/realtime/server";
 
 const CHAT_PREFIX = "private-chat-";
+const PRESENCE_PREFIX = "presence-user-";
 
 function forbidden(): Response
 {
 	return Response.json({ errors: ["forbidden"] }, { status: 403 });
 }
 
-function allowed(user: UserRow, channel: string): boolean
+function allowedChat(user: UserRow, channel: string): boolean
 {
-	if (channel === userChannel(user.id))
-	{
-		return true;
-	}
-	if (!channel.startsWith(CHAT_PREFIX))
-	{
-		return false;
-	}
-
 	const matchId = channel.slice(CHAT_PREFIX.length);
 	if (chatChannel(matchId) !== channel)
 	{
@@ -39,6 +37,45 @@ function allowed(user: UserRow, channel: string): boolean
 	const partnerId
 		= match.user_a_id === user.id ? match.user_b_id : match.user_a_id;
 	return !isBlockedEitherWay(user.id, partnerId);
+}
+
+function allowedPresence(user: UserRow, channel: string): boolean
+{
+	const ownerId = channel.slice(PRESENCE_PREFIX.length);
+	if (presenceUserChannel(ownerId) !== channel)
+	{
+		return false;
+	}
+	if (ownerId === user.id)
+	{
+		return true;
+	}
+
+	const match = findMatchBetween(user.id, ownerId);
+	if (match === undefined || match.is_active !== 1)
+	{
+		return false;
+	}
+
+	return !isBlockedEitherWay(user.id, ownerId);
+}
+
+function allowed(user: UserRow, channel: string): boolean
+{
+	if (channel === userChannel(user.id))
+	{
+		return true;
+	}
+	if (channel.startsWith(CHAT_PREFIX))
+	{
+		return allowedChat(user, channel);
+	}
+	if (channel.startsWith(PRESENCE_PREFIX))
+	{
+		return allowedPresence(user, channel);
+	}
+
+	return false;
 }
 
 export async function POST(request: Request)
@@ -75,7 +112,13 @@ export async function POST(request: Request)
 		return forbidden();
 	}
 
-	const authorization = authorizeChannel(socketId, channel);
+	const authorization = authorizeChannel(
+		socketId,
+		channel,
+		channel.startsWith(PRESENCE_PREFIX)
+			? { user_id: session.user.id }
+			: undefined,
+	);
 	if (authorization === null)
 	{
 		return Response.json({ errors: ["realtime_unavailable"] }, { status: 503 });

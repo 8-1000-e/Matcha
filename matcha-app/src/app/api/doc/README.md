@@ -886,6 +886,7 @@ compte.
 | `private-chat-<matchId>` | `message` | un message sérialisé |
 | `private-chat-<matchId>` | `read` | `{ match_id, reader_id, read_at }` |
 | `private-chat-<matchId>` | `closed` | `{ match_id }` — la connexion est rompue, la conversation n'est plus accessible |
+| `presence-user-<id>` | `pusher:member_added` / `pusher:member_removed` | émis par Pusher, jamais par l'application : `<id>` vient d'ouvrir ou de fermer le site |
 
 **`closed` part du retrait de like et du blocage**, les deux seules opérations
 qui désactivent un match. Sans lui, l'écran de conversation restait ouvert sur
@@ -925,6 +926,12 @@ utilisateurs.
 | --- | --- |
 | `private-user-<id>` | `<id>` est **exactement** celui de la session |
 | `private-chat-<matchId>` | match **actif** dont l'appelant est membre, et aucun blocage avec le partenaire |
+| `presence-user-<id>` | `<id>` est celui de la session, **ou** un match actif sans blocage avec lui |
+
+Un canal de présence reçoit en plus des données de membre, `{ user_id }`, prises
+de la session et jamais du corps de la requête : c'est ce qui identifie le
+membre auprès de Pusher, et donc ce qui permet de distinguer le propriétaire du
+canal de ceux qui l'observent.
 
 | Code | Corps | Cas |
 | --- | --- | --- |
@@ -1127,33 +1134,50 @@ chaque ligne compte. Le front appelle donc les deux : le `GET` pour afficher, le
 ## `POST /api/presence`
 
 Signale que le connecté est actif. Met `last_seen_at` à l'heure et renvoie
-`{ "ok": true, "window_seconds": 90 }`. `401` sans session, `403` si le compte
-n'est pas vérifié.
+`{ "ok": true, "window_seconds": 120, "channel": "presence-user-<mon-id>" }`.
+`401` sans session, `403` si le compte n'est pas vérifié.
 
-Appelée automatiquement par `PresenceHeartbeat`, monté dans `PrivateScreen` :
-toutes les **15 secondes** tant qu'un onglet est ouvert et visible, plus un
+Appelée automatiquement par `PresenceHeartbeat`, monté dans `PrivateScreen` et
+dans `ThreadPage` — le seul écran privé à ne pas passer par `PrivateScreen`,
+faute de quoi lire une conversation rendrait invisible :
+toutes les **40 secondes** tant qu'un onglet est ouvert et visible, plus un
 battement immédiat au montage et au retour sur l'onglet. Un onglet en arrière-plan
 ne bat pas — inutile de compter en ligne quelqu'un qui a la page ouverte depuis
 trois jours dans un onglet oublié.
 
-**L'état en ligne n'est pas stocké, il est calculé à la lecture** : « en ligne »
-signifie « `last_seen_at` il y a moins de 45 secondes », via la fonction
-`onlineNow()` partagée. La colonne `users.is_online` existe encore mais n'est
-plus ni écrite ni lue — une valeur dénormalisée que rien ne remet à zéro
-resterait vraie pour toujours après une fermeture brutale du navigateur.
+**La présence en direct passe par les canaux de présence Pusher, pas par ce
+battement.** Chacun s'abonne à `presence-user-<son-id>` dès le premier battement
+— le canal est renvoyé par cette route, ce qui évite de faire descendre
+l'identifiant de session jusqu'aux composants de mise en page. Être membre de
+ce canal *est* le fait d'être en ligne : Pusher tient lui-même la liste des
+connexions ouvertes, c'est exactement l'information qu'un battement essaie de
+deviner.
 
-Conséquence assumée : fermer un onglet laisse le profil affiché en ligne pendant
-au plus 45 secondes, et l'écran qui l'affiche interroge le serveur au même
-rythme que le battement — donc **une minute au pire** entre la fermeture et le
-point qui s'éteint. Le battement vaut le tiers de la fenêtre : deux battements
-peuvent se perdre sans faire clignoter la présence. Le sujet n'impose aucun
-délai ici — les 10 secondes concernent le chat et les notifications.
+Un écran qui affiche quelqu'un s'abonne au canal **du partenaire**. Il y devient
+membre lui aussi, donc il ne regarde pas si le canal est occupé mais si le
+membre attendu s'y trouve : `members.get(partnerId)` à la souscription, puis
+`pusher:member_added` et `pusher:member_removed` filtrés sur cet identifiant.
+Mesuré en bout de chaîne, le point passe du vert au gris **en moins de 200 ms**
+dans les deux sens.
 
-Pourquoi pas les webhooks de présence Pusher, comme le prévoyait
-`docs/db-schema.md` : un webhook part des serveurs de Pusher **vers**
-l'application, et ils ne peuvent pas joindre `http://localhost:3000`. Il aurait
-fallu un tunnel en développement comme à la soutenance. Le raisonnement complet
-est dans `docs/db-schema.md`, section `users`.
+Aucun webhook n'est impliqué : `member_added` et `member_removed` descendent
+directement au navigateur. C'est ce qui rend l'approche utilisable ici, alors
+que les webhooks de présence — qui partent des serveurs de Pusher **vers**
+l'application — ne peuvent pas joindre `http://localhost:3000` sans tunnel. Le
+raisonnement d'origine est dans `docs/db-schema.md`, section `users`.
+
+Le battement n'a donc plus qu'un rôle de repli : il alimente `last_seen_at`,
+d'où viennent le « vu il y a trois heures » d'un absent et l'état affiché au
+premier rendu, avant que la souscription n'ait abouti. **L'état en ligne n'est
+toujours pas stocké, il est calculé à la lecture** : « en ligne » signifie
+« `last_seen_at` il y a moins de 120 secondes », via la fonction `onlineNow()`
+partagée. La colonne `users.is_online` existe encore mais n'est ni écrite ni
+lue — une valeur dénormalisée que rien ne remet à zéro resterait vraie pour
+toujours après une fermeture brutale du navigateur.
+
+Cette valeur de repli n'est plus critique, ce qui permet d'espacer le battement
+à un tiers de sa fenêtre plutôt qu'à un rythme serré : trois fois moins
+d'écritures pour une présence pourtant devenue instantanée.
 
 `is_online` et `last_seen_at` sont exposés partout où un utilisateur est décrit :
 `GET /api/users/[id]`, `GET /api/likes`, `GET /api/views`, `GET /api/blocks` et

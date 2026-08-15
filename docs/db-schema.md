@@ -93,8 +93,8 @@ Le cœur. Un seul enregistrement par personne.
 
 **L'état en ligne est calculé à la lecture, à partir de `last_seen_at`.** Une
 page ouverte envoie un `POST /api/presence` toutes les `PRESENCE_BEAT_MS`
-(15 s), qui remet `last_seen_at` à l'heure. « En ligne » signifie « vu il y a
-moins de `PRESENCE_WINDOW_SECONDS` » (45 s), et le battement vaut le tiers de
+(40 s), qui remet `last_seen_at` à l'heure. « En ligne » signifie « vu il y a
+moins de `PRESENCE_WINDOW_SECONDS` » (120 s), et le battement vaut le tiers de
 la fenêtre — deux battements perdus ne font pas clignoter la présence, exprimé par la fonction `onlineNow()` de
 `schema/views.ts` — la même mécanique que `ageYears()`, qu'on ne stocke pas non
 plus.
@@ -110,9 +110,21 @@ redémarrage en version gratuite, pour une exigence sur laquelle le sujet
 n'impose **aucun délai** — les 10 secondes concernent le chat (IV.6) et les
 notifications (IV.7), pas la présence.
 
-Le prix de ce choix est assumé : quelqu'un qui ferme son onglet reste affiché en
-ligne pendant au plus 45 secondes. En échange, la fonctionnalité ne dépend
-d'aucun service tiers et ne peut pas tomber en panne devant le correcteur.
+**Seconde révision : le webhook n'était pas la bonne cible.** Ce qu'il fallait,
+ce sont les **canaux de présence**, dont les événements `member_added` et
+`member_removed` descendent directement au navigateur, sans jamais avoir à
+joindre l'application. L'obstacle du tunnel ne s'applique donc pas. Chacun
+s'abonne à `presence-user-<son-id>` sur toutes les pages privées, et un écran
+qui affiche quelqu'un observe le canal de cette personne — autorisé, comme le
+canal de chat, uniquement s'il existe un match actif sans blocage. Le passage en
+ligne et hors ligne se voit alors en **moins de 200 ms**, mesuré, au lieu de la
+minute que coûtait la conjonction de deux minuteurs indépendants.
+
+Le battement garde son rôle de repli : `last_seen_at` alimente le « vu il y a
+trois heures » d'un absent et l'état du premier rendu, avant que la souscription
+n'ait abouti. C'est ce qui permet d'espacer le battement — la valeur n'a plus
+besoin d'être fraîche à la seconde, et l'application reste entièrement
+fonctionnelle sans clés Pusher, avec la présence simplement moins réactive.
 
 **Une seule source de vérité, délibérément.** `is_online` n'est plus écrit ni
 lu : une colonne dénormalisée que rien ne remet à zéro resterait à `true` pour

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PrivateScreen } from "@/components/Layout/Screen";
 import { PresenceAvatar } from "@/components/Presence/PresenceAvatar";
-import { PRESENCE_BEAT_MS } from "@/lib/db/schema/views";
 import {
 	CONVERSATION_PAGE_SIZE,
 	getConversations,
@@ -13,10 +12,12 @@ import {
 } from "@/lib/messages/client";
 import { append, refreshHead } from "@/lib/messages/conversations";
 import { conversationDate } from "@/lib/messages/dates";
+import { userChannel } from "@/lib/realtime/channels";
 import { subscribe } from "@/lib/realtime/client";
+import { usePresence } from "@/lib/realtime/presence";
 
 const SEARCH_DELAY_MS = 300;
-const REFRESH_MS = PRESENCE_BEAT_MS;
+const REFRESH_MS = 20_000;
 
 interface Page {
 	query: string;
@@ -51,6 +52,8 @@ function Row({ conversation }: { conversation: Conversation }) {
 	const partner = conversation.partner;
 	const unread = conversation.unread > 0;
 	const name = partner?.first_name ?? partner?.username ?? "Profil supprimé";
+	const presence = usePresence(partner?.id ?? null);
+	const online = presence ?? partner?.is_online ?? false;
 
 	return (
 		<li>
@@ -61,7 +64,7 @@ function Row({ conversation }: { conversation: Conversation }) {
 				<PresenceAvatar
 					url={partner?.photo_url ?? null}
 					name={name}
-					online={partner?.is_online ?? false}
+					online={online}
 				/>
 
 				<span className="min-w-0 flex-1">
@@ -142,7 +145,7 @@ export function InboxPage({ userId }: { userId: string }) {
 	}, [load]);
 
 	useEffect(() => {
-		return subscribe(`private-user-${userId}`, "notification", refresh);
+		return subscribe(userChannel(userId), "notification", refresh);
 	}, [userId, refresh]);
 
 	useEffect(() => {
