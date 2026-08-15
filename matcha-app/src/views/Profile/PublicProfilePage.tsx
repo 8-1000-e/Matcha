@@ -346,25 +346,18 @@ function PhotoGrid({ photos }: { photos: ProfilePhoto[] }) {
 function ReviewForm({
 	profile,
 	mine,
-	onChanged,
+	onDone,
+	onCancel,
 }: {
 	profile: PublicProfilePayload;
 	mine: ReviewPayload | undefined;
-	onChanged: () => void;
+	onDone: () => void;
+	onCancel: () => void;
 }) {
 	const [score, setScore] = useState(mine?.score ?? 0);
 	const [body, setBody] = useState(mine?.body ?? "");
 	const [error, setError] = useState<string | null>(null);
 	const [pending, setPending] = useState(false);
-
-	if (!profile.is_connected && mine === undefined) {
-		return (
-			<p className="rounded-xl bg-leaf/30 px-4 py-3 text-xs text-muted">
-				Les avis sont réservés aux profils connectés : vous devez vous être
-				likés mutuellement pour noter {profile.first_name}.
-			</p>
-		);
-	}
 
 	async function submit() {
 		if (score < 1) {
@@ -381,28 +374,13 @@ function ReviewForm({
 			setError(result.errors[0]?.message ?? "Enregistrement impossible.");
 			return;
 		}
-		onChanged();
-	}
-
-	async function remove() {
-		setError(null);
-		setPending(true);
-		const result = await deleteReview(profile.id);
-		setPending(false);
-
-		if (!result.ok) {
-			setError(result.errors[0]?.message ?? "Suppression impossible.");
-			return;
-		}
-		setScore(0);
-		setBody("");
-		onChanged();
+		onDone();
 	}
 
 	return (
 		<div className="flex flex-col gap-3 rounded-xl bg-white/60 p-4 ring-1 ring-edge/30">
 			<p className="text-sm font-medium">
-				{mine === undefined ? "Laisser un avis" : "Votre avis"}
+				{mine === undefined ? "Laisser un avis" : "Modifier votre avis"}
 			</p>
 
 			<div className="flex items-center gap-1">
@@ -445,19 +423,81 @@ function ReviewForm({
 					onClick={() => void submit()}
 					className="flex h-9 cursor-pointer items-center rounded-lg bg-matcha px-4 text-sm font-medium text-white transition-colors duration-200 ease-out hover:bg-matcha-dark disabled:cursor-progress"
 				>
-					{mine === undefined ? "Publier" : "Mettre à jour"}
+					{mine === undefined ? "Publier" : "Enregistrer"}
 				</button>
+				<button
+					type="button"
+					disabled={pending}
+					onClick={onCancel}
+					className="flex h-9 cursor-pointer items-center rounded-lg border border-edge bg-white/70 px-3 text-sm font-medium transition-colors duration-200 ease-out hover:bg-leaf/50 disabled:cursor-progress"
+				>
+					Annuler
+				</button>
+			</div>
+		</div>
+	);
+}
 
-				{mine !== undefined ? (
-					<button
-						type="button"
-						disabled={pending}
-						onClick={() => void remove()}
-						className="flex h-9 cursor-pointer items-center rounded-lg border border-edge bg-white/70 px-3 text-sm font-medium transition-colors duration-200 ease-out hover:bg-leaf/50 disabled:cursor-progress"
-					>
-						Supprimer
-					</button>
-				) : null}
+function MyReview({
+	profile,
+	mine,
+	onEdit,
+	onChanged,
+}: {
+	profile: PublicProfilePayload;
+	mine: ReviewPayload;
+	onEdit: () => void;
+	onChanged: () => void;
+}) {
+	const [error, setError] = useState<string | null>(null);
+	const [pending, setPending] = useState(false);
+
+	async function remove() {
+		setError(null);
+		setPending(true);
+		const result = await deleteReview(profile.id);
+		setPending(false);
+
+		if (!result.ok) {
+			setError(result.errors[0]?.message ?? "Suppression impossible.");
+			return;
+		}
+		onChanged();
+	}
+
+	return (
+		<div className="flex flex-col gap-2 rounded-xl bg-leaf/25 p-4 ring-1 ring-matcha/20">
+			<div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+				<span className="text-sm font-medium">Votre avis</span>
+				<Stars score={mine.score} className="text-xs" />
+				<span className="text-xs text-muted">{when(mine.updated_at)}</span>
+			</div>
+
+			{mine.body !== null ? (
+				<p className="text-sm leading-relaxed">{mine.body}</p>
+			) : (
+				<p className="text-sm text-muted">Note sans commentaire.</p>
+			)}
+
+			{error !== null ? <p className="text-xs text-muted">{error}</p> : null}
+
+			<div className="flex flex-wrap gap-2 pt-1">
+				<button
+					type="button"
+					disabled={pending}
+					onClick={onEdit}
+					className="flex h-8 cursor-pointer items-center rounded-lg border border-edge bg-white/70 px-3 text-xs font-medium transition-colors duration-200 ease-out hover:bg-white disabled:cursor-progress"
+				>
+					Modifier
+				</button>
+				<button
+					type="button"
+					disabled={pending}
+					onClick={() => void remove()}
+					className="flex h-8 cursor-pointer items-center rounded-lg border border-edge bg-white/70 px-3 text-xs font-medium transition-colors duration-200 ease-out hover:bg-white disabled:cursor-progress"
+				>
+					Supprimer
+				</button>
 			</div>
 		</div>
 	);
@@ -474,26 +514,58 @@ function Reviews({
 	viewerId: string;
 	onChanged: () => void;
 }) {
+	const [editing, setEditing] = useState(false);
 	const mine = reviews.find((review) => review.author_id === viewerId);
 	const others = reviews.filter((review) => review.author_id !== viewerId);
 
+	function done() {
+		setEditing(false);
+		onChanged();
+	}
+
 	return (
 		<div className="flex flex-col gap-5">
-			<ReviewForm profile={profile} mine={mine} onChanged={onChanged} />
-			<ReviewList reviews={others} />
+			{editing ? (
+				<ReviewForm
+					profile={profile}
+					mine={mine}
+					onDone={done}
+					onCancel={() => setEditing(false)}
+				/>
+			) : mine !== undefined ? (
+				<MyReview
+					profile={profile}
+					mine={mine}
+					onEdit={() => setEditing(true)}
+					onChanged={onChanged}
+				/>
+			) : profile.is_connected ? (
+				<button
+					type="button"
+					onClick={() => setEditing(true)}
+					className="flex h-10 w-fit cursor-pointer items-center rounded-lg bg-matcha px-4 text-sm font-medium text-white transition-colors duration-200 ease-out hover:bg-matcha-dark"
+				>
+					Laisser un avis
+				</button>
+			) : (
+				<p className="rounded-xl bg-leaf/30 px-4 py-3 text-xs text-muted">
+					Les avis sont réservés aux profils connectés : vous devez vous être
+					likés mutuellement pour noter {profile.first_name}.
+				</p>
+			)}
+
+			{others.length > 0 ? (
+				<ReviewList reviews={others} />
+			) : reviews.length === 0 ? (
+				<p className="py-12 text-center text-sm text-muted">
+					Personne n’a encore laissé d’avis.
+				</p>
+			) : null}
 		</div>
 	);
 }
 
 function ReviewList({ reviews }: { reviews: ReviewPayload[] }) {
-	if (reviews.length === 0) {
-		return (
-			<p className="py-12 text-center text-sm text-muted">
-				Personne n’a encore laissé d’avis.
-			</p>
-		);
-	}
-
 	return (
 		<ul className="flex flex-col divide-y divide-edge/20">
 			{reviews.map((review) => (

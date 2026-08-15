@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
 	Fragment,
@@ -34,6 +35,58 @@ import { chatChannel } from "@/lib/realtime/channels";
 import { subscribe } from "@/lib/realtime/client";
 import { usePresence } from "@/lib/realtime/presence";
 
+function Identity({
+	partner,
+	online,
+	gone,
+	name,
+}: {
+	partner: Partner | null;
+	online: boolean;
+	gone: boolean;
+	name: string;
+}) {
+	const body = (
+		<>
+			<PresenceAvatar
+				url={gone ? null : (partner?.photo_url ?? null)}
+				name={name}
+				online={online && !gone}
+				size="small"
+			/>
+
+			<span className="min-w-0 flex-1">
+				<span className="block truncate font-medium">{name}</span>
+				<span
+					className={`block text-xs ${online && !gone ? "text-matcha-dark" : "text-muted"}`}
+				>
+					{gone
+						? "compte supprimé"
+						: partner === null
+							? ""
+							: online
+								? "en ligne"
+								: lastSeenLabel(partner.last_seen_at)}
+				</span>
+			</span>
+		</>
+	);
+
+	if (partner === null || gone) {
+		return <div className="flex min-w-0 flex-1 items-center gap-3">{body}</div>;
+	}
+
+	return (
+		<Link
+			href={`/users/${partner.id}`}
+			aria-label={`Voir le profil de ${name}`}
+			className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-1 py-0.5 transition-colors duration-200 ease-out hover:bg-leaf/40"
+		>
+			{body}
+		</Link>
+	);
+}
+
 function Header({
 	partner,
 	online,
@@ -53,25 +106,7 @@ function Header({
 		<header className="mx-auto flex w-full max-w-sm shrink-0 items-center gap-3 px-6 pt-6 pb-3">
 			<BackLink href="/messages" />
 
-			<PresenceAvatar
-				url={partner?.photo_url ?? null}
-				name={name}
-				online={online}
-				size="small"
-			/>
-
-			<div className="min-w-0 flex-1">
-				<p className="truncate font-medium">{name}</p>
-				<p className={`text-xs ${online && !gone ? "text-matcha-dark" : "text-muted"}`}>
-					{gone
-						? "compte supprimé"
-						: partner === null
-							? ""
-							: online
-								? "en ligne"
-								: lastSeenLabel(partner.last_seen_at)}
-				</p>
-			</div>
+			<Identity partner={partner} online={online} gone={gone} name={name} />
 
 			<NotificationBell />
 
