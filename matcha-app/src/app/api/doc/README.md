@@ -547,3 +547,539 @@ confirmer que la photo existe.
 La réponse porte `X-Content-Type-Options: nosniff`. Le risque est faible — les
 octets servis sont toujours du WebP ré-encodé par sharp — mais l'en-tête coûte
 une ligne.
+
+---
+
+# Likes
+
+## `PUT /api/users/[id]/like` · `DELETE /api/users/[id]/like`
+
+Liker un utilisateur, ou retirer son like. `[id]` est l'identifiant de la cible.
+
+**`PUT` et non `POST`, parce que l'opération est idempotente** : liker deux fois
+renvoie le même état plutôt qu'une erreur. C'est ce que fait déjà `like()` en
+base avec son `ON CONFLICT DO NOTHING`, et ça évite au feed de traiter un
+double-tap comme un échec.
+
+Les gardes, dans cet ordre :
+
+| Contrôle | Échec |
+| --- | --- |
+| session valide et compte vérifié | `401` / `403 ["email_not_verified"]` |
+| la cible n'est pas soi-même | `400 ["you cannot like yourself"]`, `["you cannot unlike yourself"]` |
+| mon profil est complet | `403 ["profile_incomplete"]` |
+| j'ai une photo de profil — **`PUT` seulement** | `403 ["profile_photo_required"]` |
+| la cible existe, est vérifiée, profil complet | `404 ["user not found"]` |
+| aucun blocage dans les deux sens | `404 ["user not found"]` |
+
+La photo de profil est exigée par le §IV.5 — « si l'utilisateur actuel n'a pas
+de photo de profil, il ne peut pas effectuer cette action ». Elle est vérifiée
+explicitement bien que `profile_completed` l'implique, parce que cette colonne
+est dénormalisée et peut être périmée. Le `DELETE` ne l'exige **pas** : on doit
+pouvoir retirer un like même après avoir supprimé ses photos.
+
+Cible inexistante, non vérifiée, au profil incomplet, ou blocage : **même
+`404`, même message**. Comme pour `GET /api/photos/[id]`, distinguer les cas
+permettrait de sonder qui existe et de découvrir qu'on a été bloqué.
+
+**Réponses**
+
+```json
+PUT    → { "ok": true, "liked": true,   "matched": true,  "match_id": "uuid" }
+DELETE → { "ok": true, "unliked": true, "disconnected": true }
+```
+
+`liked: false` signifie « le like existait déjà » et reste un `200` : l'état
+demandé est atteint. `matched` permet au feed d'annoncer le match sur un swipe.
+`disconnected` dit qu'un match **actif** a été coupé.
+
+La base double deux de ces gardes par des triggers — `likes_require_profile_photo`
+et `likes_block_guard`. Les gardes de la route servent à rendre un message
+propre plutôt qu'une `ConstraintError` ; si un blocage survient entre la garde
+et l'insertion, le trigger lève et la réponse est un `500`. La fenêtre est
+minuscule et le résultat reste sûr : le like n'est pas enregistré.
+
+## `POST /api/users/[id]/view`
+
+Enregistre la consultation d'un profil dans l'historique de visites (§IV.5) et
+émet la notification `VIEWED`. Mêmes gardes que le like, **sans** l'exigence de
+photo de profil.
+
+Aucune contrainte d'unicité : chaque visite compte, le sujet parle d'un
+historique. Renvoie `{ "ok": true }`.
+
+## Quelle notification pour quelle action
+
+| Situation | Notification | Destinataire |
+| --- | --- | --- |
+| Ana like Bob, pas de réciprocité | `LIKED` | Bob |
+| Bob like Ana en retour | `MATCH` | **Ana seulement** |
+| Ana retire son like alors qu'ils étaient connectés | `UNLIKED` | Bob |
+| Ana retire un like jamais réciproque | *aucune* | — |
+| Ana consulte le profil de Bob | `VIEWED` | Bob |
+
+Le `MATCH` ne part que vers Ana, parce que le §IV.7 dit « lorsqu'un utilisateur
+**qu'ils ont liké** les like également en retour » : c'est Ana qui avait liké.
+Bob apprend le match par la réponse de sa propre requête, et son like n'émet
+**pas** de `LIKED` en plus du `MATCH` — sinon Ana reçoit deux notifications pour
+un seul geste. Un like déjà existant n'émet rien.
+
+`UNLIKED` ne part que si un match actif a réellement été coupé : le §IV.7 parle
+d'« un utilisateur **connecté** ». Retirer un like jamais réciproque ne notifie
+personne.
+
+**Le chat se ferme tout seul.** Un trigger `likes_deactivate_match_after_delete`
+passe `matches.is_active` à 0 dès qu'un like est supprimé, ce qui satisfait
+« la fonction de chat entre eux sera désactivée » du §IV.5 sans code applicatif.
+`unlike()` ne fait que **rapporter** l'état lu avant la suppression.
+
+---
+
+# Notifications
+
+Les cinq types du §IV.7, ni plus ni moins : `LIKED`, `VIEWED`, `MESSAGE`,
+`MATCH`, `UNLIKED`.
+
+Toute notification passe par un point unique côté serveur, qui appelle
+`notify()` puis publie sur `private-user-<destinataire>`. `notify()` écarte déjà
+toute notification entre deux utilisateurs dont l'un a bloqué l'autre : le
+filtre vaut donc pour la base **et** pour le temps réel, et aucun chemin ne le
+contourne. Ne jamais insérer dans `notifications` directement.
+
+## `GET /api/notifications`
+
+Les 50 dernières notifications du connecté, avec les deux compteurs.
+
+```json
+{
+  "ok": true,
+  "unread": 3,
+  "unread_messages": 1,
+  "channel": "private-user-<mon-id>",
+  "notifications": [
+    {
+      "id": "uuid",
+      "type": "MATCH",
+      "actor_id": "uuid",
+      "actor_username": "bob",
+      "link": null,
+      "created_at": "2026-08-14T12:00:00.000Z",
+      "read": false
+    }
+  ]
+}
+```
+
+**`channel`** est renvoyé pour que le client n'ait à connaître ni son propre
+identifiant ni la convention de nommage des canaux : il lit, puis il s'abonne à
+ce qu'on lui donne. Le champ ne fuite rien — c'est l'id du destinataire, dans sa
+propre réponse.
+
+**`unread_messages` n'est pas un doublon de `unread`.** Le §IV.6 exige de voir
+l'arrivée d'un nouveau message depuis n'importe quelle page, le §IV.7 exige de
+voir les notifications non lues : deux exigences distinctes. Les compteurs
+divergent dès qu'on ouvre la cloche, puisqu'une notification devient lue à
+l'ouverture alors qu'un message ne l'est qu'en ouvrant la conversation.
+
+**`link` est `null`** pour les quatre notifications liées à un acteur :
+`actor_username` est déjà joint, donc le client construit la destination
+lui-même, et le serveur s'épargne une requête. Seul `MESSAGE` porte un lien,
+`/chat/<matchId>`, parce que le `matchId` n'est nulle part ailleurs dans la
+charge.
+
+`read_at` devient le booléen `read` : le front n'a pas besoin de l'horodatage.
+
+**Cette route est la seule des notifications à passer par `requireAnySession`** :
+elle n'exige donc pas que le compte soit vérifié. La raison est concrète — la
+cloche est montée dans `PrivateScreen`, qui habille aussi `/verify-email`, où
+l'utilisateur n'est par définition pas vérifié. Avec `requireSession` la page
+déclenchait un `403` que le navigateur affiche comme requête en échec, ce que le
+sujet interdit. Un compte non vérifié ne peut de toute façon avoir aucune
+notification : il ne peut être ni liké ni consulté, `requireTarget` l'exige. La
+liste est donc vide, et rien ne fuite. Le **marquage** reste, lui, réservé aux
+comptes vérifiés.
+
+## `PATCH /api/notifications` · `PATCH /api/notifications/[id]`
+
+**Corps** : `{ "read": true }` dans les deux cas — un seul corps, deux portées.
+Sans `[id]`, tout est marqué lu et la réponse porte `updated`, le nombre de
+lignes touchées. Avec `[id]`, une seule.
+
+| Code | Corps | Cas |
+| --- | --- | --- |
+| `200` | `{ "ok": true }`, ou `{ "ok": true, "updated": 2 }` | marqué |
+| `400` | `{ "errors": ["read must be true"] }` | toute autre valeur |
+| `401` | `{ "errors": ["unauthorized"] }` | pas de session |
+| `404` | `{ "errors": ["notification not found"] }` | id inconnu, notification d'autrui, **ou déjà lue** |
+| `415` | | pas du JSON |
+
+Les trois cas de `404` partagent un message unique. `markNotificationRead`
+filtre sur `recipient_id` **et** sur `read_at IS NULL`, donc marquer la
+notification d'un autre est indistinguable d'un id inexistant : impossible de
+sonder les notifications des autres.
+
+---
+
+# Messagerie
+
+Deux utilisateurs connectés — c'est-à-dire qui se sont mutuellement likés —
+peuvent discuter (§IV.6). Les messages sont rattachés au **match**, pas à un
+couple d'utilisateurs.
+
+## `GET /api/matches`
+
+Les connexions actives du connecté, de la plus récente à la plus ancienne.
+
+```json
+{
+  "ok": true,
+  "matches": [
+    {
+      "match_id": "uuid",
+      "connected_at": "2026-08-14T12:07:11.246Z",
+      "unread": 0,
+      "partner": {
+        "id": "uuid",
+        "username": "bob",
+        "first_name": "Bob",
+        "photo_url": "/api/photos/uuid"
+      }
+    }
+  ]
+}
+```
+
+`listMatches()` ne filtre pas les blocages : la route écarte donc les
+partenaires pour lesquels un blocage existe dans un sens ou l'autre.
+
+## `GET /api/messages/[matchId]`
+
+La conversation, en ordre chronologique.
+
+**Paramètres** : `before` (horodatage ISO, pour paginer vers le passé) et
+`limit` (entier de 1 à 200, 50 par défaut). Un `limit` non entier ou hors bornes
+donne `400 ["limit is invalid"]` — contrôlé dans la route pour ne pas laisser
+`boundedInteger` lever et produire un `500`.
+
+## `POST /api/messages/[matchId]`
+
+**Corps** : `{ "body": string }` — trimé, 1 à 1000 caractères, retours à la
+ligne autorisés, tout autre caractère de contrôle refusé. Mêmes règles que
+`biography`.
+
+| Code | Corps | Cas |
+| --- | --- | --- |
+| `201` | `{ "ok": true, "message": { ... } }` | envoyé |
+| `400` | `{ "errors": ["message is empty"] }` | vide ou blancs seulement |
+| `400` | `{ "errors": ["message is too long"] }` | plus de 1000 caractères |
+| `400` | `{ "errors": ["message is invalid"] }` | pas une chaîne, ou caractère de contrôle |
+| `404` | `{ "errors": ["conversation not found"] }` | voir ci-dessous |
+| `415` | | pas du JSON |
+
+Le corps est du **contenu utilisateur affiché à un autre utilisateur** : il est
+rendu comme texte par React, jamais via `dangerouslySetInnerHTML`. C'est une
+faille éliminatoire au sujet.
+
+Après l'écriture, le message est publié sur `private-chat-<matchId>` et une
+notification `MESSAGE` part vers le destinataire, avec
+`link: "/chat/<matchId>"`.
+
+## `PATCH /api/messages/[matchId]`
+
+**Corps** : `{ "read": true }`. Marque lus tous les messages de la conversation
+qui ne viennent pas de l'appelant, renvoie `{ "ok": true, "updated": n }`, et
+publie l'événement `read` sur le canal du chat pour que l'expéditeur voie son
+« vu » sans recharger.
+
+## Les gardes des quatre routes
+
+`findActiveMatchForUsers(matchId, userId)` vérifie d'un coup l'existence du
+match, son **activité**, et l'appartenance de l'appelant. Puis un contrôle de
+blocage dans les deux sens.
+
+**Tous les échecs partagent le même `404 ["conversation not found"]`** : match
+inexistant, match inactif, non-membre, ou blocage. Un `403` sur un match inactif
+confirmerait qu'il a existé, donc que les deux personnes se sont likées.
+
+Le contrôle de blocage est **indispensable** : `sendMessage()` en base ne
+vérifie que le match actif — via le trigger `messages_require_active_match` —
+alors que le §IV.5 exige qu'un blocage rende le chat impossible.
+
+**Un unlike ferme la conversation immédiatement.** Le trigger
+`likes_deactivate_match_after_delete` passe `is_active` à 0, et les quatre
+routes tombent alors en `404`. Vérifié : après un unlike, envoyer comme lire
+renvoient `404`, et la conversation disparaît de `GET /api/matches`.
+
+---
+
+# Temps réel
+
+Les notifications et le chat sont poussés par **Pusher Channels**. Le serveur ne
+tient aucune socket : il écrit en base, puis publie par un `POST` HTTPS vers
+Pusher, qui pousse dans la websocket déjà ouverte du destinataire. La base reste
+la source de vérité — si Pusher tombe, la notification existe quand même et
+apparaît au prochain chargement.
+
+**Sans clés Pusher dans l'environnement, l'application fonctionne
+intégralement.** `publish()` ne fait rien, aucune erreur n'est levée, et seule
+la poussée instantanée est absente. C'est ce qui permet de développer sans
+compte.
+
+| Canal | Événement | Charge |
+| --- | --- | --- |
+| `private-user-<id>` | `notification` | une notification sérialisée, identique à un élément de `GET /api/notifications` |
+| `private-chat-<matchId>` | `message` | un message sérialisé |
+| `private-chat-<matchId>` | `read` | `{ match_id, reader_id, read_at }` |
+
+Un seul nom d'événement pour les cinq types de notification : le client ajoute
+en tête et incrémente son badge sans connaître les types. En ajouter un plus
+tard ne touche pas le client.
+
+Les **client events sont désactivés** dans le tableau de bord Pusher : un
+navigateur ne publie jamais. Sinon n'importe qui fabriquerait un faux message
+venant de quelqu'un d'autre.
+
+## `POST /api/pusher/auth`
+
+Autorise l'abonnement à un canal privé. Appelée par `pusher-js`, jamais à la
+main. Corps en `application/x-www-form-urlencoded` : `socket_id` et
+`channel_name`.
+
+Pusher ne protège pas les canaux privés — il délègue entièrement à cet
+endpoint. C'est donc ici, et nulle part ailleurs, que se joue l'isolation entre
+utilisateurs.
+
+| Canal | Condition |
+| --- | --- |
+| `private-user-<id>` | `<id>` est **exactement** celui de la session |
+| `private-chat-<matchId>` | match **actif** dont l'appelant est membre, et aucun blocage avec le partenaire |
+
+| Code | Corps | Cas |
+| --- | --- | --- |
+| `200` | `{ "auth": "<key>:<hmac>" }` | autorisé |
+| `400` | `{ "errors": ["socket_id and channel_name are required"] }` | champ absent, vide, ou non textuel |
+| `400` | `{ "errors": ["invalid request body"] }` | corps illisible |
+| `401` | `{ "errors": ["unauthorized"] }` | pas de session |
+| `403` | `{ "errors": ["forbidden"] }` | canal d'un autre, canal inconnu, match inactif ou blocage |
+| `503` | `{ "errors": ["realtime_unavailable"] }` | aucune clé Pusher configurée |
+
+La comparaison du canal utilisateur est une **égalité stricte** sur la chaîne
+complète, jamais un `startsWith` : un identifiant qui serait préfixe d'un autre
+ouvrirait sinon le canal du voisin. Le nom de canal de chat est reconstruit puis
+recomparé, pour refuser un `matchId` porteur de caractères parasites.
+
+`formData.get()` renvoie `string | File | null` : le contrôle `typeof` est
+obligatoire, un fichier passerait sinon pour un identifiant de socket.
+
+Tous les refus partagent le message `forbidden`, qui ne dit pas si le canal
+existe.
+
+---
+
+# Modération
+
+## `PUT /api/users/[id]/block` · `DELETE /api/users/[id]/block`
+
+Bloque ou débloque un utilisateur. Idempotents : `created` et `removed` disent
+si la ligne a réellement changé, mais l'état visé est atteint dans tous les cas.
+
+| Code | Corps | Cas |
+| --- | --- | --- |
+| `200` | `{ "ok": true, "created": true }` | bloqué |
+| `200` | `{ "ok": true, "removed": true }` | débloqué |
+| `400` | `{ "errors": ["you cannot block yourself"] }` | soi-même |
+| `404` | `{ "errors": ["user not found"] }` | identifiant inconnu |
+
+**Ces routes n'utilisent pas les mêmes gardes que le like.** Elles passent par
+`requireModerationTarget`, qui exige seulement une session et une cible
+existante — sans contrôler que la cible est vérifiée, que son profil est
+complet, ni qu'aucun blocage n'existe déjà. C'est indispensable : avec les
+gardes du like, quelqu'un qui vous a bloqué le premier vous rendrait incapable
+de le bloquer en retour **et** de le débloquer, puisque sa fiche répondrait
+`404`. On serait enfermé.
+
+**Ce que la base fait toute seule au blocage**, par le trigger
+`blocks_drop_likes_after_insert` : les likes croisés sont supprimés et les
+notifications reçues de la personne bloquée disparaissent de votre liste. La
+suppression des likes déclenche à son tour
+`likes_deactivate_match_after_delete`, donc le match passe inactif — vérifié :
+après un déblocage, la connexion ne réapparaît pas, l'état reste cohérent.
+
+Conséquences observées, toutes conformes au §IV.5 : le chat répond `404` des
+deux côtés, le canal Pusher du chat est refusé, un nouveau like de la personne
+bloquée répond `404`, et elle disparaît de `GET /api/likes`.
+
+## `POST /api/users/[id]/report`
+
+Signale un utilisateur. **Corps** : `{ "reason": "fake_account" }`.
+
+Motifs acceptés : `fake_account`, `harassment`, `scam`,
+`inappropriate_behavior`, `inappropriate_content`, `identity_theft`. Le sujet
+n'exige que le premier ; les autres viennent de la contrainte `CHECK` déjà en
+base.
+
+| Code | Corps | Cas |
+| --- | --- | --- |
+| `200` | `{ "ok": true, "reason": "fake_account" }` | enregistré |
+| `400` | `{ "errors": ["reason is invalid"] }` | motif absent ou hors liste |
+| `400` | `{ "errors": ["you cannot report yourself"] }` | soi-même |
+| `404` | `{ "errors": ["user not found"] }` | identifiant inconnu |
+
+**Un second signalement de la même personne ne change pas le motif** : la
+contrainte d'unicité `(reporter_id, reported_id)` évite le spam, et la réponse
+renvoie le motif **réellement stocké** plutôt que celui qui vient d'être envoyé.
+
+La personne signalée n'en est **jamais** informée : aucune notification n'est
+émise, sans quoi le signalement deviendrait un outil de harcèlement.
+
+---
+
+# Listes de relations
+
+Trois routes partagent la même forme de carte, produite par
+`serializeUserSummary` :
+
+```json
+{
+  "id": "uuid", "username": "ana", "first_name": "Ana", "age": 31,
+  "city": "Paris", "neighborhood": null, "popularity_score": 60.4,
+  "photo_url": "/api/photos/uuid", "is_online": false, "last_seen_at": null
+}
+```
+
+Les requêtes lisent la vue `user_profiles` avec des **colonnes explicites**, et
+jamais `SELECT *`. C'est délibéré : la vue est un `SELECT users.*`, elle porte
+donc `password_hash` et `email`. Les sélectionner puis les filtrer plus tard
+marcherait, mais un jour quelqu'un renverrait la ligne entière. Ici l'empreinte
+n'est jamais lue.
+
+| Route | Renvoie | Champs ajoutés à la carte |
+| --- | --- | --- |
+| `GET /api/likes` | `{ "likers": [...] }` — qui m'a liké (§IV.2) | `liked_at` |
+| `GET /api/views?scope=received` | `{ "views": [...] }` — qui a consulté mon profil (§IV.2) | `viewed_at`, `visit_count` |
+| `GET /api/views?scope=made` | `{ "views": [...] }` — mon historique de visites (§IV.5) | `viewed_at` |
+| `GET /api/blocks` | `{ "blocked": [...] }` — qui j'ai bloqué | `blocked_at` |
+
+`scope` vaut `received` par défaut ; toute autre valeur que `received` ou `made`
+donne `400 ["scope must be received or made"]`.
+
+`GET /api/blocks` existe pour une raison pratique : sans liste, on ne peut pas
+débloquer quelqu'un qu'on ne retrouve plus.
+
+Les personnes bloquées, dans un sens comme dans l'autre, sont exclues de
+`/api/likes` et de `/api/views?scope=received`. `visit_count` compte les visites
+répétées, puisque `profile_views` n'a pas de contrainte d'unicité — le §IV.5
+demande un historique, pas un ensemble.
+
+---
+
+# Profil public
+
+## `GET /api/users/[id]`
+
+Le profil d'un **autre** utilisateur, tel que le sujet le décrit au §IV.5 :
+« toutes les informations disponibles, à l'exception de l'adresse e-mail et du
+mot de passe ». Pour son propre profil, c'est `GET /api/profile`.
+
+```json
+{
+  "ok": true,
+  "profile": {
+    "id": "uuid", "username": "ana", "first_name": "Ana", "last_name": "Bob",
+    "age": 31, "gender": "woman", "orientation": "bi",
+    "biography": "Je bois du matcha.",
+    "city": "Paris", "neighborhood": null, "distance_km": 4.2,
+    "tags": ["books", "cats", "tea"],
+    "photos": [
+      { "id": "uuid", "url": "/api/photos/uuid", "is_profile": true, "position": 0 }
+    ],
+    "common_tags": 3,
+    "popularity_score": 38.2, "review_average": 0, "review_count": 0,
+    "is_online": false, "last_seen_at": null,
+    "created_at": "2026-08-14T11:25:45.467Z",
+    "viewer_liked_target": false, "target_liked_viewer": true,
+    "is_connected": false, "match_id": null,
+    "viewer_blocked_target": false, "viewer_reported_target": false,
+    "viewer_review_score": null
+  }
+}
+```
+
+**Trois champs sont délibérément absents**, bien que la requête sous-jacente les
+lise : `latitude`, `longitude` et `birth_date`. Le sujet veut une localisation
+« jusqu'au quartier » et un consentement explicite au GPS ; renvoyer les
+coordonnées exactes d'une personne à quiconque ouvre son profil reviendrait à
+publier son domicile. `city`, `neighborhood` et `distance_km` donnent
+l'information utile sans cela. Et l'âge suffit là où la date de naissance est
+une donnée personnelle de plus à protéger.
+
+**Les quatre champs de relation répondent à une exigence précise** du §IV.5 :
+« les utilisateurs doivent clairement voir si le profil qu'ils consultent les a
+likés ou s'ils sont déjà connectés ».
+
+| Champ | Sens |
+| --- | --- |
+| `viewer_liked_target` | je l'ai liké |
+| `target_liked_viewer` | il m'a liké |
+| `is_connected` | likes réciproques, le chat est ouvert |
+| `match_id` | **non nul seulement si `is_connected`** — c'est la conversation ouvrable |
+
+`match_id` ne remonte que pour un match **actif**. Auparavant la requête
+renvoyait aussi l'identifiant d'un match désactivé : le front aurait affiché un
+lien de conversation qui répondait `404`.
+
+| Code | Corps | Cas |
+| --- | --- | --- |
+| `200` | le profil | |
+| `400` | `{ "errors": ["use /api/profile for your own profile"] }` | son propre identifiant |
+| `401` | `{ "errors": ["unauthorized"] }` | pas de session |
+| `403` | `{ "errors": ["email_not_verified"] }` | compte non vérifié |
+| `403` | `{ "errors": ["profile_incomplete"] }` | le **visiteur** n'a pas fini son profil |
+| `404` | `{ "errors": ["user not found"] }` | inconnu, non vérifié, profil incomplet, **ou blocage dans un sens ou l'autre** |
+
+Le `404` est volontairement indistinct, comme sur `GET /api/photos/[id]` : il ne
+dit pas si le profil existe, donc il ne révèle pas qu'on a été bloqué.
+
+**Cette route n'enregistre rien.** Consulter un profil doit apparaître dans
+l'historique de visites (§IV.5) et déclencher la notification `VIEWED` (§IV.7),
+mais c'est `POST /api/users/[id]/view` qui s'en charge. Un `GET` qui écrit
+compterait deux visites au moindre préchargement du navigateur ou double montage
+de React en mode strict — or `profile_views` n'a pas de contrainte d'unicité,
+chaque ligne compte. Le front appelle donc les deux : le `GET` pour afficher, le
+`POST` pour enregistrer.
+
+---
+
+# Présence
+
+## `POST /api/presence`
+
+Signale que le connecté est actif. Met `last_seen_at` à l'heure et renvoie
+`{ "ok": true, "window_seconds": 90 }`. `401` sans session, `403` si le compte
+n'est pas vérifié.
+
+Appelée automatiquement par `PresenceHeartbeat`, monté dans `PrivateScreen` :
+toutes les **30 secondes** tant qu'un onglet est ouvert et visible, plus un
+battement immédiat au montage et au retour sur l'onglet. Un onglet en arrière-plan
+ne bat pas — inutile de compter en ligne quelqu'un qui a la page ouverte depuis
+trois jours dans un onglet oublié.
+
+**L'état en ligne n'est pas stocké, il est calculé à la lecture** : « en ligne »
+signifie « `last_seen_at` il y a moins de 90 secondes », via la fonction
+`onlineNow()` partagée. La colonne `users.is_online` existe encore mais n'est
+plus ni écrite ni lue — une valeur dénormalisée que rien ne remet à zéro
+resterait vraie pour toujours après une fermeture brutale du navigateur.
+
+Conséquence assumée : fermer un onglet laisse le profil affiché en ligne pendant
+au plus 90 secondes. Le sujet n'impose aucun délai sur la présence — les 10
+secondes concernent le chat et les notifications.
+
+Pourquoi pas les webhooks de présence Pusher, comme le prévoyait
+`docs/db-schema.md` : un webhook part des serveurs de Pusher **vers**
+l'application, et ils ne peuvent pas joindre `http://localhost:3000`. Il aurait
+fallu un tunnel en développement comme à la soutenance. Le raisonnement complet
+est dans `docs/db-schema.md`, section `users`.
+
+`is_online` et `last_seen_at` sont exposés partout où un utilisateur est décrit :
+`GET /api/users/[id]`, `GET /api/likes`, `GET /api/views`, `GET /api/blocks` et
+`GET /api/matches`.

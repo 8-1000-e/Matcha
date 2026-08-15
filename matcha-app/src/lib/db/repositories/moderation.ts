@@ -2,12 +2,12 @@ import { execute, queryAll, queryScalar } from "../core/client";
 import { createRepository } from "../core/repository";
 import { sql } from "../core/sql";
 import { createId } from "../core/values";
+import { SUMMARY_COLUMNS, type UserSummaryRow } from "../queries/summaries";
 import type {
 	BlockInsert,
 	BlockRow,
 	ReportInsert,
 	ReportRow,
-	UserRow,
 } from "../types";
 
 export const blocks = createRepository<BlockRow, BlockInsert>({
@@ -53,10 +53,13 @@ export function isBlockedEitherWay(first: string, second: string): boolean {
 	);
 }
 
-export function listBlocked(blockerId: string): UserRow[] {
-	return queryAll<UserRow>(
-		sql`SELECT users.* FROM users
-			JOIN blocks ON blocks.blocked_id = users.id
+export function listBlocked(
+	blockerId: string,
+): (UserSummaryRow & { blocked_at: string })[] {
+	return queryAll<UserSummaryRow & { blocked_at: string }>(
+		sql`SELECT ${SUMMARY_COLUMNS}, blocks.blocked_at AS blocked_at
+			FROM user_profiles AS profiles
+			JOIN blocks ON blocks.blocked_id = profiles.id
 			WHERE blocks.blocker_id = ${blockerId}
 			ORDER BY blocks.blocked_at DESC`,
 	);

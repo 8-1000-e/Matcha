@@ -2,6 +2,11 @@ export function ageYears(birthDateColumn: string): string {
 	return `(CAST(strftime('%Y%m%d','now') AS INT)
 		- CAST(strftime('%Y%m%d', ${birthDateColumn}) AS INT)) / 10000`;
 }
+export const PRESENCE_WINDOW_SECONDS = 90;
+export function onlineNow(lastSeenColumn: string): string {
+	return `(${lastSeenColumn} IS NOT NULL AND ${lastSeenColumn} >
+		strftime('%Y-%m-%dT%H:%M:%fZ','now','-${PRESENCE_WINDOW_SECONDS} seconds'))`;
+}
 export const VIEWS: readonly string[] = [
 	`DROP VIEW IF EXISTS user_popularity;
 	CREATE VIEW user_popularity AS

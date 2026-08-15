@@ -68,6 +68,11 @@ export {
 	type PublicProfile,
 } from "./queries/profile";
 export {
+	findUserSummary,
+	SUMMARY_COLUMNS,
+	type UserSummaryRow,
+} from "./queries/summaries";
+export {
 	findActiveMatchForUsers,
 	findMatchBetween,
 	hasLiked,
@@ -78,6 +83,7 @@ export {
 	matches,
 	unlike,
 	type LikeOutcome,
+	type UnlikeOutcome,
 } from "./repositories/likes";
 export {
 	countUnreadMessages,
@@ -160,11 +166,12 @@ export {
 	markUserVerified,
 	refreshProfileCompletion,
 	setLocation,
-	setPresence,
+	touchLastSeen,
 	updatePassword,
 	users,
 } from "./repositories/users";
 export { purgeIfDue } from "./maintenance";
 export { applySchema, dropSchema, SCHEMA_VERSION } from "./schema/apply";
+export { onlineNow, PRESENCE_WINDOW_SECONDS } from "./schema/views";
 export { TAG_LABELS } from "./schema/tags";
 export * from "./types";

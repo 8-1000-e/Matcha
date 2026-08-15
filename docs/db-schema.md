@@ -87,27 +87,38 @@ Le cœur. Un seul enregistrement par personne.
 | `latitude`, `longitude` | décimal | **la source de vérité.** Tout le tri par proximité se calcule dessus |
 | `city`, `neighborhood` | texte | **dérivés** des coordonnées par géocodage inverse. Stockés quand même, pour ne pas rappeler l'API à chaque affichage et rester lisibles si elle tombe |
 | `location_consent` | booléen | consentement explicite au suivi GPS (RGPD, note IV.2) |
-| `is_online` | booléen | piloté par les webhooks de présence Pusher |
-| `last_seen_at` | timestamp | horodaté au passage hors ligne — c'est la « date et heure de dernière connexion » exigée en IV.5 |
+| `is_online` | booléen | **plus utilisé** — voir ci-dessous. Conservé pour ne pas migrer la table ; ne jamais le lire |
+| `last_seen_at` | timestamp | rafraîchi par le battement de cœur — c'est la « date et heure de dernière connexion » exigée en IV.5, **et** la seule source de l'état en ligne |
 | `created_at` | timestamp | |
 
-**L'état en ligne vient de Pusher**, pas d'un seuil d'inactivité. Chaque
-utilisateur connecté rejoint un canal de présence ; Pusher émet `member_added` à
-la connexion et `member_removed` à la déconnexion — y compris quand l'onglet est
-fermé, puisque la socket tombe. Le serveur reçoit le webhook et bascule
-`is_online`, en horodatant `last_seen_at` au passage hors ligne.
+**L'état en ligne est calculé à la lecture, à partir de `last_seen_at`.** Une
+page ouverte envoie un `POST /api/presence` toutes les 30 secondes, qui remet
+`last_seen_at` à l'heure. « En ligne » signifie « vu il y a moins de
+`PRESENCE_WINDOW_SECONDS` » (90 s), exprimé par la fonction `onlineNow()` de
+`schema/views.ts` — la même mécanique que `ageYears()`, qu'on ne stocke pas non
+plus.
 
-C'est plus juste et plus instantané qu'un « actif il y a moins de N minutes »,
-qui afficherait en ligne quelqu'un parti depuis trois minutes.
+**Révision d'une décision antérieure.** Ce document prévoyait de piloter
+`is_online` par les **webhooks de présence** Pusher, en écartant le seuil
+d'inactivité comme « moins juste ». C'était impraticable : un webhook part des
+serveurs de Pusher vers l'application, et ils ne peuvent pas joindre
+`http://localhost:3000` — `localhost` désigne la machine qui résout le nom, donc
+la leur. Or l'application tourne sur `localhost` en développement **comme à la
+soutenance**. Il aurait fallu un tunnel (ngrok), dont l'URL change à chaque
+redémarrage en version gratuite, pour une exigence sur laquelle le sujet
+n'impose **aucun délai** — les 10 secondes concernent le chat (IV.6) et les
+notifications (IV.7), pas la présence.
 
-Le seul angle mort restant : un webhook émis pendant que le serveur est
-indisponible laisse un utilisateur bloqué à `is_online = true`. Pusher réessaie,
-mais pas indéfiniment. Filet de sécurité si le cas se présente : l'API HTTP de
-Pusher permet d'interroger les membres réellement présents sur un canal, donc de
-réconcilier — au démarrage du serveur, ou périodiquement.
+Le prix de ce choix est assumé : quelqu'un qui ferme son onglet reste affiché en
+ligne pendant au plus 90 secondes. En échange, la fonctionnalité ne dépend
+d'aucun service tiers et ne peut pas tomber en panne devant le correcteur.
 
-Le canal de présence impose un endpoint d'autorisation, le même que celui des
-canaux privés.
+**Une seule source de vérité, délibérément.** `is_online` n'est plus écrit ni
+lu : une colonne dénormalisée que rien ne remet à zéro resterait à `true` pour
+l'éternité dès la première déconnexion brutale. C'est exactement le défaut que
+la §3 reproche aux notes de popularité stockées. Toute requête qui expose l'état
+en ligne doit passer par `onlineNow()` — y compris le futur feed, dont le
+`SELECT candidate.*` récupère sinon la colonne périmée.
 
 ### `email_tokens`
 

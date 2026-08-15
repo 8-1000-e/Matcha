@@ -1,4 +1,4 @@
-import { queryOne, queryScalar, transaction } from "../core/client";
+import { execute, queryOne, queryScalar, transaction } from "../core/client";
 import { createRepository } from "../core/repository";
 import { sql } from "../core/sql";
 import { createId, nowIso, toFlag, type Flag } from "../core/values";
@@ -69,11 +69,12 @@ export function updatePassword(id: string, passwordHash: string): void {
 	users.updateById(id, { password_hash: passwordHash });
 }
 
-export function setPresence(id: string, online: boolean): UserRow | undefined {
-	return users.updateById(id, {
-		is_online: toFlag(online),
-		last_seen_at: nowIso(),
-	});
+export function touchLastSeen(id: string): boolean {
+	return (
+		execute(
+			sql`UPDATE users SET last_seen_at = ${nowIso()} WHERE id = ${id}`,
+		).changes === 1
+	);
 }
 
 export function setLocation(
