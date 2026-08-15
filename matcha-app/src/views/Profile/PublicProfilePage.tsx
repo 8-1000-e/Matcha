@@ -102,7 +102,7 @@ function Avatar({ profile }: { profile: PublicProfilePayload }) {
 		= profile.photos.find((entry) => entry.is_profile) ?? profile.photos[0];
 
 	return (
-		<div className="relative shrink-0">
+		<div className="relative shrink-0 self-start">
 			<div
 				className={`relative size-24 overflow-hidden rounded-full bg-leaf/50 ring-2 sm:size-32 ${
 					profile.is_online ? "ring-matcha" : "ring-edge/30"
