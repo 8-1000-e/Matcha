@@ -608,6 +608,33 @@ photo de profil.
 Aucune contrainte d'unicité : chaque visite compte, le sujet parle d'un
 historique. Renvoie `{ "ok": true }`.
 
+## `GET /api/users/[id]/reviews`
+
+Les avis reçus par un profil, pour la page publique. Mêmes gardes que
+`GET /api/users/[id]` : session, compte vérifié, profil du visiteur complet, et
+`404` indistinct si la cible est inconnue ou s'il y a un blocage.
+
+```json
+{
+  "ok": true,
+  "reviews": [
+    {
+      "id": "uuid", "author_id": "uuid", "author_username": "ana",
+      "score": 4, "body": "Rendez-vous agréable.",
+      "created_at": "2026-08-01T10:00:00.000Z",
+      "updated_at": "2026-08-02T09:12:00.000Z"
+    }
+  ]
+}
+```
+
+Les avis écrits par quelqu'un que la **cible** a bloqué sont exclus, et la liste
+est plafonnée à 50, du plus récemment modifié au plus ancien. La note affichée
+sur le profil reste `review_average` de `GET /api/users/[id]` : la moyenne des
+avis sur 5, rien d'autre.
+
+Écrire ou supprimer un avis n'a **pas** encore de route.
+
 ## Quelle notification pour quelle action
 
 | Situation | Notification | Destinataire |
