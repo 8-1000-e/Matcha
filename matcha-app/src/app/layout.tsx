@@ -1,5 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
+import { CallError } from "@/components/Call/CallError";
+import { CallProvider } from "@/components/Call/CallProvider";
+import { FloatingCall } from "@/components/Call/FloatingCall";
+import { IncomingCall } from "@/components/Call/IncomingCall";
 import "./globals.css";
 
 const geist = Geist({ subsets: ["latin"] });
@@ -19,7 +23,14 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
 	return (
 		<html lang="fr" className={geist.className}>
-			<body className="flex min-h-dvh flex-col">{children}</body>
+			<body className="flex min-h-dvh flex-col">
+				<CallProvider>
+					{children}
+					<IncomingCall />
+					<FloatingCall />
+					<CallError />
+				</CallProvider>
+			</body>
 		</html>
 	);
 }

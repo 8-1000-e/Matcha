@@ -22,7 +22,7 @@ type ScreenProps = {
 };
 
 const WIDTHS = {
-	narrow: "max-w-sm",
+	narrow: "max-w-md",
 	wide: "max-w-4xl",
 	full: "max-w-6xl",
 } as const;

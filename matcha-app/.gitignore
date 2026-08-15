@@ -55,3 +55,6 @@ next-env.d.ts
 
 # Referentiel GeoNames telecharge a la demande
 /data/geonames/
+
+# Bonus - Chat audio
+certificates

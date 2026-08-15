@@ -104,6 +104,7 @@ export {
 	listUnreadByMatch,
 	markConversationRead,
 	messages,
+	recordCall,
 	sendMessage,
 } from "./repositories/messages";
 export {

@@ -1,5 +1,12 @@
 import { cookies } from "next/headers";
 
+function origin(): string {
+	return (
+		process.env.INTERNAL_URL
+		?? `http://127.0.0.1:${process.env.PORT ?? "3000"}`
+	);
+}
+
 export async function serverFetchRaw(path: string): Promise<Response | null> {
 	const jar = await cookies();
 	const header = jar
@@ -12,7 +19,7 @@ export async function serverFetchRaw(path: string): Promise<Response | null> {
 	}
 
 	try {
-		return await fetch(`${process.env.APP_URL}${path}`, {
+		return await fetch(`${origin()}${path}`, {
 			headers: { cookie: header },
 			cache: "no-store",
 		});

@@ -11,6 +11,10 @@ import {
 	useState,
 	type FormEvent,
 } from "react";
+import { CallBar } from "@/components/Call/CallBar";
+import { CallEntry } from "@/components/Call/CallEntry";
+import { PhoneIcon } from "@/components/Call/CallIcons";
+import { useCall } from "@/components/Call/CallProvider";
 import { BackLink } from "@/components/Form/Button";
 import { AppNav } from "@/components/Layout/AppNav";
 import { Backdrop } from "@/components/Layout/Backdrop";
@@ -91,11 +95,13 @@ function Header({
 	partner,
 	online,
 	gone,
+	matchId,
 	onBlocked,
 }: {
 	partner: Partner | null;
 	online: boolean;
 	gone: boolean;
+	matchId: string;
 	onBlocked: () => void;
 }) {
 	const name = gone
@@ -103,10 +109,12 @@ function Header({
 		: (partner?.first_name ?? partner?.username ?? "Conversation");
 
 	return (
-		<header className="mx-auto flex w-full max-w-sm shrink-0 items-center gap-3 px-6 pt-6 pb-3">
+		<header className="mx-auto flex w-full max-w-md shrink-0 items-center gap-2 px-4 pt-4 pb-3 sm:gap-3 sm:px-6 sm:pt-6">
 			<BackLink href="/messages" compact />
 
 			<Identity partner={partner} online={online} gone={gone} name={name} />
+
+			<CallButton partner={partner} gone={gone} matchId={matchId} />
 
 			<NotificationBell />
 
@@ -146,11 +154,47 @@ function Ticks({ read }: { read: boolean }) {
 	);
 }
 
+function CallButton({
+	partner,
+	gone,
+	matchId,
+}: {
+	partner: Partner | null;
+	gone: boolean;
+	matchId: string;
+}) {
+	const call = useCall();
+
+	if (partner === null || gone || !call.ready) {
+		return null;
+	}
+
+	const name = partner.first_name || partner.username;
+
+	return (
+		<button
+			type="button"
+			disabled={call.phase !== "idle"}
+			onClick={() => {
+				call.start(matchId, {
+					id: partner.id,
+					name,
+					photo_url: partner.photo_url,
+				});
+			}}
+			aria-label={`Appeler ${name}`}
+			className="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-matcha-dark transition-colors duration-200 ease-out hover:bg-leaf/40 disabled:cursor-not-allowed disabled:opacity-40"
+		>
+			<PhoneIcon className="size-5" />
+		</button>
+	);
+}
+
 function Bubble({ message, mine }: { message: ChatMessage; mine: boolean }) {
 	return (
-		<li className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+		<li className={`flex min-w-0 ${mine ? "justify-end" : "justify-start"}`}>
 			<div
-				className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap ${
+				className={`max-w-[80%] min-w-0 rounded-2xl px-3.5 py-2 text-sm break-words whitespace-pre-wrap ${
 					mine
 						? "bg-matcha text-white"
 						: "border border-edge/40 bg-white/70 text-ink"
@@ -392,7 +436,7 @@ export function ThreadPage({
 			<PresenceHeartbeat />
 			<LocationSync />
 
-			<div className="flex h-dvh overflow-hidden">
+			<div className="flex h-dvh flex-col overflow-hidden sm:flex-row">
 				<AppNav />
 
 				<div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -400,15 +444,18 @@ export function ThreadPage({
 						partner={partner}
 						online={online}
 						gone={gone}
+						matchId={matchId}
 						onBlocked={() => {
 							router.replace("/messages");
 						}}
 					/>
 
+					<CallBar matchId={matchId} />
+
 					<main
 						ref={thread}
 						onScroll={onScroll}
-						className="mx-auto w-full max-w-sm flex-1 overflow-y-auto overscroll-contain px-6"
+						className="mx-auto w-full max-w-md flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6"
 					>
 						{missing ? (
 							<p className="py-8 text-sm text-muted">
@@ -446,10 +493,17 @@ export function ThreadPage({
 														{dayLabel(message.sent_at)}
 													</li>
 												) : null}
-											<Bubble
-												message={message}
-												mine={message.sender_id === userId}
-											/>
+											{message.kind === "call" ? (
+												<CallEntry
+													message={message}
+													mine={message.sender_id === userId}
+												/>
+											) : (
+												<Bubble
+													message={message}
+													mine={message.sender_id === userId}
+												/>
+											)}
 										</Fragment>
 									))}
 								</ul>
@@ -457,7 +511,7 @@ export function ThreadPage({
 						)}
 					</main>
 
-					<footer className="mx-auto w-full max-w-sm shrink-0 px-6 pt-2 pb-6">
+					<footer className="mx-auto w-full max-w-md shrink-0 px-4 pt-2 pb-4 sm:px-6 sm:pb-6">
 						<form onSubmit={onSend} className="flex items-end gap-2">
 							<input
 								type="text"

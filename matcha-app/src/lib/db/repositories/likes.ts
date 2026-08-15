@@ -12,7 +12,14 @@ import { createRepository } from "../core/repository";
 import { every, sql, when } from "../core/sql";
 import { createId } from "../core/values";
 import { SUMMARY_COLUMNS, type UserSummaryRow } from "../queries/summaries";
-import type { LikeInsert, LikeRow, MatchInsert, MatchRow } from "../types";
+import type {
+	CallStatus,
+	LikeInsert,
+	LikeRow,
+	MatchInsert,
+	MatchRow,
+	MessageKind,
+} from "../types";
 
 export const likes = createRepository<LikeRow, LikeInsert>({
 	table: "likes",
@@ -182,7 +189,10 @@ export function countLiked(likerId: string): number {
 
 export interface MatchListRow extends MatchRow {
 	partner_id: string;
+	last_kind: MessageKind | null;
 	last_body: string | null;
+	last_call_status: CallStatus | null;
+	last_call_duration_s: number | null;
 	last_sent_at: string | null;
 	last_sender_id: string | null;
 	activity_at: string;
@@ -232,7 +242,10 @@ export function listMatches(
 	return queryAll<MatchListRow>(
 		sql`SELECT matches.*,
 				partner.id AS partner_id,
+				last.kind AS last_kind,
 				last.body AS last_body,
+				last.call_status AS last_call_status,
+				last.call_duration_s AS last_call_duration_s,
 				last.sent_at AS last_sent_at,
 				last.sender_id AS last_sender_id,
 				COALESCE(last.sent_at, matches.connected_at) AS activity_at

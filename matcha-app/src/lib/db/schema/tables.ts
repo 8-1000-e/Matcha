@@ -7,10 +7,33 @@ export function messagesTable(name: string): string {
 		id TEXT PRIMARY KEY,
 		match_id TEXT NOT NULL REFERENCES matches (id) ON DELETE CASCADE,
 		sender_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-		body TEXT NOT NULL,
+		kind TEXT NOT NULL DEFAULT 'text' CHECK (kind IN ('text', 'call')),
+		body TEXT,
+		call_status TEXT CHECK (call_status IS NULL OR call_status IN
+			('answered', 'missed', 'declined', 'cancelled')),
+		call_duration_s INTEGER
+			CHECK (call_duration_s IS NULL OR call_duration_s >= 0),
 		sent_at TEXT NOT NULL DEFAULT ${TIMESTAMP_DEFAULT},
 		read_at TEXT,
-		CHECK (length(body) BETWEEN 1 AND ${MESSAGE_MAX_STORED})
+		CHECK (kind <> 'text' OR (body IS NOT NULL
+			AND length(body) BETWEEN 1 AND ${MESSAGE_MAX_STORED}
+			AND call_status IS NULL AND call_duration_s IS NULL)),
+		CHECK (kind <> 'call' OR (body IS NULL AND call_status IS NOT NULL)),
+		CHECK (call_status <> 'answered' OR call_duration_s IS NOT NULL)
+	) STRICT`;
+}
+
+export function notificationsTable(name: string): string {
+	return `CREATE TABLE IF NOT EXISTS ${name} (
+		id TEXT PRIMARY KEY,
+		recipient_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+		actor_id TEXT REFERENCES users (id) ON DELETE CASCADE,
+		type TEXT NOT NULL CHECK (type IN
+			('LIKED', 'VIEWED', 'MESSAGE', 'MATCH', 'UNLIKED', 'MISSED_CALL')),
+		link TEXT,
+		created_at TEXT NOT NULL DEFAULT ${TIMESTAMP_DEFAULT},
+		read_at TEXT,
+		CHECK (actor_id IS NULL OR actor_id <> recipient_id)
 	) STRICT`;
 }
 
@@ -139,17 +162,7 @@ export const TABLES: readonly string[] = [
 		UNIQUE (reporter_id, reported_id),
 		CHECK (reporter_id <> reported_id)
 	) STRICT`,
-	`CREATE TABLE IF NOT EXISTS notifications (
-		id TEXT PRIMARY KEY,
-		recipient_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-		actor_id TEXT REFERENCES users (id) ON DELETE CASCADE,
-		type TEXT NOT NULL
-			CHECK (type IN ('LIKED', 'VIEWED', 'MESSAGE', 'MATCH', 'UNLIKED')),
-		link TEXT,
-		created_at TEXT NOT NULL DEFAULT ${TIMESTAMP_DEFAULT},
-		read_at TEXT,
-		CHECK (actor_id IS NULL OR actor_id <> recipient_id)
-	) STRICT`,
+	notificationsTable("notifications"),
 	`DROP TABLE IF EXISTS feed_entries;
 	DROP TABLE IF EXISTS feed_sessions;
 	CREATE TABLE feed_sessions (
