@@ -124,7 +124,7 @@ export function FeedPage({
 
 	const toggleLike = useCallback(
 		async (candidate: Candidate, force?: boolean) => {
-			const current = liked[candidate.id] ?? candidate.viewer_liked === 1;
+			const current = liked[candidate.id] ?? candidate.viewer_liked;
 			const next = force ?? !current;
 			if (next === current)
 			{
@@ -221,15 +221,22 @@ export function FeedPage({
 
 	useEffect(() => {
 		function onKey(event: KeyboardEvent) {
-			if (event.key === "ArrowLeft")
+			if (event.key !== "ArrowLeft" && event.key !== "ArrowRight")
 			{
-				go(-1);
 				return;
 			}
-			if (event.key === "ArrowRight")
+			if (event.metaKey || event.ctrlKey || event.altKey)
 			{
-				go(1);
+				return;
 			}
+
+			const target = event.target as Element | null;
+			if (target?.closest("input, select, textarea, [contenteditable]") != null)
+			{
+				return;
+			}
+
+			go(event.key === "ArrowLeft" ? -1 : 1);
 		}
 
 		window.addEventListener("keydown", onKey);
@@ -286,7 +293,7 @@ export function FeedPage({
 					<CandidateSlide
 						key={current.id}
 						candidate={current}
-						liked={liked[current.id] ?? current.viewer_liked === 1}
+						liked={liked[current.id] ?? current.viewer_liked}
 						pending={likePending}
 						error={likeError}
 						onLike={() => void toggleLike(current)}

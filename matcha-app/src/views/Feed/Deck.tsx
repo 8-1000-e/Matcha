@@ -3,7 +3,9 @@
 import { useRef, useState, type PointerEvent, type ReactNode } from "react";
 
 const THRESHOLD = 80;
+const SLOP = 10;
 const MAX_TILT = 12;
+const INTERACTIVE = "a, button, input, select, textarea, [role='button']";
 
 export function Deck({
 	children,
@@ -23,29 +25,42 @@ export function Deck({
 	const [dx, setDx] = useState(0);
 	const [dragging, setDragging] = useState(false);
 	const origin = useRef<number | null>(null);
+	const captured = useRef(false);
 
 	function begin(event: PointerEvent<HTMLDivElement>) {
 		if (event.button !== 0) {
 			return;
 		}
+		if ((event.target as Element).closest(INTERACTIVE) !== null) {
+			return;
+		}
 		origin.current = event.clientX;
-		setDragging(true);
-		event.currentTarget.setPointerCapture(event.pointerId);
 	}
 
 	function move(event: PointerEvent<HTMLDivElement>) {
 		if (origin.current === null) {
 			return;
 		}
-		setDx(event.clientX - origin.current);
+
+		const travel = event.clientX - origin.current;
+		if (!captured.current && Math.abs(travel) < SLOP) {
+			return;
+		}
+		if (!captured.current) {
+			captured.current = true;
+			setDragging(true);
+			event.currentTarget.setPointerCapture(event.pointerId);
+		}
+		setDx(travel);
 	}
 
 	function end(event: PointerEvent<HTMLDivElement>) {
 		if (origin.current === null) {
 			return;
 		}
-		const travel = event.clientX - origin.current;
+		const travel = captured.current ? event.clientX - origin.current : 0;
 		origin.current = null;
+		captured.current = false;
 		setDragging(false);
 		setDx(0);
 

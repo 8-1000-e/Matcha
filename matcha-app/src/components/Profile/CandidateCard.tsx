@@ -64,7 +64,7 @@ export function CandidateCard({ candidate }: { candidate: Candidate }) {
 					</span>
 				)}
 
-				{candidate.is_online === 1 ? (
+				{candidate.is_online ? (
 					<span className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-medium backdrop-blur-sm">
 						<span className="size-1.5 rounded-full bg-matcha" />
 						En ligne

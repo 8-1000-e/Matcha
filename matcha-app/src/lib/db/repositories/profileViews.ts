@@ -72,6 +72,11 @@ export function listVisitHistory(
 			FROM profile_views
 			JOIN user_profiles AS profiles ON profiles.id = profile_views.viewed_id
 			WHERE profile_views.viewer_id = ${viewerId}
+				AND NOT EXISTS (
+					SELECT 1 FROM blocks
+					WHERE (blocks.blocker_id = ${viewerId} AND blocks.blocked_id = profiles.id)
+						OR (blocks.blocker_id = profiles.id AND blocks.blocked_id = ${viewerId})
+				)
 			GROUP BY profiles.id
 			ORDER BY viewed_at DESC, profiles.id
 			LIMIT ${page.limit} OFFSET ${page.offset}`,
@@ -84,7 +89,12 @@ export function countVisitHistory(viewerId: string): number {
 			sql`SELECT COUNT(DISTINCT profile_views.viewed_id)
 				FROM profile_views
 				JOIN user_profiles AS profiles ON profiles.id = profile_views.viewed_id
-				WHERE profile_views.viewer_id = ${viewerId}`,
+				WHERE profile_views.viewer_id = ${viewerId}
+					AND NOT EXISTS (
+						SELECT 1 FROM blocks
+						WHERE (blocks.blocker_id = ${viewerId} AND blocks.blocked_id = profiles.id)
+							OR (blocks.blocker_id = profiles.id AND blocks.blocked_id = ${viewerId})
+					)`,
 		) ?? 0
 	);
 }

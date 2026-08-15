@@ -196,6 +196,39 @@ l'utilisateur et ne serait qu'une fuite.
 
 ---
 
+## 2026-08-15 — `GET /api/discovery` ne renvoie plus les colonnes brutes
+
+**Contexte.** La route rendait `page.items` tel quel. Chaque candidat du feed
+arrivait donc au navigateur avec `birth_date`, `latitude`, `longitude`,
+`location_consent` et `profile_photo_path` — vingt personnes par page.
+
+**Pourquoi c'est grave.** `GET /api/users/[id]` masque délibérément ces trois
+premiers champs, et la doc de l'API explique pourquoi : « renvoyer les
+coordonnées exactes d'une personne à quiconque ouvre son profil reviendrait à
+publier son domicile ». Le sujet demande une localisation « jusqu'au quartier »
+(§IV.2) et sanctionne toute faille de sécurité d'un zéro (§VI.1). Le feed
+contredisait le profil, en pire : en lot.
+
+**Décision.** `serializeCandidate` dans `lib/discovery/candidate.ts`, sur le
+modèle de `buildPublicProfile`. Le `SELECT` garde ces colonnes — `distance_km`
+et `age` s'en servent en SQL — mais elles ne franchissent plus la frontière HTTP.
+
+**Conséquence.** `Candidate` côté client dérive maintenant de `CandidatePayload`
+plutôt que d'être redéclaré à la main. Les deux avaient divergé, ce qui est
+exactement ce qui a laissé la fuite passer. `is_online` et `viewer_liked`
+deviennent des booléens, comme partout ailleurs dans les charges utiles.
+
+---
+
+## 2026-08-15 — Le blocage filtre aussi l'historique de visites
+
+`listLikers`, `listLiked` et `listViewers` excluaient les personnes bloquées
+dans les deux sens ; `listVisitHistory` était la seule à ne pas le faire. Rien
+ne justifiait l'exception. Corrigé dans la requête et dans son compteur, qui
+doivent rester d'accord.
+
+---
+
 ## 2026-08-15 — Le feed devient un deck, l'observer disparaît
 
 **Décision.** Une seule carte montée, `position` comme source de vérité,

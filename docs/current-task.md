@@ -35,6 +35,32 @@ Mise à jour : 2026-08-15.
 - **Chrome** — rail de gauche avec avatar et déconnexion, cloche de
   notifications, heartbeat de présence, synchronisation de position.
 
+## Audit du 2026-08-15 — ce qui bloque encore
+
+Par ordre de gravité pour la soutenance.
+
+1. **26 profils en base, le sujet en exige 500.** `npm run db:seed:profiles`
+   n'a pas été rejoué depuis la dernière remise à zéro du schéma. Il ne
+   supprime que les comptes `@`+`EMAIL_DOMAIN`, pas les comptes réels, mais il
+   a besoin du réseau (randomuser.me).
+2. **Zéro avis en base, et aucune route pour en écrire.** `review_average` vaut
+   donc 0 pour tout le monde : la « note de popularité » du §IV.2 existe mais ne
+   peut pas bouger, et trier ou filtrer dessus (§IV.3, §IV.4) ne discrimine
+   rien. `upsertReview` et `removeReview` restent du code mort.
+3. **Recherche avancée absente** (§IV.4). Le back accepte déjà tous les
+   critères ; il manque l'écran.
+4. **Filtre par centres d'intérêt absent de la barre de filtres** (§IV.3). La
+   route accepte `tags` et `tagMode`, vérifié : `tags=22,7&tagMode=any` rend
+   bien plus de résultats que `tags=22` seul.
+5. **Le pied de page est vide sur presque tous les écrans.** `Screen` rend bien
+   un `<footer>`, mais sans contenu ; le §III exige « au moins un en-tête, une
+   section principale et un pied de page ».
+6. **Pas d'écran pour changer d'adresse e-mail** (§IV.2). `PATCH /api/profile`
+   l'accepte pourtant et relance la vérification.
+7. **`src/app/debug/` n'est pas suivi par Git.** S'il est commité tel quel, il
+   expose la liste des candidats en ignorant l'orientation. À laisser hors du
+   dépôt, ou à fermer hors développement.
+
 ## Ce qui manque pour le sujet
 
 1. **Recherche avancée** — écran dédié absent. Le back est prêt :

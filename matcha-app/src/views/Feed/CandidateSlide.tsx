@@ -73,7 +73,7 @@ function Gallery({ candidate }: { candidate: Candidate }) {
 				</span>
 			)}
 
-			{candidate.is_online === 1 ? (
+			{candidate.is_online ? (
 				<span className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium backdrop-blur-sm">
 					<span className="size-1.5 rounded-full bg-matcha" />
 					En ligne
