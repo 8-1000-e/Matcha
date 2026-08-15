@@ -97,7 +97,7 @@ export function CompleteProfilePage({ initial }: { initial: Profile }) {
 
 	function finish() {
 		startLeaving(() => {
-			router.push("/me");
+			router.push("/feed");
 			router.refresh();
 		});
 	}

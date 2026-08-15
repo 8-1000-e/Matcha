@@ -46,12 +46,22 @@ export { foldCity, searchCities, type CityRow } from "./queries/cities";
 export {
 	countCandidates,
 	findCandidates,
+	findCandidatesByIds,
+	SORT_KEYS,
 	type DiscoveryFilters,
 	type DiscoveryOptions,
 	type DiscoveryRow,
 	type DiscoverySort,
 	type DiscoverySortKey,
 } from "./queries/discovery";
+export {
+	findFeedSession,
+	openFeedSession,
+	purgeFeedSessions,
+	readFeedPage,
+	type FeedPage,
+	type FeedSession,
+} from "./queries/feed";
 export {
 	findPublicProfile,
 	type ProfileRelationship,

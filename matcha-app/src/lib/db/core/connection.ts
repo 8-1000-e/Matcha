@@ -1,6 +1,7 @@
 import { join as joinPath } from "node:path";
 import Database from "better-sqlite3";
 import { applySchema } from "../schema/apply";
+import { loadCities } from "./cities";
 import { DatabaseError } from "./errors";
 
 const EARTH_RADIUS_KM = 6371;
@@ -70,6 +71,7 @@ function openDatabase(file: string): Database.Database {
 		...args: unknown[]
 	) => number | null);
 	applySchema(database);
+	loadCities(database);
 	return database;
 }
 

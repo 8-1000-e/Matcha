@@ -24,7 +24,7 @@ toutes les tables liées.
 - **`PRAGMA journal_mode = WAL`.** Par défaut, une écriture bloque toutes les
   lectures. Avec du chat et des notifications temps réel, on s'expose à des
   `database is locked`. Le mode WAL laisse lire pendant qu'on écrit.
-- **Pas de `MATERIALIZED VIEW`.** La vue de popularité (§3) reste une vue simple.
+- **Pas de `MATERIALIZED VIEW`.** La vue de note (§3) reste une vue simple.
   Si elle devient lente, il faudra une vraie table maintenue par triggers, pas un
   simple `REFRESH`.
 - **Pas de fonctions trigonométriques garanties.** Le calcul de distance
@@ -328,63 +328,28 @@ le reste est du bonus.
 ## 3. La note de popularité
 
 Le sujet laisse libre, à condition que les critères soient **cohérents et
-défendables en soutenance** (note 1, IV.2). Ici la note combine deux sources.
-
-### La moyenne des avis, corrigée
-
-Prendre la moyenne brute de `reviews.score` a un défaut fatal : **un seul avis à
-5/5 donne une note parfaite**, devant quelqu'un qui a quarante avis à 4,8. Et un
-nouvel inscrit sans aucun avis tombe à 0, donc enterré dans les suggestions pour
-toujours.
-
-La correction classique — celle d'IMDb et des plateformes d'avis — est la
-**moyenne bayésienne** : on part d'une note neutre, que les avis déplacent
-d'autant plus qu'ils sont nombreux.
+défendables en soutenance** (note 1, IV.2). Ici, la note est simplement la
+**moyenne des avis reçus**, sur 5, façon Airbnb.
 
 ```
-note_corrigée = (C × m + somme_des_notes) / (C + nombre_d_avis)
-
-  m = moyenne globale du site (la valeur d'un profil sans avis)
-  C = nombre d'avis à partir duquel on fait vraiment confiance (5 à 10)
+note = AVG(reviews.score)   arrondie a 2 decimales
 ```
 
-Un profil sans avis vaut exactement `m`, ni avantagé ni pénalisé. Un profil à
-5/5 sur un seul avis converge lentement vers 5 au lieu d'y sauter d'un coup.
-
-### L'engagement
-
-Les avis seront rares au début — sur 500 profils générés, quasi inexistants. Il
-faut donc une seconde composante, toujours disponible :
-
-| Composante | Idée |
-| --- | --- |
-| Ratio likes reçus / vues reçues | distingue « vu par beaucoup » de « plaît à beaucoup » |
-| Matchs | un like réciproque vaut plus qu'un like simple |
-| Complétude du profil | récompense les profils remplis |
-| Signalements | malus |
-
-### La combinaison
-
-```
-popularité = 60 % × note_corrigée_ramenée_sur_100
-           + 40 % × score_d_engagement
-           − pénalité_signalements
-```
-
-Borné à 0-100. Les pondérations sont libres — l'important est de pouvoir les
-**justifier** et qu'elles soient les mêmes pour tout le monde.
+Un profil sans avis vaut 0 avec un compteur d'avis à 0 : l'interface affiche
+« aucun avis » plutôt qu'une note, et le tri se fait sur la note **puis** sur le
+nombre d'avis, pour qu'un unique 5/5 ne passe pas devant une moyenne solide
+établie sur trente avis.
 
 ### Stockage : aucun
 
-Rien de tout ça n'est stocké sur `users`. La note se calcule dans une **vue SQL**
-qui agrège `reviews`, `likes`, `profile_views` et `reports`.
+Rien n'est stocké sur `users`. La note se calcule dans une **vue SQL**,
+`user_popularity`, qui agrège `reviews`.
 
-C'est un choix délibéré. Dénormaliser (`rating_avg`, `rating_count`,
-`popularity_score` en colonnes) obligerait à recalculer à chaque avis, like,
-unlike, vue et signalement — et le jour où on oublie un de ces points d'appel,
-la note affichée est fausse sans que rien ne le signale. Le sujet exige que la
-note soit **cohérente** ; une valeur dérivée qui dérive de sa source est
-exactement ce qu'on ne veut pas.
+C'est un choix délibéré. Dénormaliser (`rating_avg`, `rating_count` en colonnes)
+obligerait à recalculer à chaque avis ajouté, modifié ou supprimé — et le jour
+où on oublie un de ces points d'appel, la note affichée est fausse sans que rien
+ne le signale. Le sujet exige que la note soit **cohérente** ; une valeur dérivée
+qui dérive de sa source est exactement ce qu'on ne veut pas.
 
 À 500 profils, l'agrégation est de l'ordre de la milliseconde : la vue se trie et
 se filtre comme une table ordinaire, ce qui couvre les exigences IV.3 et IV.4.
@@ -414,10 +379,9 @@ entière. Sans index, la recherche multicritère devient injouable.
 - `users` : `email`, `username` (uniques) ; `birth_date`, `is_online`, `last_seen_at` ;
   un index géographique sur `(latitude, longitude)`
 - `user_tags` : sur `tag_id`, pour trouver qui partage un tag
-- `profile_views` : sur `viewed_id` — c'est cette colonne que la vue de
-  popularité agrège
+- `profile_views` : sur `viewed_id`, pour lister qui a consulté un profil
 - `likes` : sur `liked_id`, même raison
-- `reviews` : sur `target_id`, même raison
+- `reviews` : sur `target_id` — c'est cette colonne que la vue de note agrège
 - `messages` : sur `(match_id, sent_at)`
 - `notifications` : sur `(recipient_id, read_at)`
 - `refresh_tokens` : sur `token_hash`

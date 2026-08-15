@@ -10,7 +10,7 @@
     "lint:fix": "eslint --fix",
     "typecheck": "tsc --noEmit",
     "prepare": "cd .. && husky matcha-app/.husky",
-    "db:seed:cities": "tsx --env-file-if-exists=.env scripts/seed-cities.ts"
+    "db:seed:profiles": "tsx --env-file-if-exists=.env scripts/seed-profiles.ts"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
