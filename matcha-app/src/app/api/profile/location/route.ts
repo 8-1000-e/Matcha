@@ -1,5 +1,5 @@
 import { requireSession } from "@/lib/auth/guards";
-import { setLocation } from "@/lib/db";
+import { setLocation, setLocationConsent } from "@/lib/db";
 import { readJsonBody } from "@/lib/http/body";
 import { forwardGeocode, reverseGeocode } from "@/lib/profile/geocoding";
 import { profileResponse } from "@/lib/profile/profile";
@@ -57,6 +57,42 @@ export async function PUT(request: Request)
 			consent: false,
 		});
 	}
+
+	return profileResponse(session.user.id);
+}
+
+export async function PATCH(request: Request)
+{
+	const session = await requireSession();
+	if (!session.ok)
+	{
+		return session.response;
+	}
+
+	const body = await readJsonBody(request);
+	if (!body.ok)
+	{
+		return body.response;
+	}
+
+	const consent = (body.value as { consent?: unknown }).consent;
+	if (typeof consent !== "boolean")
+	{
+		return Response.json(
+			{ errors: ["consent must be a boolean"] },
+			{ status: 400 },
+		);
+	}
+
+	if (consent && session.user.latitude === null)
+	{
+		return Response.json(
+			{ errors: ["send your position before enabling tracking"] },
+			{ status: 400 },
+		);
+	}
+
+	setLocationConsent(session.user.id, consent);
 
 	return profileResponse(session.user.id);
 }

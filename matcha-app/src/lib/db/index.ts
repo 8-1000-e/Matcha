@@ -173,6 +173,7 @@ export {
 	markUserVerified,
 	refreshProfileCompletion,
 	setLocation,
+	setLocationConsent,
 	touchLastSeen,
 	updatePassword,
 	users,

@@ -33,6 +33,7 @@ export interface ProfilePayload {
 	latitude: number | null;
 	longitude: number | null;
 	location_consent: boolean;
+	location_updated_at: string | null;
 	tags: string[];
 	photos: ProfilePhoto[];
 	is_verified: boolean;
@@ -85,6 +86,7 @@ export function buildProfile(user: UserRow): ProfilePayload
 		latitude: user.latitude,
 		longitude: user.longitude,
 		location_consent: user.location_consent === 1,
+		location_updated_at: user.location_updated_at,
 		tags: listUserTags(user.id).map((tag) => tag.label),
 		photos: listPhotos(user.id).map((photo) => ({
 			id: photo.id,

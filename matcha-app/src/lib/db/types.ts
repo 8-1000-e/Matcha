@@ -49,6 +49,7 @@ export interface UserRow {
 	city: string | null;
 	neighborhood: string | null;
 	location_consent: Flag;
+	location_updated_at: string | null;
 	is_online: Flag;
 	last_seen_at: string | null;
 	created_at: string;
@@ -72,6 +73,7 @@ export interface UserInsert {
 	city?: string | null;
 	neighborhood?: string | null;
 	location_consent?: Flag;
+	location_updated_at?: string | null;
 	is_online?: Flag;
 	last_seen_at?: string | null;
 	created_at?: string;

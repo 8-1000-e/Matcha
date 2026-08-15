@@ -25,6 +25,7 @@ export interface Profile {
 	latitude: number | null;
 	longitude: number | null;
 	location_consent: boolean;
+	location_updated_at: string | null;
 	tags: string[];
 	photos: ProfilePhoto[];
 	is_verified: boolean;
@@ -82,6 +83,10 @@ export function saveProfile(fields: ProfileFields): Promise<ProfileResult> {
 
 export function saveTags(tags: string[]): Promise<ProfileResult> {
 	return send<Payload>("PUT", "/api/profile/tags", { tags });
+}
+
+export function setLocationConsent(consent: boolean): Promise<ProfileResult> {
+	return send<Payload>("PATCH", "/api/profile/location", { consent });
 }
 
 export function saveLocation(fields: LocationFields): Promise<ProfileResult> {

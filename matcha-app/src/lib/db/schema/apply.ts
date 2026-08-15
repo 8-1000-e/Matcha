@@ -4,7 +4,16 @@ import { TABLES } from "./tables";
 import { TAG_LABELS } from "./tags";
 import { TRIGGERS } from "./triggers";
 import { VIEWS } from "./views";
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
+
+function addMissingColumns(database: Database.Database): void {
+	const columns = database.prepare("PRAGMA table_info(users)").all() as {
+		name: string;
+	}[];
+	if (!columns.some((column) => column.name === "location_updated_at")) {
+		database.exec("ALTER TABLE users ADD COLUMN location_updated_at TEXT");
+	}
+}
 
 function seedTags(database: Database.Database): void {
 	const insert = database.prepare(
@@ -21,7 +30,11 @@ export function applySchema(database: Database.Database): void {
 		return;
 	}
 	database.transaction(() => {
-		for (const statement of [...TABLES, ...INDEXES, ...TRIGGERS, ...VIEWS]) {
+		for (const statement of TABLES) {
+			database.exec(statement);
+		}
+		addMissingColumns(database);
+		for (const statement of [...INDEXES, ...TRIGGERS, ...VIEWS]) {
 			database.exec(statement);
 		}
 		seedTags(database);

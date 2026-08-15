@@ -6,6 +6,7 @@ import { LogoutButton } from "@/components/Form/LogoutButton";
 import { AppNav } from "@/components/Layout/AppNav";
 import { Backdrop } from "@/components/Layout/Backdrop";
 import { NotificationBell } from "@/components/Notifications/NotificationBell";
+import { LocationSync } from "@/components/Presence/LocationSync";
 import { PresenceHeartbeat } from "@/components/Presence/PresenceHeartbeat";
 
 type ScreenProps = {
@@ -123,6 +124,7 @@ export function PrivateScreen({
 			top={
 				<div className="flex w-full items-center justify-between gap-3">
 					{verified ? <PresenceHeartbeat /> : null}
+					{verified ? <LocationSync /> : null}
 					<BrandLockup />
 					<div className="flex items-center gap-1">
 						{verified ? <NotificationBell /> : <LogoutButton />}
