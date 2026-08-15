@@ -128,3 +128,86 @@ et invalidée à chaque mutation.
 
 **La messagerie vient de la PR #17**, elle n'a pas été réécrite. Le
 `ModerationMenu` de cette PR est réutilisé sur le profil public.
+
+---
+
+## 2026-08-15 — Chiffrement des messages, hors sujet et assumé
+
+**Décision.** `messages.body` est chiffré en **AES-256-GCM**, clé `MESSAGES_KEY`
+dans `.env`. Format `v1:<iv>:<tag>:<chiffré>` en base64url, IV tiré par message.
+
+**Pourquoi.** Le sujet ne le demande pas : il exige que les **mots de passe** ne
+soient pas en clair (§VI.1). C'est un choix de l'utilisateur, dont la portée
+est étroite et connue — cela protège du vol du fichier SQLite, pas d'une
+application compromise, qui détient la clé.
+
+**Chiffrer et non hacher.** Un hachage est à sens unique : ni l'utilisateur ni
+un export RGPD ne pourraient relire la conversation. La réversibilité est une
+contrainte, pas un compromis.
+
+**Alternative écartée.** Le bout en bout, qui supposerait des clés côté client,
+un échange de clés et la perte définitive de l'historique à chaque appareil
+perdu. Hors de proportion pour un projet noté sur les failles classiques.
+
+**Conséquences.** La contrainte `CHECK` passe à 8000 caractères, ce que SQLite
+ne sait pas faire sans **reconstruire la table** — d'où `encryptExistingMessages`
+et `SCHEMA_VERSION` 9. `messagesTable(name)` devient la définition unique du
+schéma : la dupliquer avait déjà fait perdre le `DEFAULT` de `sent_at`.
+Chercher dans le contenu des messages devient impossible en SQL ; personne ne le
+fait, et le sujet ne le demande pas. Une route d'export RGPD reste à écrire,
+mais le format s'y prête.
+
+---
+
+## 2026-08-15 — `LIMIT/OFFSET` pour les listes d'activité, pas de session figée
+
+**Décision.** `/api/likes` et `/api/views` sont paginées par pages numérotées de
+20, en `LIMIT/OFFSET`, avec `page`, `pages` et `total` dans la réponse.
+
+**Pourquoi.** Le raisonnement du 2026-08-14 qui a imposé le feed figé par
+session ne s'applique pas ici : ces listes sont ordonnées par un horodatage
+**figé** (`liked_at`, `viewed_at`), pas par des critères volatils comme la note
+ou l'activité. Un `OFFSET` y est correct, et bien plus simple. L'ordre est
+départagé par `profiles.id` pour rester total.
+
+**Conséquences.** Une page au-delà de `pages` renvoie `400`, pas une liste vide
+qui se confondrait avec « plus personne ». Les quatre requêtes SQL gagnent une
+fonction `count*` sœur.
+
+---
+
+## 2026-08-15 — Le blocage cesse d'être un `404` sur le profil
+
+**Contexte.** `requireTarget` fondait le blocage dans `user not found`. Un
+profil qu'on avait soi-même bloqué renvoyait donc une page « introuvable »
+incompréhensible, sans aucun moyen de débloquer.
+
+**Décision.** `GET /api/users/[id]` — et elle seule — passe `allowBlocked: true`
+et répond `403` avec `code: "blocked_by_me"` ou `"blocked_by_them"`. Le front
+rend un écran expliqué, avec un bouton Débloquer dans le premier cas.
+
+**Pourquoi c'est acceptable.** `blocked_by_them` confirme l'existence d'un
+compte dont on connaissait déjà l'identifiant, et rien d'autre : ni photo, ni
+nom, ni présence. Et le texte affiché ne nomme jamais le blocage dans ce sens.
+
+**Ce qui ne change pas.** Toutes les autres routes gardent le `404` indistinct —
+like, view, reviews, photos. Y révéler un blocage n'apporterait rien à
+l'utilisateur et ne serait qu'une fuite.
+
+---
+
+## 2026-08-15 — Le feed devient un deck, l'observer disparaît
+
+**Décision.** Une seule carte montée, `position` comme source de vérité,
+navigation aux flèches, au clavier et au glisser. L'`IntersectionObserver` est
+supprimé.
+
+**Pourquoi.** Il portait trois responsabilités (suivre la position, charger la
+suite, restaurer le scroll) alors qu'aucune n'est intrinsèquement liée à la
+visibilité. Les trois se replacent sur `position`, et la restauration perd son
+`requestAnimationFrame` et son `querySelector`.
+
+**Conséquence.** L'état `liked` remonte de `CandidateSlide` vers `FeedPage` :
+un glissement doit pouvoir liker sans que le bouton soit cliqué. Le bouton
+reste, parce qu'un geste n'est pas découvrable et que le sujet exige de pouvoir
+**retirer** un like.

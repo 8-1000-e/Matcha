@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { MatchaBowl } from "@/components/Brand/Brand";
 import type { Candidate } from "@/lib/discovery/client";
-import { likeUser, unlikeUser } from "@/lib/profile/publicClient";
 
 const GENDERS: Record<string, string> = {
 	woman: "Femme",
@@ -117,28 +116,17 @@ function Gallery({ candidate }: { candidate: Candidate }) {
 	);
 }
 
-function LikeButton({ candidate }: { candidate: Candidate }) {
-	const [liked, setLiked] = useState(candidate.viewer_liked === 1);
-	const [error, setError] = useState<string | null>(null);
-	const [pending, setPending] = useState(false);
-
-	async function toggle() {
-		const next = !liked;
-		setLiked(next);
-		setError(null);
-		setPending(true);
-
-		const result = next
-			? await likeUser(candidate.id)
-			: await unlikeUser(candidate.id);
-		setPending(false);
-
-		if (!result.ok) {
-			setLiked(!next);
-			setError(result.errors[0]?.message ?? null);
-		}
-	}
-
+function LikeButton({
+	liked,
+	pending,
+	error,
+	onToggle,
+}: {
+	liked: boolean;
+	pending: boolean;
+	error: string | null;
+	onToggle: () => void;
+}) {
 	return (
 		<div className="flex flex-col items-end gap-1">
 			<button
@@ -146,7 +134,7 @@ function LikeButton({ candidate }: { candidate: Candidate }) {
 				aria-pressed={liked}
 				aria-label={liked ? "Retirer le like" : "Liker ce profil"}
 				disabled={pending}
-				onClick={() => void toggle()}
+				onClick={onToggle}
 				className={`flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full ring-1 transition-transform duration-200 ease-out hover:scale-105 active:scale-95 disabled:cursor-progress ${
 					liked
 						? "bg-matcha text-white ring-matcha"
@@ -175,7 +163,19 @@ function LikeButton({ candidate }: { candidate: Candidate }) {
 	);
 }
 
-export function CandidateSlide({ candidate }: { candidate: Candidate }) {
+export function CandidateSlide({
+	candidate,
+	liked,
+	pending,
+	error,
+	onLike,
+}: {
+	candidate: Candidate;
+	liked: boolean;
+	pending: boolean;
+	error: string | null;
+	onLike: () => void;
+}) {
 	const tags = (candidate.tags ?? "").split(",").filter(Boolean).slice(0, 8);
 
 	return (
@@ -190,7 +190,12 @@ export function CandidateSlide({ candidate }: { candidate: Candidate }) {
 							<span className="font-normal text-muted">{candidate.age}</span>
 						</h2>
 
-						<LikeButton candidate={candidate} />
+						<LikeButton
+							liked={liked}
+							pending={pending}
+							error={error}
+							onToggle={onLike}
+						/>
 					</div>
 
 					<p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">

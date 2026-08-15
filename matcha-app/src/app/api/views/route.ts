@@ -1,5 +1,11 @@
 import { requireSession } from "@/lib/auth/guards";
-import { listViewers, listVisitHistory } from "@/lib/db";
+import {
+	countViewers,
+	countVisitHistory,
+	listViewers,
+	listVisitHistory,
+} from "@/lib/db";
+import { paginate, validatePage } from "@/lib/http/pagination";
 import { serializeUserSummary } from "@/lib/profile/summary";
 
 const SCOPES = ["received", "made"] as const;
@@ -19,7 +25,8 @@ export async function GET(request: Request)
 		return session.response;
 	}
 
-	const scope = new URL(request.url).searchParams.get("scope") ?? "received";
+	const parameters = new URL(request.url).searchParams;
+	const scope = parameters.get("scope") ?? "received";
 	if (!isScope(scope))
 	{
 		return Response.json(
@@ -28,17 +35,38 @@ export async function GET(request: Request)
 		);
 	}
 
+	const requested = validatePage(parameters.get("page"));
+	if (!requested.ok)
+	{
+		return Response.json({ errors: requested.errors }, { status: 400 });
+	}
+
+	const viewer = session.user.id;
+	const total = scope === "made" ? countVisitHistory(viewer) : countViewers(viewer);
+	const page = paginate(requested.value, total);
+	if (page === null)
+	{
+		return Response.json({ errors: ["page is out of range"] }, { status: 400 });
+	}
+
 	const views
 		= scope === "made"
-			? listVisitHistory(session.user.id).map((row) => ({
+			? listVisitHistory(viewer, page).map((row) => ({
 				...serializeUserSummary(row),
 				viewed_at: row.viewed_at,
 			}))
-			: listViewers(session.user.id).map((row) => ({
+			: listViewers(viewer, page).map((row) => ({
 				...serializeUserSummary(row),
 				viewed_at: row.viewed_at,
 				visit_count: row.visit_count,
 			}));
 
-	return Response.json({ ok: true, scope, views });
+	return Response.json({
+		ok: true,
+		scope,
+		views,
+		page: page.page,
+		pages: page.pages,
+		total: page.total,
+	});
 }

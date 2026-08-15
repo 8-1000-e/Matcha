@@ -1,6 +1,13 @@
-import { execute, queryAll, queryOne, transaction } from "../core/client";
+import {
+	execute,
+	queryAll,
+	queryOne,
+	queryScalar,
+	transaction,
+} from "../core/client";
 import { boundedInteger } from "../core/identifiers";
 import { contains } from "../core/operators";
+import { bounds, type PageOptions } from "../core/pagination";
 import { createRepository } from "../core/repository";
 import { every, sql, when } from "../core/sql";
 import { createId } from "../core/values";
@@ -103,8 +110,9 @@ export function unlike(likerId: string, likedId: string): UnlikeOutcome {
 
 export function listLikers(
 	likedId: string,
-	limit = 100,
+	options: PageOptions = {},
 ): (UserSummaryRow & { liked_at: string })[] {
+	const page = bounds(options);
 	return queryAll<UserSummaryRow & { liked_at: string }>(
 		sql`SELECT ${SUMMARY_COLUMNS}, likes.liked_at AS liked_at
 			FROM user_profiles AS profiles
@@ -115,15 +123,32 @@ export function listLikers(
 					WHERE (blocks.blocker_id = ${likedId} AND blocks.blocked_id = profiles.id)
 						OR (blocks.blocker_id = profiles.id AND blocks.blocked_id = ${likedId})
 				)
-			ORDER BY likes.liked_at DESC
-			LIMIT ${boundedInteger(limit, 1, 500, "limit")}`,
+			ORDER BY likes.liked_at DESC, profiles.id
+			LIMIT ${page.limit} OFFSET ${page.offset}`,
+	);
+}
+
+export function countLikers(likedId: string): number {
+	return (
+		queryScalar<number>(
+			sql`SELECT COUNT(*)
+				FROM user_profiles AS profiles
+				JOIN likes ON likes.liker_id = profiles.id
+				WHERE likes.liked_id = ${likedId}
+					AND NOT EXISTS (
+						SELECT 1 FROM blocks
+						WHERE (blocks.blocker_id = ${likedId} AND blocks.blocked_id = profiles.id)
+							OR (blocks.blocker_id = profiles.id AND blocks.blocked_id = ${likedId})
+					)`,
+		) ?? 0
 	);
 }
 
 export function listLiked(
 	likerId: string,
-	limit = 100,
+	options: PageOptions = {},
 ): (UserSummaryRow & { liked_at: string })[] {
+	const page = bounds(options);
 	return queryAll<UserSummaryRow & { liked_at: string }>(
 		sql`SELECT ${SUMMARY_COLUMNS}, likes.liked_at AS liked_at
 			FROM user_profiles AS profiles
@@ -134,8 +159,24 @@ export function listLiked(
 					WHERE (blocks.blocker_id = ${likerId} AND blocks.blocked_id = profiles.id)
 						OR (blocks.blocker_id = profiles.id AND blocks.blocked_id = ${likerId})
 				)
-			ORDER BY likes.liked_at DESC
-			LIMIT ${boundedInteger(limit, 1, 500, "limit")}`,
+			ORDER BY likes.liked_at DESC, profiles.id
+			LIMIT ${page.limit} OFFSET ${page.offset}`,
+	);
+}
+
+export function countLiked(likerId: string): number {
+	return (
+		queryScalar<number>(
+			sql`SELECT COUNT(*)
+				FROM user_profiles AS profiles
+				JOIN likes ON likes.liked_id = profiles.id
+				WHERE likes.liker_id = ${likerId}
+					AND NOT EXISTS (
+						SELECT 1 FROM blocks
+						WHERE (blocks.blocker_id = ${likerId} AND blocks.blocked_id = profiles.id)
+							OR (blocks.blocker_id = profiles.id AND blocks.blocked_id = ${likerId})
+					)`,
+		) ?? 0
 	);
 }
 

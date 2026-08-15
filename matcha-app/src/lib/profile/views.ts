@@ -10,18 +10,28 @@ export interface Liker extends UserSummary {
 	liked_at: string;
 }
 
+export interface Paged {
+	page: number;
+	pages: number;
+	total: number;
+}
+
 export function fetchLikers(
 	scope: "received" | "sent",
-): Promise<ApiResult<{ likers: Liker[] }>> {
-	return request<{ likers: Liker[] }>(`/api/likes?scope=${scope}`, {
-		method: "GET",
-	});
+	page = 1,
+): Promise<ApiResult<Paged & { likers: Liker[] }>> {
+	return request<Paged & { likers: Liker[] }>(
+		`/api/likes?scope=${scope}&page=${page}`,
+		{ method: "GET" },
+	);
 }
 
 export function fetchViews(
 	scope: "received" | "made",
-): Promise<ApiResult<{ views: ProfileView[] }>> {
-	return request<{ views: ProfileView[] }>(`/api/views?scope=${scope}`, {
-		method: "GET",
-	});
+	page = 1,
+): Promise<ApiResult<Paged & { views: ProfileView[] }>> {
+	return request<Paged & { views: ProfileView[] }>(
+		`/api/views?scope=${scope}&page=${page}`,
+		{ method: "GET" },
+	);
 }

@@ -1,5 +1,6 @@
 import { requireSession } from "@/lib/auth/guards";
-import { listLiked, listLikers } from "@/lib/db";
+import { countLiked, countLikers, listLiked, listLikers } from "@/lib/db";
+import { paginate, validatePage } from "@/lib/http/pagination";
 import { serializeUserSummary } from "@/lib/profile/summary";
 
 const SCOPES = ["received", "sent"] as const;
@@ -19,7 +20,8 @@ export async function GET(request: Request)
 		return session.response;
 	}
 
-	const scope = new URL(request.url).searchParams.get("scope") ?? "received";
+	const parameters = new URL(request.url).searchParams;
+	const scope = parameters.get("scope") ?? "received";
 	if (!isScope(scope))
 	{
 		return Response.json(
@@ -28,15 +30,36 @@ export async function GET(request: Request)
 		);
 	}
 
+	const requested = validatePage(parameters.get("page"));
+	if (!requested.ok)
+	{
+		return Response.json({ errors: requested.errors }, { status: 400 });
+	}
+
+	const viewer = session.user.id;
+	const total = scope === "sent" ? countLiked(viewer) : countLikers(viewer);
+	const page = paginate(requested.value, total);
+	if (page === null)
+	{
+		return Response.json({ errors: ["page is out of range"] }, { status: 400 });
+	}
+
 	const rows
 		= scope === "sent"
-			? listLiked(session.user.id)
-			: listLikers(session.user.id);
+			? listLiked(viewer, page)
+			: listLikers(viewer, page);
 
 	const likers = rows.map((row) => ({
 		...serializeUserSummary(row),
 		liked_at: row.liked_at,
 	}));
 
-	return Response.json({ ok: true, scope, likers });
+	return Response.json({
+		ok: true,
+		scope,
+		likers,
+		page: page.page,
+		pages: page.pages,
+		total: page.total,
+	});
 }

@@ -84,10 +84,39 @@ le premier écran est rendu sans aller-retour client, et surtout aucun `setState
 n'est déclenché depuis un effet — la règle `react-hooks/set-state-in-effect` du
 projet l'interdit.
 
-Ensuite `views/Feed/FeedPage.tsx` (client) ne charge la suite que depuis un
-`IntersectionObserver`, c'est-à-dire depuis une callback, ce qui est autorisé.
-
 Changer un filtre passe par un gestionnaire d'événement, jamais par un effet.
+
+### Le deck (2026-08-15)
+
+Le feed était une liste défilante en `snap-y snap-mandatory`, où un
+`IntersectionObserver` observait les cartes pour en déduire la position. C'est
+maintenant l'inverse : **`position` est l'état**, et une seule carte est montée.
+
+L'observer portait trois responsabilités, toutes replacées :
+
+| Responsabilité | Avant | Maintenant |
+| --- | --- | --- |
+| Suivre la position | `entry.target` → `setPosition` | `position` **est** l'état |
+| Charger la suite | `index >= items.length - 3` | même seuil, dans `go()` |
+| Restaurer au retour | `scrollIntoView` en `requestAnimationFrame` | `setPosition(cible)` |
+
+Le chargement se déclenche depuis `go()`, un gestionnaire d'événement, et non
+depuis un effet. Il ne peut pas manquer un cas : la position n'avance que par
+là.
+
+`views/Feed/Deck.tsx` porte la navigation — flèches, touches `←` / `→`, et
+glisser par pointer events (souris et tactile d'un seul jeu d'écouteurs). Le
+seuil est de 80 px : à droite on like puis on avance, à gauche on passe. Le
+bouton like reste sur la carte, parce qu'un geste n'est pas découvrable et que
+le sujet exige de pouvoir **retirer** un like (§IV.5), ce qu'un glissement ne
+sait pas faire.
+
+L'état `liked` a dû remonter de `CandidateSlide` vers `FeedPage`, indexé par
+identifiant : avec une seule carte montée, un glissement doit pouvoir liker sans
+que le bouton soit cliqué. `CandidateSlide` est devenu contrôlé.
+
+Le feed est passé de `width="full"` à `width="wide"`, comme toutes les autres
+routes.
 
 ## Le chrome applicatif
 

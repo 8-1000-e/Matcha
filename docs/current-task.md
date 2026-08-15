@@ -1,8 +1,21 @@
 # Tâche en cours — audit du sujet
 
-Branche `front/profile`, partie de `main` après le merge des PR #15 (découverte)
-et #16 (likes et notifications), puis merge local de la PR #17 (messagerie et
-modération). Mise à jour : 2026-08-15.
+Branche `fix/activity-and-deck`, partie de `main` après le merge de la PR #18.
+Mise à jour : 2026-08-15.
+
+## Fait sur cette branche
+
+- **Bug des onglets** — recliquer l'onglet actif de `/views` ou `/likes` laissait
+  « Chargement… » pour toujours : le handler remettait la liste à `null` alors
+  que `scope` ne changeait pas, donc l'effet ne se rejouait pas. Les deux écrans
+  partagent maintenant `ActivityTabs`, le doublon a disparu.
+- **Pagination** — `/api/likes` et `/api/views` acceptent `page` et rendent
+  `page`, `pages`, `total`. 20 par page, pages numérotées dans l'écran.
+- **Profil bloqué** — écran dédié au lieu du `404`, avec bouton Débloquer quand
+  c'est moi qui ai bloqué. Seule `GET /api/users/[id]` distingue le cas.
+- **Chiffrement des messages** — AES-256-GCM, clé `MESSAGES_KEY` dans `.env`.
+- **Feed en deck** — une carte montée, flèches, clavier, glisser.
+- **Largeur du feed** — `wide` comme toutes les autres routes.
 
 ## Ce qui est fait et vérifié au navigateur
 
@@ -42,8 +55,10 @@ modération). Mise à jour : 2026-08-15.
   `last_seen_at`. La colonne devrait disparaître du schéma.
 - Un profil peut être complet avec une ville mais sans coordonnées ; il sort
   alors du tri par distance.
-- Les messages sont stockés en clair (`messages.body`). Le sujet ne demande pas
-  de chiffrement.
+- Une **route d'export RGPD** reste à écrire. Le chiffrement des messages est
+  réversible exprès pour la rendre possible, mais rien ne l'appelle encore.
+- `src/app/debug/` (non suivi) lit `popularity_score`, supprimé de
+  `DiscoveryRow` le 2026-08-14 : `npm run build` et `tsc` échouent dessus.
 
 ## Rappels d'exécution
 
@@ -53,4 +68,8 @@ modération). Mise à jour : 2026-08-15.
 - Le dossier est synchronisé par iCloud : des fichiers « X 2.ts » réapparaissent
   dans `.next` après chaque build et cassent `tsc`. Les supprimer, ou couper la
   synchronisation du dossier.
-- Compte de test : `feed19120` / `Qw7!zplmVnb2`.
+- Compte de test : `feed19120` / `Qw7!zplmVnb2` — **ne fonctionne plus**, le
+  mot de passe a changé depuis.
+- `MESSAGES_KEY` doit exister dans `.env` (32 octets hex, `openssl rand -hex 32`)
+  ou toute lecture de message jette au démarrage. Volontaire : pas de repli
+  silencieux sur du clair.

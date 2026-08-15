@@ -16,6 +16,13 @@ export {
 } from "./core/identifiers";
 export { eq, escapeLike, gt, startsWith } from "./core/operators";
 export {
+	bounds,
+	PAGE_SIZE,
+	pageCount,
+	type PageBounds,
+	type PageOptions,
+} from "./core/pagination";
+export {
 	createRepository,
 	type FindOptions,
 	type Repository,
@@ -73,6 +80,8 @@ export {
 	type UserSummaryRow,
 } from "./queries/summaries";
 export {
+	countLiked,
+	countLikers,
 	findActiveMatchForUsers,
 	findMatchBetween,
 	hasLiked,
@@ -99,8 +108,10 @@ export {
 } from "./repositories/messages";
 export {
 	block,
+	blockDirection,
 	blocks,
 	isBlockedEitherWay,
+	type BlockDirection,
 	listBlocked,
 	report,
 	reports,
@@ -128,6 +139,8 @@ export {
 	setProfilePhoto,
 } from "./repositories/photos";
 export {
+	countViewers,
+	countVisitHistory,
 	listViewers,
 	listVisitHistory,
 	profileViews,

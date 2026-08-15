@@ -10,7 +10,9 @@ import {
 	type FeedFilters,
 	type FeedPayload,
 } from "@/lib/discovery/client";
+import { likeUser, unlikeUser } from "@/lib/profile/publicClient";
 import { CandidateSlide } from "./CandidateSlide";
+import { Deck } from "./Deck";
 import { FilterBar } from "./FeedFilters";
 
 interface State {
@@ -24,6 +26,7 @@ interface State {
 
 const SESSION_KEY = "feed:session";
 const POSITION_KEY = "feed:position";
+const PREFETCH = 3;
 
 const EMPTY: State = {
 	items: [],
@@ -53,7 +56,9 @@ export function FeedPage({
 			loading: false,
 		});
 	const [position, setPosition] = useState(0);
-	const deck = useRef<HTMLUListElement>(null);
+	const [liked, setLiked] = useState<Record<string, boolean>>({});
+	const [likePending, setLikePending] = useState(false);
+	const [likeError, setLikeError] = useState<string | null>(null);
 	const inFlight = useRef(false);
 	const restored = useRef(false);
 
@@ -101,12 +106,56 @@ export function FeedPage({
 		[],
 	);
 
+	const go = useCallback(
+		(offset: number) => {
+			const target = Math.min(
+				Math.max(0, position + offset),
+				Math.max(0, state.items.length - 1),
+			);
+			if (target >= state.items.length - PREFETCH && state.next !== null)
+			{
+				void load(filters, state.session, state.next);
+			}
+			setPosition(target);
+			setLikeError(null);
+		},
+		[filters, load, position, state.items.length, state.next, state.session],
+	);
+
+	const toggleLike = useCallback(
+		async (candidate: Candidate, force?: boolean) => {
+			const current = liked[candidate.id] ?? candidate.viewer_liked === 1;
+			const next = force ?? !current;
+			if (next === current)
+			{
+				return;
+			}
+
+			setLiked((previous) => ({ ...previous, [candidate.id]: next }));
+			setLikeError(null);
+			setLikePending(true);
+
+			const result = next
+				? await likeUser(candidate.id)
+				: await unlikeUser(candidate.id);
+			setLikePending(false);
+
+			if (!result.ok)
+			{
+				setLiked((previous) => ({ ...previous, [candidate.id]: current }));
+				setLikeError(result.errors[0]?.message ?? null);
+			}
+		},
+		[liked],
+	);
+
 	function changeFilters(next: FeedFilters) {
 		sessionStorage.removeItem(SESSION_KEY);
 		sessionStorage.removeItem(POSITION_KEY);
 		setFilters(next);
 		setPosition(0);
-		deck.current?.scrollTo({ top: 0 });
+		setLiked({});
+		setLikeError(null);
 		void load(next, null, 0, true);
 	}
 
@@ -155,13 +204,7 @@ export function FeedPage({
 				error: null,
 				loading: false,
 			});
-			const index = Math.min(target, items.length - 1);
-			setPosition(index);
-			requestAnimationFrame(() => {
-				deck.current
-					?.querySelector(`[data-index="${index}"]`)
-					?.scrollIntoView({ block: "start", behavior: "auto" });
-			});
+			setPosition(Math.max(0, Math.min(target, items.length - 1)));
 		})();
 	}, []);
 
@@ -177,43 +220,30 @@ export function FeedPage({
 	}, [position]);
 
 	useEffect(() => {
-		const container = deck.current;
-		if (container === null)
-		{
-			return;
+		function onKey(event: KeyboardEvent) {
+			if (event.key === "ArrowLeft")
+			{
+				go(-1);
+				return;
+			}
+			if (event.key === "ArrowRight")
+			{
+				go(1);
+			}
 		}
 
-		const observer = new IntersectionObserver(
-			(entries) => {
-				for (const entry of entries)
-				{
-					if (!entry.isIntersecting)
-					{
-						continue;
-					}
-					const index = Number(entry.target.getAttribute("data-index"));
-					setPosition(index);
-					if (index >= state.items.length - 3 && state.next !== null)
-					{
-						void load(filters, state.session, state.next);
-					}
-				}
-			},
-			{ root: container, threshold: 0.6 },
-		);
-
-		for (const slide of container.querySelectorAll("[data-index]"))
-		{
-			observer.observe(slide);
-		}
-		return () => observer.disconnect();
-	}, [filters, load, state.items.length, state.next, state.session]);
+		window.addEventListener("keydown", onKey);
+		return () => {
+			window.removeEventListener("keydown", onKey);
+		};
+	}, [go]);
 
 	const empty = !state.loading && state.items.length === 0 && state.error === null;
+	const current = state.items[position] ?? null;
 
 	return (
 		<PrivateScreen
-			width="full"
+			width="wide"
 			fit
 			footer={null}
 		>
@@ -245,29 +275,36 @@ export function FeedPage({
 				</div>
 			) : null}
 
-			{state.items.length > 0 ? (
-				<ul
-					ref={deck}
-					className="min-h-0 w-full flex-1 snap-y snap-mandatory overflow-y-auto overscroll-contain scroll-smooth"
+			{current !== null ? (
+				<Deck
+					canGoBack={position > 0}
+					canGoForward={position < state.items.length - 1 || state.next !== null}
+					onBack={() => go(-1)}
+					onForward={() => go(1)}
+					onLike={() => void toggleLike(current, true)}
 				>
-					{state.items.map((candidate, index) => (
-						<li
-							key={candidate.id}
-							data-index={index}
-							className="mx-auto h-full max-w-5xl snap-start pb-3"
-						>
-							<CandidateSlide candidate={candidate} />
-						</li>
-					))}
-
-					<li className="flex h-16 items-center justify-center text-sm text-muted">
-						{state.next === null
-							? "Vous avez vu tous les profils correspondants."
-							: "Chargement…"}
-					</li>
-				</ul>
+					<CandidateSlide
+						key={current.id}
+						candidate={current}
+						liked={liked[current.id] ?? current.viewer_liked === 1}
+						pending={likePending}
+						error={likeError}
+						onLike={() => void toggleLike(current)}
+					/>
+				</Deck>
 			) : null}
 
+			{current === null && state.loading ? (
+				<p className="py-16 text-center text-sm text-muted">Chargement…</p>
+			) : null}
+
+			{current !== null
+				&& position === state.items.length - 1
+				&& state.next === null ? (
+					<p className="pt-2 text-center text-xs text-muted">
+						Vous avez vu tous les profils correspondants.
+					</p>
+				) : null}
 		</PrivateScreen>
 	);
 }

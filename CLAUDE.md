@@ -33,11 +33,10 @@ restaurer le contexte complet de la session précédente.
 
 ## Current State
 
-- **Branche** : `front/profile`
-- **Statut** : feed, profil public, mon profil, réglages, visites et likes
-  terminés et vérifiés au navigateur. Messagerie et modération reprises de la
-  PR #17. Reste la recherche avancée et les manques listés dans
-  `docs/current-task.md`.
+- **Branche** : `fix/activity-and-deck`
+- **Statut** : feed en deck, profil public, mon profil, réglages, visites et
+  likes paginés, écran de profil bloqué, messages chiffrés en base. Reste la
+  recherche avancée et les manques listés dans `docs/current-task.md`.
 - **Dernière mise à jour** : 2026-08-15
 
 ## Task Progress
@@ -55,7 +54,11 @@ restaurer le contexte complet de la session précédente.
 - [x] Chat temps réel, notifications (repris de la PR #17)
 - [x] Blocage / signalement, statut en ligne
 - [x] Chrome applicatif global (rail gauche, cloche, déconnexion)
+- [x] Visites et likes paginés (20/page), écran de profil bloqué
+- [x] Messages chiffrés en base (AES-256-GCM, réversible pour le RGPD)
+- [x] Feed en deck mono-carte (flèches, clavier, glisser)
 - [ ] **Recherche avancée** (même endpoint, écran dédié) <- EN COURS
+- [ ] Route d'export RGPD
 - [ ] Filtre par centres d'intérêt dans la barre de filtres
 - [ ] Repli IP quand la géolocalisation est refusée
 - [ ] Écrire et supprimer un avis (aucune route aujourd'hui)
@@ -76,3 +79,11 @@ restaurer le contexte complet de la session précédente.
   accepté.
 - **Villes embarquées** dans le dépôt (`data/cities.tsv.gz`) et chargées à
   l'ouverture de la base : ce sont des données de référence, pas un seed.
+- **Pagination par `LIMIT/OFFSET`** sur les listes d'activité, contrairement au
+  feed : elles sont ordonnées par un horodatage figé, pas par un critère
+  volatil, donc le raisonnement du feed figé ne s'y applique pas.
+- **Messages chiffrés, pas hachés** : un hachage est à sens unique et rendrait
+  l'export RGPD impossible. Le sujet ne demande pas de chiffrement ; c'est un
+  choix assumé, qui protège du vol du fichier SQLite et de rien d'autre.
+- **Le blocage n'est plus un `404`** sur `GET /api/users/[id]` seulement. Toutes
+  les autres routes gardent le `404` indistinct.

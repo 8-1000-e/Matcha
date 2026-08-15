@@ -961,6 +961,44 @@ Après l'écriture, le message est publié sur `private-chat-<matchId>` et une
 notification `MESSAGE` part vers le destinataire, avec
 `link: "/messages/<matchId>"`.
 
+### Les messages sont chiffrés en base
+
+`messages.body` ne contient pas de texte lisible mais
+`v1:<iv>:<tag>:<chiffré>`, en base64url. **AES-256-GCM**, clé `MESSAGES_KEY`
+(32 octets hexadécimaux) lue depuis `.env` et absente de Git. L'IV fait 12
+octets et est **tiré à chaque message** : le réutiliser casserait GCM.
+
+Le sujet ne l'exige pas — il demande que les **mots de passe** ne soient pas en
+clair. C'est un choix assumé, et sa portée est étroite : cela protège du vol du
+fichier SQLite, rien de plus. Le serveur détient la clé, donc une application
+compromise lit tout. Ce n'est **pas** du chiffrement de bout en bout.
+
+Chiffrer et non hacher est une obligation, pas une préférence : un hachage est à
+sens unique, ni l'utilisateur ni un export RGPD ne pourraient relire la
+conversation.
+
+Le chiffrement vit dans `lib/crypto/messages.ts` et n'est appelé qu'aux
+frontières — `sendMessage` chiffre, `serializeMessage` déchiffre, et
+`GET /api/matches` déchiffre `last_body`. Ce dernier est le point sensible :
+`listMatches` récupère l'aperçu de conversation **en SQL**, par un `LEFT JOIN`
+sur le dernier message ; le déchiffrement se fait donc en JavaScript sur la
+ligne rendue. **Conséquence assumée** : chercher dans le contenu des messages
+devient impossible en SQL. `validateMatchList` ne cherche que sur `first_name`
+et `username`, et le sujet ne demande rien de plus.
+
+La contrainte `CHECK` sur `messages.body` porte sur le **chiffré** et vaut
+`1 à 8000` : 1 000 caractères de clair font jusqu'à 4 000 octets UTF-8, soit
+environ 5 400 caractères en base64. La longueur du clair reste vérifiée dans
+`validateMessageBody`, seul endroit où elle a un sens pour l'utilisateur.
+
+Migration : `SCHEMA_VERSION` 9. SQLite ne sait pas modifier un `CHECK`, la table
+est donc **reconstruite** par `encryptExistingMessages`, entre la création des
+tables et celle des déclencheurs — supprimer une table supprime ses
+déclencheurs et ses index, que les boucles suivantes recréent.
+`messagesTable(name)` est la définition unique, partagée par le schéma et par la
+migration : les écrire deux fois avait déjà fait perdre le `DEFAULT` de
+`sent_at`. Une ligne déjà préfixée `v1:` n'est pas rechiffrée.
+
 ## `PATCH /api/messages/[matchId]`
 
 **Corps** : `{ "read": true }`. Marque lus tous les messages de la conversation
@@ -1179,6 +1217,23 @@ n'est jamais lue.
 `received` ou `made` donne `400 ["scope must be received or made"]` ; sur
 `/api/likes`, `400 ["scope must be received or sent"]`.
 
+`/api/likes` et `/api/views` sont **paginées**, 20 par page. Elles acceptent
+`page` (entier, 1 à 1000) et ajoutent `page`, `pages` et `total` à leur réponse :
+
+```json
+{ "ok": true, "scope": "sent", "likers": [], "page": 2, "pages": 4, "total": 68 }
+```
+
+`page` non entier, inférieur à 1 ou supérieur à 1000 donne
+`400 ["page is invalid"]` ; une page au-delà de `pages` donne
+`400 ["page is out of range"]` plutôt qu'une liste vide, qui se confondrait avec
+« plus personne ». `pages` vaut 1 quand `total` vaut 0.
+
+La pagination est un `LIMIT/OFFSET`, contrairement au feed. C'est justifié ici :
+ces listes sont ordonnées par un horodatage figé (`liked_at`, `viewed_at`), pas
+par des critères volatils. Le raisonnement qui a imposé le feed figé par session
+ne s'applique pas. L'ordre est départagé par `profiles.id` pour rester total.
+
 `GET /api/blocks` existe pour une raison pratique : sans liste, on ne peut pas
 débloquer quelqu'un qu'on ne retrouve plus.
 
@@ -1251,10 +1306,25 @@ lien de conversation qui répondait `404`.
 | `401` | `{ "errors": ["unauthorized"] }` | pas de session |
 | `403` | `{ "errors": ["email_not_verified"] }` | compte non vérifié |
 | `403` | `{ "errors": ["profile_incomplete"] }` | le **visiteur** n'a pas fini son profil |
-| `404` | `{ "errors": ["user not found"] }` | inconnu, non vérifié, profil incomplet, **ou blocage dans un sens ou l'autre** |
+| `403` | `{ "errors": ["profile_blocked"], "code": "blocked_by_me" }` | j'ai bloqué ce profil |
+| `403` | `{ "errors": ["profile_blocked"], "code": "blocked_by_them" }` | ce profil m'a bloqué |
+| `404` | `{ "errors": ["user not found"] }` | inconnu, non vérifié, profil incomplet |
 
-Le `404` est volontairement indistinct, comme sur `GET /api/photos/[id]` : il ne
-dit pas si le profil existe, donc il ne révèle pas qu'on a été bloqué.
+**Le blocage est la seule exception au `404` indistinct**, et seulement sur
+cette route. Elle passe `allowBlocked: true` à `requireTarget` pour distinguer
+les deux sens et laisser le front rendre un écran expliqué — sinon un profil
+qu'on a soi-même bloqué renvoyait une page « introuvable » incompréhensible,
+sans aucun moyen de débloquer.
+
+Le compromis est mesuré : `blocked_by_them` confirme l'existence d'un compte
+dont on connaissait déjà l'identifiant, et rien d'autre — ni photo, ni nom, ni
+présence. Le front n'affiche d'ailleurs jamais « cette personne vous a bloqué »,
+seulement « ce profil n'est plus accessible ».
+
+**Toutes les autres routes gardent le `404` indistinct** :
+`PUT/DELETE /api/users/[id]/like`, `POST /api/users/[id]/view`,
+`GET /api/users/[id]/reviews`, `GET /api/photos/[id]`. Là, révéler un blocage
+n'apporterait rien à l'utilisateur et ne serait qu'une fuite.
 
 **Cette route n'enregistre rien.** Consulter un profil doit apparaître dans
 l'historique de visites (§IV.5) et déclencher la notification `VIEWED` (§IV.7),

@@ -42,6 +42,26 @@ export function unblock(blockerId: string, blockedId: string): boolean {
 	return blocks.remove({ blocker_id: blockerId, blocked_id: blockedId }) === 1;
 }
 
+export interface BlockDirection {
+	mine: boolean;
+	theirs: boolean;
+}
+
+export function blockDirection(
+	viewerId: string,
+	targetId: string,
+): BlockDirection {
+	const rows = queryAll<{ blocker_id: string }>(
+		sql`SELECT blocker_id FROM blocks
+			WHERE (blocker_id = ${viewerId} AND blocked_id = ${targetId})
+				OR (blocker_id = ${targetId} AND blocked_id = ${viewerId})`,
+	);
+	return {
+		mine: rows.some((row) => row.blocker_id === viewerId),
+		theirs: rows.some((row) => row.blocker_id === targetId),
+	};
+}
+
 export function isBlockedEitherWay(first: string, second: string): boolean {
 	return (
 		queryScalar<number>(

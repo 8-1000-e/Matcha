@@ -1,9 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback } from "react";
 import { PrivateScreen } from "@/components/Layout/Screen";
 import { fetchViews, type ProfileView } from "@/lib/profile/views";
-import { PeopleList, type Person } from "./PeopleList";
+import { ActivityTabs, type Tab } from "./ActivityTabs";
+import type { Person } from "./PeopleList";
+
+type Scope = "received" | "made";
+
+const TABS: readonly Tab<Scope>[] = [
+	{
+		key: "received",
+		label: "Qui m’a vu",
+		empty: "Personne n’a encore consulté votre profil.",
+	},
+	{
+		key: "made",
+		label: "Mes visites",
+		empty: "Vous n’avez encore consulté aucun profil.",
+	},
+];
 
 function toPeople(views: ProfileView[]): Person[] {
 	return views.map((view) => ({
@@ -17,33 +33,16 @@ function toPeople(views: ProfileView[]): Person[] {
 }
 
 export function ViewsPage() {
-	const [scope, setScope] = useState<"received" | "made">("received");
-	const [people, setPeople] = useState<Person[] | null>(null);
-	const [error, setError] = useState<string | null>(null);
-
-	useEffect(() => {
-		let live = true;
-		void fetchViews(scope).then((result) => {
-			if (!live) {
-				return;
-			}
-			if (result.ok) {
-				setPeople(toPeople(result.data.views));
-				setError(null);
-				return;
-			}
-			setPeople([]);
-			setError(result.errors[0]?.message ?? "Chargement impossible.");
-		});
-		return () => {
-			live = false;
+	const load = useCallback(async (scope: Scope, page: number) => {
+		const result = await fetchViews(scope, page);
+		if (!result.ok) {
+			return result;
+		}
+		return {
+			ok: true as const,
+			data: { ...result.data, people: toPeople(result.data.views) },
 		};
-	}, [scope]);
-
-	const tabs = [
-		{ key: "received" as const, label: "Qui m’a vu" },
-		{ key: "made" as const, label: "Mes visites" },
-	];
+	}, []);
 
 	return (
 		<PrivateScreen
@@ -52,41 +51,7 @@ export function ViewsPage() {
 			intro="Les profils que vous avez consultés et ceux qui ont consulté le vôtre."
 			footer={null}
 		>
-			<nav className="flex justify-center gap-10 border-t border-edge/30">
-				{tabs.map((entry) => (
-					<button
-						key={entry.key}
-						type="button"
-						onClick={() => {
-							setScope(entry.key);
-							setPeople(null);
-						}}
-						aria-current={scope === entry.key}
-						className={`-mt-px cursor-pointer border-t-2 px-2 pt-4 pb-1 text-xs font-medium tracking-[0.12em] uppercase transition-colors duration-200 ease-out ${
-							scope === entry.key
-								? "border-matcha text-ink"
-								: "border-transparent text-muted hover:text-ink"
-						}`}
-					>
-						{entry.label}
-					</button>
-				))}
-			</nav>
-
-			<div className="mt-4">
-				{error !== null ? (
-					<p className="py-16 text-center text-sm text-muted">{error}</p>
-				) : (
-					<PeopleList
-						people={people}
-						empty={
-							scope === "received"
-								? "Personne n’a encore consulté votre profil."
-								: "Vous n’avez encore consulté aucun profil."
-						}
-					/>
-				)}
-			</div>
+			<ActivityTabs tabs={TABS} load={load} />
 		</PrivateScreen>
 	);
 }
