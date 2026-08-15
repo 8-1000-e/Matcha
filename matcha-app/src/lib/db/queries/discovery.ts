@@ -20,7 +20,7 @@ const SORT_COLUMNS = {
 	created: "created_at",
 } as const;
 
-const SORT_KEYS = Object.keys(SORT_COLUMNS) as (keyof typeof SORT_COLUMNS)[];
+export const SORT_KEYS = Object.keys(SORT_COLUMNS) as (keyof typeof SORT_COLUMNS)[];
 
 export type DiscoverySortKey = keyof typeof SORT_COLUMNS;
 
@@ -50,6 +50,7 @@ export interface DiscoveryOptions {
 	offset?: number;
 	includeLiked?: boolean;
 	respectOrientation?: boolean;
+	excludeIds?: readonly string[];
 }
 
 export interface DiscoveryRow
@@ -61,6 +62,9 @@ export interface DiscoveryRow
 	review_count: number;
 	photo_count: number;
 	profile_photo_path: string | null;
+	profile_photo_id: string | null;
+	photo_ids: string | null;
+	tags: string | null;
 }
 
 const PUBLIC_COLUMNS = raw(
@@ -236,8 +240,50 @@ function discoveryConditions(
 					WHERE likes.liker_id = ${viewer.id} AND likes.liked_id = candidate.id
 				)`,
 		),
+		when(
+			options.excludeIds !== undefined && options.excludeIds.length > 0,
+			() => sql`candidate.id NOT IN (${[...(options.excludeIds ?? [])]})`,
+		),
 		...filterClauses(viewer, filters),
 	]);
+}
+
+function projection(viewer: UserRow): SqlFragment {
+	return sql`${PUBLIC_COLUMNS},
+		${raw(ageYears("candidate.birth_date"))} AS age,
+		distance_km(
+			${viewer.latitude}, ${viewer.longitude},
+			candidate.latitude, candidate.longitude
+		) AS distance_km,
+		(
+			SELECT COUNT(*) FROM user_tags AS theirs
+			JOIN user_tags AS mine ON mine.tag_id = theirs.tag_id
+			WHERE theirs.user_id = candidate.id AND mine.user_id = ${viewer.id}
+		) AS common_tags,
+		popularity.review_average AS review_average,
+		popularity.review_count AS review_count,
+		(SELECT COUNT(*) FROM photos WHERE photos.user_id = candidate.id)
+			AS photo_count,
+		(
+			SELECT path FROM photos
+			WHERE photos.user_id = candidate.id AND photos.is_profile = 1
+		) AS profile_photo_path,
+		(
+			SELECT id FROM photos
+			WHERE photos.user_id = candidate.id AND photos.is_profile = 1
+		) AS profile_photo_id,
+		(
+			SELECT GROUP_CONCAT(ordered.id, ',') FROM (
+				SELECT id FROM photos
+				WHERE photos.user_id = candidate.id
+				ORDER BY is_profile DESC, created_at, id
+			) AS ordered
+		) AS photo_ids,
+		(
+			SELECT GROUP_CONCAT(tags.label, ',') FROM user_tags
+			JOIN tags ON tags.id = user_tags.tag_id
+			WHERE user_tags.user_id = candidate.id
+		) AS tags`;
 }
 
 export function findCandidates(
@@ -251,31 +297,27 @@ export function findCandidates(
 	const offset = boundedInteger(options.offset ?? 0, 0, 100000, "offset");
 	const conditions = discoveryConditions(viewer, options);
 	return queryAll<DiscoveryRow>(
-		sql`SELECT
-				${PUBLIC_COLUMNS},
-				${raw(ageYears("candidate.birth_date"))} AS age,
-				distance_km(
-					${viewer.latitude}, ${viewer.longitude},
-					candidate.latitude, candidate.longitude
-				) AS distance_km,
-				(
-					SELECT COUNT(*) FROM user_tags AS theirs
-					JOIN user_tags AS mine ON mine.tag_id = theirs.tag_id
-					WHERE theirs.user_id = candidate.id AND mine.user_id = ${viewer.id}
-				) AS common_tags,
-				popularity.review_average AS review_average,
-				popularity.review_count AS review_count,
-				(SELECT COUNT(*) FROM photos WHERE photos.user_id = candidate.id)
-					AS photo_count,
-				(
-					SELECT path FROM photos
-					WHERE photos.user_id = candidate.id AND photos.is_profile = 1
-				) AS profile_photo_path
+		sql`SELECT ${projection(viewer)}
 			FROM users AS candidate
 			JOIN user_popularity AS popularity ON popularity.user_id = candidate.id
 			WHERE ${conditions}
-			${ordering(options.sort ?? DEFAULT_SORT)}
+			${ordering(options.sort?.length ? options.sort : DEFAULT_SORT)}
 			LIMIT ${limit} OFFSET ${offset}`,
+	);
+}
+export function findCandidatesByIds(
+	viewer: UserRow,
+	ids: readonly string[],
+): DiscoveryRow[] {
+	if (ids.length === 0) {
+		return [];
+	}
+	return queryAll<DiscoveryRow>(
+		sql`SELECT ${projection(viewer)}
+			FROM users AS candidate
+			JOIN user_popularity AS popularity ON popularity.user_id = candidate.id
+			WHERE candidate.id IN (${[...ids]})
+				AND ${discoveryConditions(viewer, {})}`,
 	);
 }
 
