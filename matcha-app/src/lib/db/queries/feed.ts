@@ -135,7 +135,7 @@ export function readFeedPage(
 	`);
 
 	const rank = new Map(entries.map((entry) => [entry.candidate_id, entry.position]));
-	const rows = findCandidatesByIds(viewer, [...rank.keys()])
+	const rows = findCandidatesByIds(viewer, [...rank.keys()], { includeLiked: true })
 		.sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0));
 
 	const last = entries.at(-1);

@@ -65,6 +65,7 @@ export interface DiscoveryRow
 	profile_photo_id: string | null;
 	photo_ids: string | null;
 	tags: string | null;
+	viewer_liked?: number;
 }
 
 const PUBLIC_COLUMNS = raw(
@@ -308,16 +309,21 @@ export function findCandidates(
 export function findCandidatesByIds(
 	viewer: UserRow,
 	ids: readonly string[],
+	options: DiscoveryOptions = {},
 ): DiscoveryRow[] {
 	if (ids.length === 0) {
 		return [];
 	}
 	return queryAll<DiscoveryRow>(
-		sql`SELECT ${projection(viewer)}
+		sql`SELECT ${projection(viewer)},
+			EXISTS (
+				SELECT 1 FROM likes
+				WHERE likes.liker_id = ${viewer.id} AND likes.liked_id = candidate.id
+			) AS viewer_liked
 			FROM users AS candidate
 			JOIN user_popularity AS popularity ON popularity.user_id = candidate.id
 			WHERE candidate.id IN (${[...ids]})
-				AND ${discoveryConditions(viewer, {})}`,
+				AND ${discoveryConditions(viewer, options)}`,
 	);
 }
 
