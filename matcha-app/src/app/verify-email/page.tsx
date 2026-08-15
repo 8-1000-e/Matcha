@@ -14,7 +14,7 @@ export default async function Page() {
 		redirect("/login");
 	}
 	if (user.is_verified) {
-		redirect("/me");
+		redirect("/feed");
 	}
 
 	return <VerifyEmailPage firstName={user.first_name} />;

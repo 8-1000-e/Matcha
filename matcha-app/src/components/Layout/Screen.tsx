@@ -12,12 +12,13 @@ type ScreenProps = {
 	center?: boolean;
 	centerTop?: boolean;
 	
-	width?: "narrow" | "wide";
+	width?: keyof typeof WIDTHS;
 };
 
 const WIDTHS = {
 	narrow: "max-w-sm",
 	wide: "max-w-4xl",
+	full: "max-w-6xl",
 } as const;
 
 export function Screen({
@@ -44,7 +45,7 @@ export function Screen({
 
 			<main
 				className={`mx-auto flex w-full ${max} flex-1 flex-col px-6 ${
-					width === "wide" ? "py-6" : "py-10"
+					width === "narrow" ? "py-10" : "py-6"
 				} ${center ? "justify-center" : ""}`}
 			>
 				{children}
@@ -66,7 +67,7 @@ type PrivateScreenProps = {
 	intro?: string;
 	children: ReactNode;
 	footer: ReactNode;
-	width?: "narrow" | "wide";
+	width?: keyof typeof WIDTHS;
 	center?: boolean;
 };
 
@@ -93,19 +94,19 @@ export function PrivateScreen({
 			{title ? (
 				<h1
 					className={`font-semibold tracking-tight ${
-						width === "wide" ? "text-xl" : "text-2xl"
+						width === "narrow" ? "text-2xl" : "text-xl"
 					}`}
 				>
 					{title}
 				</h1>
 			) : null}
 			{intro ? (
-				<p className={`text-sm text-muted ${width === "wide" ? "mt-1.5" : "mt-3"}`}>
+				<p className={`text-sm text-muted ${width === "narrow" ? "mt-3" : "mt-1.5"}`}>
 					{intro}
 				</p>
 			) : null}
 
-			<div className={title || intro ? (width === "wide" ? "mt-6" : "mt-8") : ""}>
+			<div className={title || intro ? (width === "narrow" ? "mt-8" : "mt-6") : ""}>
 				{children}
 			</div>
 		</Screen>

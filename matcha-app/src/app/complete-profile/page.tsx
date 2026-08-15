@@ -17,7 +17,7 @@ export default async function Page() {
 		redirect("/verify-email");
 	}
 	if (profile.missing.length === 0) {
-		redirect("/me");
+		redirect("/feed");
 	}
 
 	return <CompleteProfilePage initial={profile} />;
