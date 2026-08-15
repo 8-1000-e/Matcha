@@ -12,6 +12,7 @@ import {
 	type BlockedUser,
 } from "@/lib/moderation/client";
 import {
+	changePassword,
 	deleteAccount,
 	getProfile,
 	saveLocation,
@@ -427,9 +428,146 @@ function Account({
 			</div>
 
 			<div className="mt-5 border-t border-edge/30 pt-4">
+				<PasswordForm />
+			</div>
+
+			<div className="mt-5 border-t border-edge/30 pt-4">
 				<DeleteAccount />
 			</div>
 		</Card>
+	);
+}
+
+const FIELD
+	= "min-h-10 w-full rounded-lg border border-edge/60 bg-white px-3 text-sm"
+	+ " transition-colors duration-200 ease-out hover:border-matcha/60"
+	+ " focus-visible:border-matcha";
+
+function PasswordForm() {
+	const [open, setOpen] = useState(false);
+	const [current, setCurrent] = useState("");
+	const [password, setPassword] = useState("");
+	const [confirm, setConfirm] = useState("");
+	const [errors, setErrors] = useState<AuthError[]>([]);
+	const [done, setDone] = useState(false);
+	const [pending, setPending] = useState(false);
+
+	function close() {
+		setCurrent("");
+		setPassword("");
+		setConfirm("");
+		setErrors([]);
+		setOpen(false);
+	}
+
+	async function submit(event: React.FormEvent) {
+		event.preventDefault();
+		setDone(false);
+
+		if (password !== confirm) {
+			setErrors([{ field: null, message: "Les deux mots de passe diffèrent." }]);
+			return;
+		}
+
+		setErrors([]);
+		setPending(true);
+		const result = await changePassword(current, password);
+		setPending(false);
+
+		if (!result.ok) {
+			setErrors(result.errors);
+			return;
+		}
+
+		close();
+		setDone(true);
+	}
+
+	if (!open) {
+		return (
+			<div className="flex flex-col gap-2">
+				<button
+					type="button"
+					className={GHOST}
+					onClick={() => {
+						setDone(false);
+						setOpen(true);
+					}}
+				>
+					Changer de mot de passe
+				</button>
+				{done ? (
+					<p className="text-xs text-muted">
+						Mot de passe modifié. Vos autres appareils ont été déconnectés.
+					</p>
+				) : null}
+			</div>
+		);
+	}
+
+	return (
+		<form onSubmit={(event) => void submit(event)} className="flex flex-col gap-3">
+			<p className="rounded-lg bg-leaf/40 px-3 py-2 text-xs text-ink">
+				Changer de mot de passe déconnecte vos autres appareils. Celui-ci reste
+				connecté.
+			</p>
+
+			<label className="flex flex-col gap-1.5">
+				<span className="text-xs text-muted">Mot de passe actuel</span>
+				<input
+					type="password"
+					required
+					autoComplete="current-password"
+					value={current}
+					onChange={(event) => setCurrent(event.target.value)}
+					className={FIELD}
+				/>
+			</label>
+
+			<label className="flex flex-col gap-1.5">
+				<span className="text-xs text-muted">Nouveau mot de passe</span>
+				<input
+					type="password"
+					required
+					autoComplete="new-password"
+					value={password}
+					onChange={(event) => setPassword(event.target.value)}
+					className={FIELD}
+				/>
+			</label>
+
+			<label className="flex flex-col gap-1.5">
+				<span className="text-xs text-muted">Confirmer le nouveau</span>
+				<input
+					type="password"
+					required
+					autoComplete="new-password"
+					value={confirm}
+					onChange={(event) => setConfirm(event.target.value)}
+					className={FIELD}
+				/>
+			</label>
+
+			<Errors errors={errors} />
+
+			<div className="flex gap-2">
+				<button
+					type="submit"
+					className={PRIMARY}
+					disabled={
+						pending
+						|| current.length === 0
+						|| password.length === 0
+						|| confirm.length === 0
+					}
+				>
+					Enregistrer
+				</button>
+				<button type="button" className={GHOST} onClick={close}>
+					Annuler
+				</button>
+			</div>
+		</form>
 	);
 }
 

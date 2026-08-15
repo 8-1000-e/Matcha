@@ -62,7 +62,9 @@ restaurer le contexte complet de la session précédente.
 - [x] Changement d'adresse e-mail dans les réglages
 - [x] Suppression de compte RGPD (rétention 14 jours, restauration, purge)
 - [ ] **Recherche avancée** (même endpoint, écran dédié) <- EN COURS
-- [ ] Pied de page visible sur tous les écrans (§III)
+- [x] Changement de mot de passe dans les réglages
+- [x] Page `/privacy` (article 13) et composant `Footer`
+- [ ] Pied de page visible sur tous les écrans (§III) — `Footer` prêt à poser
 - [ ] Export RGPD — reporté à la fin du projet
 
 ## Key Decisions

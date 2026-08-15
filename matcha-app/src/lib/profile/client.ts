@@ -148,3 +148,13 @@ export function restoreAccount(): Promise<ProfileResult> {
 		method: "POST",
 	});
 }
+
+export function changePassword(
+	current: string,
+	password: string,
+): Promise<ApiResult<{ ok: boolean }>> {
+	return send<{ ok: boolean }>("PATCH", "/api/profile/password", {
+		current,
+		password,
+	});
+}

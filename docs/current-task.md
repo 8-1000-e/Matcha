@@ -54,6 +54,12 @@ Mise à jour : 2026-08-15.
 
 ### Levé le 2026-08-15
 
+- **Changement de mot de passe** — `PATCH /api/profile/password`, ancien mot de
+  passe exigé, politique identique à l'inscription, autres appareils
+  déconnectés (`revokeAllRefreshTokens`) et session courante réémise.
+- **Page `/privacy`** — mention d'information de l'article 13, publique, fondée
+  sur ce que l'application collecte réellement. Composant `Footer` fourni.
+
 - **Suppression de compte RGPD** — `DELETE /api/profile` (mot de passe exigé) et
   `POST /api/profile/restore`. Disparition immédiate, rétention 14 jours,
   effacement réel au terme, fichiers photos compris. Écran `/account-deleted`.
@@ -72,7 +78,9 @@ Mise à jour : 2026-08-15.
 
 1. **Recherche avancée** — écran dédié absent (§IV.4). Le back est prêt :
    `GET /api/discovery` accepte déjà tous les filtres et tris.
-2. **Pied de page vide** sur presque tous les écrans (§III).
+2. **Pied de page vide** sur presque tous les écrans (§III). Le composant
+   `Footer` existe (`components/Layout/Footer.tsx`) ; il reste à le passer en
+   `footer={<Footer />}` sur chaque écran.
 
 Le « repli IP » listé ici jusqu'au 2026-08-15 était une **erreur** : le §IV.2
 de la version 6.0 demande une saisie **manuelle** de la ville quand le GPS est
