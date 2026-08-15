@@ -120,6 +120,25 @@ export function listLikers(
 	);
 }
 
+export function listLiked(
+	likerId: string,
+	limit = 100,
+): (UserSummaryRow & { liked_at: string })[] {
+	return queryAll<UserSummaryRow & { liked_at: string }>(
+		sql`SELECT ${SUMMARY_COLUMNS}, likes.liked_at AS liked_at
+			FROM user_profiles AS profiles
+			JOIN likes ON likes.liked_id = profiles.id
+			WHERE likes.liker_id = ${likerId}
+				AND NOT EXISTS (
+					SELECT 1 FROM blocks
+					WHERE (blocks.blocker_id = ${likerId} AND blocks.blocked_id = profiles.id)
+						OR (blocks.blocker_id = profiles.id AND blocks.blocked_id = ${likerId})
+				)
+			ORDER BY likes.liked_at DESC
+			LIMIT ${boundedInteger(limit, 1, 500, "limit")}`,
+	);
+}
+
 export interface MatchListRow extends MatchRow {
 	partner_id: string;
 	last_body: string | null;

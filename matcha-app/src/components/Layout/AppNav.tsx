@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { MatchaBowl } from "@/components/Brand/Brand";
-import { ViewsButton } from "@/components/Views/ViewsButton";
 import { logout } from "@/lib/auth/api";
 import { getProfile } from "@/lib/profile/client";
 
@@ -42,6 +41,41 @@ function MessagesIcon() {
 			aria-hidden="true"
 		>
 			<path d="M21 12a8 8 0 0 1-11.4 7.2L4 20l1-4.4A8 8 0 1 1 21 12Z" />
+		</svg>
+	);
+}
+
+function HeartIcon() {
+	return (
+		<svg
+			viewBox="0 0 24 24"
+			className="size-5"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="1.8"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden="true"
+		>
+			<path d="M12 20S3 15.5 3 9.4A4.9 4.9 0 0 1 12 6.6a4.9 4.9 0 0 1 9 2.8C21 15.5 12 20 12 20Z" />
+		</svg>
+	);
+}
+
+function EyeIcon() {
+	return (
+		<svg
+			viewBox="0 0 24 24"
+			className="size-5"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="1.8"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden="true"
+		>
+			<path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6Z" />
+			<circle cx="12" cy="12" r="2.6" />
 		</svg>
 	);
 }
@@ -115,6 +149,8 @@ export function AppNav() {
 	const links = [
 		{ href: "/feed", label: "Suggestions", icon: <FeedIcon /> },
 		{ href: "/messages", label: "Messages", icon: <MessagesIcon /> },
+		{ href: "/likes", label: "Likes reçus", icon: <HeartIcon /> },
+		{ href: "/views", label: "Visites", icon: <EyeIcon /> },
 		{ href: "/settings", label: "Réglages", icon: <SettingsIcon /> },
 	];
 
@@ -147,8 +183,6 @@ export function AppNav() {
 						</Link>
 					);
 				})}
-
-				<ViewsButton />
 			</div>
 
 			<div className="flex flex-col items-center gap-2">

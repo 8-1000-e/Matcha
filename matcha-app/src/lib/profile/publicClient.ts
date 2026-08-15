@@ -42,6 +42,16 @@ export function fetchPublicProfile(
 	return request(`/api/users/${id}`, { method: "GET" });
 }
 
+export function fetchMyReviews(): Promise<
+	ApiResult<{
+		review_average: number;
+		review_count: number;
+		reviews: ReviewPayload[];
+	}>
+	> {
+	return request("/api/profile/reviews", { method: "GET" });
+}
+
 export function fetchReviews(
 	id: string,
 ): Promise<ApiResult<{ ok: boolean; reviews: ReviewPayload[] }>> {

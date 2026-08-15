@@ -6,6 +6,18 @@ export interface ProfileView extends UserSummary {
 	visit_count?: number;
 }
 
+export interface Liker extends UserSummary {
+	liked_at: string;
+}
+
+export function fetchLikers(
+	scope: "received" | "sent",
+): Promise<ApiResult<{ likers: Liker[] }>> {
+	return request<{ likers: Liker[] }>(`/api/likes?scope=${scope}`, {
+		method: "GET",
+	});
+}
+
 export function fetchViews(
 	scope: "received" | "made",
 ): Promise<ApiResult<{ views: ProfileView[] }>> {

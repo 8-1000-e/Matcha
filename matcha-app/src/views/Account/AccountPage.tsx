@@ -19,6 +19,7 @@ import {
 	type Orientation,
 	type Profile,
 } from "@/lib/profile/client";
+import { fetchMyReviews, type ReviewPayload } from "@/lib/profile/publicClient";
 
 const GENDERS: { value: Gender; label: string }[] = [
 	{ value: "woman", label: "Femme" },
@@ -60,6 +61,98 @@ function Stat({ value, label }: { value: string; label: string }) {
 			<span className="font-semibold tabular-nums">{value}</span>
 			<span className="text-muted">{label}</span>
 		</span>
+	);
+}
+
+function Stars({ score }: { score: number }) {
+	return (
+		<span className="flex gap-px text-sm" aria-hidden="true">
+			{[0, 1, 2, 3, 4].map((index) => (
+				<span key={index} className="relative leading-none text-edge/40">
+					★
+					<span
+						className="absolute inset-0 overflow-hidden text-matcha"
+						style={{ width: `${Math.max(0, Math.min(1, score - index)) * 100}%` }}
+					>
+						★
+					</span>
+				</span>
+			))}
+		</span>
+	);
+}
+
+function Reviews() {
+	const [reviews, setReviews] = useState<ReviewPayload[] | null>(null);
+	const [average, setAverage] = useState(0);
+	const [count, setCount] = useState(0);
+
+	useEffect(() => {
+		let live = true;
+		void fetchMyReviews().then((result) => {
+			if (!live) {
+				return;
+			}
+			if (result.ok) {
+				setReviews(result.data.reviews);
+				setAverage(result.data.review_average);
+				setCount(result.data.review_count);
+				return;
+			}
+			setReviews([]);
+		});
+		return () => {
+			live = false;
+		};
+	}, []);
+
+	return (
+		<section className="mt-8 border-t border-edge/30 pt-6">
+			<h2 className="flex flex-wrap items-center gap-3 text-sm font-semibold">
+				Avis reçus
+				{count === 0 ? (
+					<span className="font-normal text-muted">aucun avis</span>
+				) : (
+					<span className="flex items-center gap-2 font-normal">
+						<Stars score={average} />
+						<span className="text-muted tabular-nums">
+							{average.toFixed(1)} · {count} avis
+						</span>
+					</span>
+				)}
+			</h2>
+
+			{reviews === null ? (
+				<p className="py-8 text-center text-sm text-muted">Chargement…</p>
+			) : reviews.length === 0 ? (
+				<p className="py-8 text-center text-sm text-muted">
+					Personne ne vous a encore laissé d’avis.
+				</p>
+			) : (
+				<ul className="mt-3 flex flex-col divide-y divide-edge/20">
+					{reviews.map((review) => (
+						<li key={review.id} className="flex flex-col gap-1.5 py-4">
+							<div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+								<span className="text-sm font-medium">
+									@{review.author_username}
+								</span>
+								<Stars score={review.score} />
+								<span className="text-xs text-muted">
+									{new Date(review.updated_at).toLocaleDateString("fr-FR", {
+										day: "numeric",
+										month: "long",
+										year: "numeric",
+									})}
+								</span>
+							</div>
+							{review.body !== null ? (
+								<p className="text-sm leading-relaxed">{review.body}</p>
+							) : null}
+						</li>
+					))}
+				</ul>
+			)}
+		</section>
 	);
 }
 
@@ -568,6 +661,8 @@ export function AccountPage() {
 					<Photos profile={profile} onChanged={reload} />
 				)}
 			</div>
+
+			{editing ? null : <Reviews />}
 		</PrivateScreen>
 	);
 }

@@ -78,6 +78,7 @@ export {
 	hasLiked,
 	like,
 	likes,
+	listLiked,
 	listLikers,
 	listMatches,
 	matches,

@@ -60,6 +60,8 @@ export const config = {
 		"/messages",
 		"/messages/:path*",
 		"/settings",
+		"/views",
+		"/likes",
 		"/verify-email",
 		"/complete-profile",
 	],
