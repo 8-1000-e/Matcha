@@ -22,6 +22,7 @@ export const TABLES: readonly string[] = [
 		neighborhood TEXT,
 		location_consent INTEGER NOT NULL DEFAULT 0
 			CHECK (location_consent IN (0, 1)),
+		location_updated_at TEXT,
 		is_online INTEGER NOT NULL DEFAULT 0 CHECK (is_online IN (0, 1)),
 		last_seen_at TEXT,
 		created_at TEXT NOT NULL DEFAULT ${TIMESTAMP_DEFAULT},

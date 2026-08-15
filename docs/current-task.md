@@ -1,98 +1,56 @@
-# Tâche en cours — front du feed
+# Tâche en cours — audit du sujet
 
-Branche `back/discovery`. Le back est terminé et testé ; il reste l'écran.
+Branche `front/profile`, partie de `main` après le merge des PR #15 (découverte)
+et #16 (likes et notifications), puis merge local de la PR #17 (messagerie et
+modération). Mise à jour : 2026-08-15.
 
-## Ce qui est déjà en place et fonctionne
+## Ce qui est fait et vérifié au navigateur
 
-**`GET /api/discovery`** — testé en réel : session créée, 100 candidats,
-pages de 20, tri par défaut vérifié (Mont-de-Marsan à ~100 km de Bordeaux en
-tête pour un profil bordelais).
+- **Feed** — carte plein écran deux colonnes (galerie à gauche, identité,
+  biographie et tags à droite), défilement carte par carte, filtres avec
+  brouillon et bouton Appliquer, tri et sens du tri, like optimiste, lien vers
+  le profil. Session rejouée au retour depuis `sessionStorage`.
+- **Profil public** `/users/[id]` — en-tête façon Instagram, onglets Photos et
+  Avis, galerie plein écran, présence, like, menu Signaler / Bloquer.
+- **Mon profil** `/me` — même grammaire visuelle, édition en place (identité,
+  biographie, centres d'intérêt avec le sélecteur de l'inscription), gestion des
+  photos, avis reçus.
+- **Réglages** `/settings` — trois sections : localisation (consentement stocké
+  en base, relevé quotidien, choix de ville), comptes bloqués, compte.
+- **Activité** — `/views` (qui m'a vu, mes visites) et `/likes` (qui m'a liké,
+  mes likes), atteignables depuis le rail.
+- **Chrome** — rail de gauche avec avatar et déconnexion, cloche de
+  notifications, heartbeat de présence, synchronisation de position.
 
-- `matcha-app/src/app/api/discovery/route.ts` — valide, vérifie l'existence des
-  tags, ouvre ou retrouve la session, lit une page. Traduit le
-  `DatabaseError("profile_incomplete")` en **403** au lieu d'un 500.
-- `matcha-app/src/lib/discovery/query.ts` — lecture et validation des paramètres
-  d'URL, et `filtersHash` (SHA-256 d'un JSON normalisé, tags triés, sans
-  `limit`/`after`/`session`). Vérifié : deux URLs aux mêmes filtres écrits dans
-  un ordre différent donnent le même hash.
-- `matcha-app/src/lib/db/queries/feed.ts` — `openFeedSession`,
-  `findFeedSession`, `extendFeedSession` (tranches de 100), `readFeedPage`,
-  `purgeFeedSessions`.
-- `matcha-app/src/app/api/users/[id]/like/route.ts` — POST et DELETE. Exige une
-  photo de profil (403 `profile_photo_required`), refuse l'auto-like, 404 si
-  bloqué. **Aucun appel à `notify`** : les notifications sont faites par un
-  collègue, à merger plus tard.
+## Ce qui manque pour le sujet
 
-**Front partiel**, sur `matcha-app/src/`:
+1. **Recherche avancée** — écran dédié absent. Le back est prêt :
+   `GET /api/discovery` accepte déjà tous les filtres et tris.
+2. **Filtre par centres d'intérêt** — la route accepte `tags=`, la barre de
+   filtres ne l'expose pas.
+3. **Repli IP pour la localisation** — le sujet demande de localiser par IP
+   quand l'utilisateur refuse le GPS. Aujourd'hui : ville choisie à la main.
+4. **Écrire un avis** — aucune route. `upsertReview` et `removeReview` existent
+   dans le repository mais ne sont appelés par personne, donc la note de
+   popularité ne peut bouger que par le seed.
+5. **Changer d'adresse e-mail** — `PATCH /api/profile` l'accepte et relance la
+   vérification, aucun écran ne le propose.
 
-- `app/feed/page.tsx` — page serveur, trois gardes (connexion, vérification,
-  profil complet), charge la **première page côté serveur** et la passe en props.
-- `views/Feed/FeedPage.tsx` — état, chargement infini, suivi de la position.
-- `views/Feed/FeedFilters.tsx` — barre repliable, chips de tri / distance /
-  note, bornes d'âge, compteur `n / total`.
-- `views/Feed/CandidateSlide.tsx` — carte plein écran, photo, dégradé, prénom,
-  âge, ville, distance, bio, tags, étoiles.
-- `lib/discovery/client.ts` — `fetchFeed`, `feedParams`, et `likeUser`
-  (l'ajout de `likeUser` a été interrompu, **à vérifier**).
-- `components/Profile/CandidateCard.tsx` — ancienne carte en grille, **plus
-  utilisée** depuis le passage au deck. À supprimer si le deck est retenu.
+## Points ouverts
 
-## Ce qu'il reste à faire
+- `users.is_online` n'est jamais écrite : la présence se calcule partout depuis
+  `last_seen_at`. La colonne devrait disparaître du schéma.
+- Un profil peut être complet avec une ville mais sans coordonnées ; il sort
+  alors du tri par distance.
+- Les messages sont stockés en clair (`messages.body`). Le sujet ne demande pas
+  de chiffrement.
 
-### 1. Le défilement est cassé — deux zones de scroll imbriquées
+## Rappels d'exécution
 
-Mesuré dans le navigateur :
-
-```
-main    y=68   hauteur 746
-deck    y=230  hauteur 560
-footer  y=814                (hors écran, viewport 800)
-body scrollHeight 846        ← la page défile AUSSI
-```
-
-Le navigateur ne sait pas quelle zone faire défiler : la page bouge en premier,
-d'où l'impression de blocage et le pied de page qui passe par-dessus.
-
-**Correctif prévu** : sortir `FeedPage` de `PrivateScreen` et construire sa
-propre mise en page `h-dvh` en `flex flex-col overflow-hidden` — en-tête
-(BrandLockup + LogoutButton + filtres + compteur), puis le deck en `flex-1`
-comme **seule** zone défilante.
-
-### 2. Animation carte par carte
-
-Demande explicite : défilement vertical classique, une personne à la fois, avec
-une animation. `scroll-snap` est déjà posé (`snap-y snap-mandatory`,
-`snap-start` sur chaque `li`). Il manque l'effet : mettre `data-active` depuis
-l'`IntersectionObserver` déjà présent et animer `scale`/`opacity` en CSS
-(150-300 ms). Ne pas utiliser de bibliothèque.
-
-### 3. Bouton like
-
-Cœur sur la carte, appel à `POST /api/users/[id]/like`, état optimiste, cœur
-rempli après succès, badge si `matched`. Flèches clavier : haut/bas pour
-naviguer, droite pour liker. Afficher une indication, l'utilisateur ne devinait
-pas où liker.
-
-### 4. Finir `likeUser` dans `lib/discovery/client.ts`
-
-L'ajout a été coupé en plein milieu. `send` existe dans `lib/http/client.ts` :
-`send<T>(method, path, fields)`.
-
-## Notes de vérification
-
-- Le compte de test est `feed*@example.com` / `Qw7!zplmVnb2`, jar de cookies
-  dans le scratchpad. Le jeton d'accès dure 15 min : rafraîchir avec
-  `POST /api/auth/refresh` avant de retester au navigateur.
-- Playwright est installé **hors du projet**, dans le scratchpad de session.
-- La base contient **100 profils de seed**, pas 500 : le dernier essai a été
-  lancé avec `COUNT = 100`. `COUNT` est revenu à 500, il faut relancer
-  `npm run db:seed:profiles` (~20 min, 1 250 photos).
-
-## Points laissés ouverts volontairement
-
-- Un profil peut être « complet » avec une ville mais **sans coordonnées** (la
-  règle est un OU). Il sort alors du tri par distance et de tout filtre de
-  distance. Décision reportée : durcir la complétion, ou l'exclure du feed.
-- Le plafond de matérialisation est de 100 par tranche, sans limite haute
-  globale depuis le passage aux tranches.
-- Notes entières uniquement dans les filtres (`ratingMin=4`), pas de 4,5.
+- Toute modification du schéma exige `npm run db:migrate` (ou un redémarrage) :
+  `applySchema` ne tourne qu'à l'ouverture de la base. Oublier la migration
+  donne un `500` sur la route qui écrit la nouvelle colonne.
+- Le dossier est synchronisé par iCloud : des fichiers « X 2.ts » réapparaissent
+  dans `.next` après chaque build et cassent `tsc`. Les supprimer, ou couper la
+  synchronisation du dossier.
+- Compte de test : `feed19120` / `Qw7!zplmVnb2`.

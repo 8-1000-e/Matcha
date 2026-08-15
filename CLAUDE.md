@@ -33,10 +33,12 @@ restaurer le contexte complet de la session précédente.
 
 ## Current State
 
-- **Branche** : `back/discovery`
-- **Statut** : endpoint de découverte terminé et testé ; front du feed en cours
-  (carte plein écran + défilement carte par carte + bouton like)
-- **Dernière mise à jour** : 2026-08-14
+- **Branche** : `front/profile`
+- **Statut** : feed, profil public, mon profil, réglages, visites et likes
+  terminés et vérifiés au navigateur. Messagerie et modération reprises de la
+  PR #17. Reste la recherche avancée et les manques listés dans
+  `docs/current-task.md`.
+- **Dernière mise à jour** : 2026-08-15
 
 ## Task Progress
 
@@ -47,12 +49,16 @@ restaurer le contexte complet de la session précédente.
 - [x] Seed de 500 faux profils (identités, villes, photos, likes, avis)
 - [x] `GET /api/discovery` — feed figé par session, filtres, tri, pagination
 - [x] `POST/DELETE /api/users/[id]/like`
-- [ ] **Front du feed** <- EN COURS — voir `docs/current-task.md`
-- [ ] Page profil public + historique de visites
-- [ ] Recherche avancée (même endpoint, écran dédié)
-- [ ] Chat temps réel, notifications (notifications faites par un collègue)
-- [ ] Blocage / signalement, statut en ligne
-- [ ] Chrome applicatif global (header, nav, déconnexion)
+- [x] Front du feed (carte, filtres, tri, like, session rejouée)
+- [x] Page profil public + historique de visites + avis
+- [x] Mon profil éditable, réglages, likes reçus et envoyés
+- [x] Chat temps réel, notifications (repris de la PR #17)
+- [x] Blocage / signalement, statut en ligne
+- [x] Chrome applicatif global (rail gauche, cloche, déconnexion)
+- [ ] **Recherche avancée** (même endpoint, écran dédié) <- EN COURS
+- [ ] Filtre par centres d'intérêt dans la barre de filtres
+- [ ] Repli IP quand la géolocalisation est refusée
+- [ ] Écrire et supprimer un avis (aucune route aujourd'hui)
 
 ## Key Decisions
 
@@ -63,5 +69,10 @@ restaurer le contexte complet de la session précédente.
   exige les mêmes tris et filtres pour les deux.
 - **Note de popularité = moyenne des avis sur 5**, rien d'autre. La formule
   composite précédente était une invention, elle a été supprimée partout.
+- **Présence calculée** depuis `last_seen_at` (fenêtre de 120 s), jamais lue
+  dans `users.is_online`, colonne morte.
+- **Consentement de géolocalisation en base** avec `location_updated_at` : le
+  front ne redemande la position que passé 24 h, et seulement si l'utilisateur a
+  accepté.
 - **Villes embarquées** dans le dépôt (`data/cities.tsv.gz`) et chargées à
   l'ouverture de la base : ce sont des données de référence, pas un seed.

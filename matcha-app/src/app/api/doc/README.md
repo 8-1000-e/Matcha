@@ -414,6 +414,23 @@ fourni et on laisse le reste à `NULL`. La complétion n'exige que des coordonn�
 | `200` | enregistré |
 | `400` | `["coordinates are invalid"]`, `["city is invalid"]`, `["neighborhood is invalid"]`, `["coordinates or a city are required"]` |
 
+## `PATCH /api/profile/location`
+
+**Corps** : `{ "consent": false }` — pose le consentement de géolocalisation
+**sans toucher à la position**. `PUT` déduisait le consentement du mode d'envoi
+(coordonnées = accepté, ville = refusé), ce qui rendait impossible de le
+révoquer en gardant sa ville.
+
+Chaque écriture de position renseigne `users.location_updated_at`. C'est cette
+date que le front compare pour son cycle de 24 h : tant qu'elle a moins d'un
+jour, aucune demande de position n'est faite au navigateur.
+
+| Code | Cas |
+| --- | --- |
+| `200` | le profil complet |
+| `400` | `["consent must be a boolean"]` |
+| `400` | `["send your position before enabling tracking"]` — aucune coordonnée enregistrée |
+
 ## `GET /api/profile/location/search?q=`
 
 Suggestions de villes pour la saisie manuelle. Moins de 2 caractères renvoie une
@@ -507,12 +524,17 @@ visible.
 ## `DELETE /api/profile/photos/[id]`
 
 Supprime la ligne **et** le fichier. Les positions restantes sont resserrées et
-la photo de profil est réattribuée à la suivante s'il le faut. Supprimer la
-dernière photo repasse donc `profile_completed` à 0.
+la photo de profil est réattribuée à la suivante s'il le faut.
+
+**La dernière photo ne peut pas être supprimée** : sans photo de profil le
+compte repasserait `profile_completed = 0`, alors que le sujet exige un profil
+complet pour utiliser le site. La garde est côté serveur, pas seulement dans le
+formulaire : un appel direct à la route est refusé de la même façon.
 
 | Code | Cas |
 | --- | --- |
 | `200` | supprimée |
+| `400` | `["last_photo_required"]` — c'était la seule photo |
 | `404` | `["photo not found"]` |
 
 ## `PUT /api/profile/photos/order`
@@ -547,6 +569,78 @@ confirmer que la photo existe.
 La réponse porte `X-Content-Type-Options: nosniff`. Le risque est faible — les
 octets servis sont toujours du WebP ré-encodé par sharp — mais l'en-tête coûte
 une ligne.
+
+---
+
+# Découverte
+
+## `GET /api/discovery`
+
+Le feed de suggestions et, à terme, la recherche avancée : le sujet impose les
+mêmes tris et les mêmes filtres pour les deux, une seule route les sert donc.
+
+**Paramètres**
+
+| Paramètre | Valeurs | Défaut |
+| --- | --- | --- |
+| `sort` | `distance`, `age`, `popularity`, `common_tags`, `last_seen`, `online`, `created` | tri composite : distance, puis affinités, puis note |
+| `direction` | `asc`, `desc` | `asc` |
+| `ageMin`, `ageMax` | 18 à 120 | — |
+| `ratingMin` | 0 à 5, entier | — |
+| `maxDistanceKm` | 0 à 20038 | — |
+| `tags` | identifiants séparés par des virgules | — |
+| `session` | identifiant d'une session ouverte | une nouvelle session |
+| `after`, `limit` | pagination dans la session | `0`, `20` |
+
+`online` ne trie pas sur la colonne `users.is_online`, jamais écrite, mais sur
+l'expression de présence `last_seen_at > now - 120s` — la même que partout
+ailleurs. `is_online` renvoyé dans les cartes vient de ce calcul, pas de la
+colonne.
+
+**Réponse**
+
+```json
+{
+  "session": "uuid", "reset": false, "next": 20, "total": 100,
+  "items": [
+    {
+      "id": "uuid", "username": "ana", "first_name": "Ana", "age": 31,
+      "gender": "woman", "orientation": "bi", "biography": "…",
+      "city": "Paris", "neighborhood": null, "distance_km": 4.2,
+      "common_tags": 3, "review_average": 4.2, "review_count": 12,
+      "photo_count": 3, "profile_photo_id": "uuid",
+      "photo_ids": "uuid,uuid,uuid", "tags": "books,cats",
+      "viewer_liked": 0, "is_online": 1, "last_seen_at": "…"
+    }
+  ]
+}
+```
+
+`photo_ids` liste **toutes** les photos, la photo de profil en premier
+(`ORDER BY is_profile DESC, created_at, id`), pour la galerie de la carte.
+`viewer_liked` dit si le cœur doit être plein au chargement.
+
+**Le feed est figé par session.** L'ordre est calculé une fois, stocké dans
+`feed_entries`, puis relu page par page : aucun doublon ni saut pendant le
+défilement, même si une note change entre deux pages. La session dure une heure.
+
+Les exclusions (bloqués dans un sens ou l'autre, orientation incompatible) sont
+**rejouées à chaque lecture** pour rester justes. Une seule exception : les
+profils likés restent visibles dans la session en cours — `readFeedPage` lit
+avec `includeLiked: true`. Sans cela, liker quelqu'un le faisait disparaître
+sous le doigt. Les tranches suivantes, elles, continuent d'exclure les likés :
+ils ne reviendront pas dans une session ultérieure.
+
+Comme `/feed` est une page serveur, chaque retour sur l'écran ouvrirait une
+session neuve. Le front mémorise donc l'identifiant de session et la position
+dans `sessionStorage`, et rejoue la session au retour.
+
+| Code | Cas |
+| --- | --- |
+| `200` | une page de résultats |
+| `400` | `["invalid sort key: …"]`, `["invalid sort direction: …"]`, `["unknown tags: …"]` |
+| `401` | pas de session |
+| `403` | `["profile_incomplete"]` — le visiteur n'a pas fini son profil |
 
 ---
 
@@ -607,6 +701,46 @@ photo de profil.
 
 Aucune contrainte d'unicité : chaque visite compte, le sujet parle d'un
 historique. Renvoie `{ "ok": true }`.
+
+## `GET /api/users/[id]/reviews`
+
+Les avis reçus par un profil, pour la page publique. Mêmes gardes que
+`GET /api/users/[id]` : session, compte vérifié, profil du visiteur complet, et
+`404` indistinct si la cible est inconnue ou s'il y a un blocage.
+
+```json
+{
+  "ok": true,
+  "reviews": [
+    {
+      "id": "uuid", "author_id": "uuid", "author_username": "ana",
+      "score": 4, "body": "Rendez-vous agréable.",
+      "created_at": "2026-08-01T10:00:00.000Z",
+      "updated_at": "2026-08-02T09:12:00.000Z"
+    }
+  ]
+}
+```
+
+Les avis écrits par quelqu'un que la **cible** a bloqué sont exclus, et la liste
+est plafonnée à 50, du plus récemment modifié au plus ancien. La note affichée
+sur le profil reste `review_average` de `GET /api/users/[id]` : la moyenne des
+avis sur 5, rien d'autre.
+
+Écrire ou supprimer un avis n'a **pas** encore de route.
+
+## `GET /api/profile/reviews`
+
+Mes propres avis reçus, pour la page `/me`. `GET /api/users/[id]/reviews` ne
+peut pas servir : elle refuse son propre identifiant avec un `400`.
+
+```json
+{ "ok": true, "review_average": 4.2, "review_count": 12, "reviews": [ ... ] }
+```
+
+Les avis ont la même forme que sur le profil public. Écrire ou supprimer un avis
+n'a **toujours pas de route** : la note de popularité ne peut donc bouger que
+par le seed.
 
 ## Quelle notification pour quelle action
 
@@ -684,10 +818,19 @@ l'ouverture alors qu'un message ne l'est qu'en ouvrant la conversation.
 **`link` est `null`** pour les quatre notifications liées à un acteur :
 `actor_username` est déjà joint, donc le client construit la destination
 lui-même, et le serveur s'épargne une requête. Seul `MESSAGE` porte un lien,
-`/chat/<matchId>`, parce que le `matchId` n'est nulle part ailleurs dans la
+`/messages/<matchId>`, parce que le `matchId` n'est nulle part ailleurs dans la
 charge.
 
 `read_at` devient le booléen `read` : le front n'a pas besoin de l'horodatage.
+
+**L'historique se purge tout seul.** Chaque insertion appelle
+`pruneNotifications`, qui supprime les notifications **déjà lues** sorties des
+`NOTIFICATION_HISTORY` (50) plus récentes du destinataire. Sans cela la table
+grossit indéfiniment : un compte actif accumule un `VIEWED` par visite de son
+profil. **Une notification non lue n'est jamais supprimée**, quel que soit son
+âge — la purge ne doit pas faire disparaître ce que l'utilisateur n'a pas encore
+vu. La limite est la même que celle de la lecture, donc la purge ne retire
+jamais une ligne que cette route aurait renvoyée.
 
 **Cette route est la seule des notifications à passer par `requireAnySession`** :
 elle n'exige donc pas que le compte soit vérifié. La raison est concrète — la
@@ -728,33 +871,67 @@ couple d'utilisateurs.
 
 ## `GET /api/matches`
 
-Les connexions actives du connecté, de la plus récente à la plus ancienne.
+Les connexions actives du connecté, de la plus récente **activité** à la plus
+ancienne — donc une conversation vivante remonte, alors qu'un tri sur la date de
+connexion l'aurait figée en bas.
+
+**Paramètres** : `limit` (1 à 50), `q` (recherche, 32 caractères maximum), et le
+couple `before` / `before_id` pour paginer. Un `limit` hors bornes donne
+`400 ["limit is invalid"]`, un `q` trop long ou porteur d'un caractère de
+contrôle `400 ["search is invalid"]`, et un curseur à moitié fourni
+`400 ["cursor is incomplete"]`.
 
 ```json
 {
   "ok": true,
+  "unread_messages": 3,
+  "cursor": { "activity_at": "2026-08-14T12:07:11.246Z", "id": "uuid" },
   "matches": [
     {
       "match_id": "uuid",
       "connected_at": "2026-08-14T12:07:11.246Z",
+      "activity_at": "2026-08-15T09:31:02.881Z",
       "unread": 0,
       "partner": {
         "id": "uuid",
         "username": "bob",
         "first_name": "Bob",
         "photo_url": "/api/photos/uuid"
+      },
+      "last_message": {
+        "body": "à demain",
+        "sent_at": "2026-08-15T09:31:02.881Z",
+        "mine": false
       }
     }
   ]
 }
 ```
 
-`listMatches()` ne filtre pas les blocages : la route écarte donc les
-partenaires pour lesquels un blocage existe dans un sens ou l'autre.
+**Le curseur est un couple, pas une date.** Deux connexions créées dans la même
+milliseconde partageraient un `activity_at` ; un curseur réduit à l'horodatage
+sauterait l'une des deux ou la servirait deux fois. La comparaison porte donc sur
+`(activity_at, id)`, avec le même couple en `ORDER BY`.
+
+`q` cherche une sous-chaîne dans le prénom **ou** le pseudo du partenaire. Les
+jokers `%` et `_` sont échappés : les taper cherche ces caractères, il ne
+sélectionnent pas tout.
+
+**Le filtre de blocage est dans la requête SQL**, pas dans la route. Écarter les
+partenaires bloqués après coup amputerait la page — on demande 15 lignes, on en
+rend 12 sans que le client puisse savoir s'il reste des pages.
+
+**`unread_messages` est un total global**, pas la somme des lignes renvoyées.
+Une liste paginée ne connaît que sa première page : additionner les `unread`
+reçus afficherait « 3 messages non lus » alors qu'il y en a douze plus bas.
 
 ## `GET /api/messages/[matchId]`
 
-La conversation, en ordre chronologique.
+La conversation, en ordre chronologique, **et le partenaire** — même objet que
+dans `GET /api/matches`. L'écran de conversation a besoin du nom, de la photo et
+de la présence : les prendre ici lui épargne un second appel, et surtout un appel
+à la liste des connexions, qui est paginée et pourrait ne pas contenir la
+conversation ouverte.
 
 **Paramètres** : `before` (horodatage ISO, pour paginer vers le passé) et
 `limit` (entier de 1 à 200, 50 par défaut). Un `limit` non entier ou hors bornes
@@ -782,14 +959,25 @@ faille éliminatoire au sujet.
 
 Après l'écriture, le message est publié sur `private-chat-<matchId>` et une
 notification `MESSAGE` part vers le destinataire, avec
-`link: "/chat/<matchId>"`.
+`link: "/messages/<matchId>"`.
 
 ## `PATCH /api/messages/[matchId]`
 
 **Corps** : `{ "read": true }`. Marque lus tous les messages de la conversation
-qui ne viennent pas de l'appelant, renvoie `{ "ok": true, "updated": n }`, et
-publie l'événement `read` sur le canal du chat pour que l'expéditeur voie son
-« vu » sans recharger.
+qui ne viennent pas de l'appelant, et publie l'événement `read` sur le canal du
+chat pour que l'expéditeur voie son « vu » sans recharger.
+
+**La même requête éteint les notifications de cette conversation.** Ouvrir un
+fil et y voir les messages, tout en gardant « untel vous a envoyé un message »
+dans la cloche, oblige l'utilisateur à acquitter deux fois la même information.
+`markLinkedNotificationsRead` marque donc lues les notifications dont le `link`
+vaut `/messages/<matchId>` — d'où le lien porté par les notifications `MESSAGE`,
+qui sert ici de clé de regroupement et pas seulement de destination.
+
+La réponse devient `{ "ok": true, "updated": n, "dismissed": n }`. Quand
+`dismissed > 0`, l'événement **`notifications-read`** est publié sur le canal
+personnel du lecteur avec `{ link }` : les autres onglets et la cloche
+rafraîchissent leur compteur sans recharger la page.
 
 ## Les gardes des quatre routes
 
@@ -828,12 +1016,31 @@ compte.
 | Canal | Événement | Charge |
 | --- | --- | --- |
 | `private-user-<id>` | `notification` | une notification sérialisée, identique à un élément de `GET /api/notifications` |
+| `private-user-<id>` | `notifications-read` | `{ link }` — les notifications portant ce lien viennent d'être acquittées |
 | `private-chat-<matchId>` | `message` | un message sérialisé |
 | `private-chat-<matchId>` | `read` | `{ match_id, reader_id, read_at }` |
+| `private-chat-<matchId>` | `closed` | `{ match_id }` — la connexion est rompue, la conversation n'est plus accessible |
+| `presence-user-<id>` | `pusher:member_added` / `pusher:member_removed` | émis par Pusher, jamais par l'application : `<id>` vient d'ouvrir ou de fermer le site |
+
+**`closed` part du retrait de like et du blocage**, les deux seules opérations
+qui désactivent un match. Sans lui, l'écran de conversation restait ouvert sur
+un fil devenu inaccessible : la saisie répondait `404` sans rien expliquer. Il
+est publié sur le canal du chat parce que **les deux parties y sont déjà
+abonnées** — celle qui subit la rupture n'a rien demandé et n'a donc aucun autre
+signal.
 
 Un seul nom d'événement pour les cinq types de notification : le client ajoute
 en tête et incrémente son badge sans connaître les types. En ajouter un plus
 tard ne touche pas le client.
+
+**Le client tait les notifications de la conversation qu'il a sous les yeux.**
+Recevoir « untel vous a envoyé un message » pendant qu'on lit ce message est
+absurde. La conversation ouverte s'enregistre dans `notifications/active.ts`, et
+la cloche ignore une notification `MESSAGE` dont le lien correspond. Le filtre
+est côté client, pas serveur : le serveur ne sait pas quel écran est affiché, et
+le lui apprendre demanderait de stocker un état d'interface en base. La ligne
+existe donc bien en base, mais le `PATCH` déclenché par la lecture la marque lue
+dans la foulée — au rechargement, elle est déjà acquittée.
 
 Les **client events sont désactivés** dans le tableau de bord Pusher : un
 navigateur ne publie jamais. Sinon n'importe qui fabriquerait un faux message
@@ -853,6 +1060,12 @@ utilisateurs.
 | --- | --- |
 | `private-user-<id>` | `<id>` est **exactement** celui de la session |
 | `private-chat-<matchId>` | match **actif** dont l'appelant est membre, et aucun blocage avec le partenaire |
+| `presence-user-<id>` | `<id>` est celui de la session, **ou** un match actif sans blocage avec lui |
+
+Un canal de présence reçoit en plus des données de membre, `{ user_id }`, prises
+de la session et jamais du corps de la requête : c'est ce qui identifie le
+membre auprès de Pusher, et donc ce qui permet de distinguer le propriétaire du
+canal de ceux qui l'observent.
 
 | Code | Corps | Cas |
 | --- | --- | --- |
@@ -942,7 +1155,8 @@ Trois routes partagent la même forme de carte, produite par
 ```json
 {
   "id": "uuid", "username": "ana", "first_name": "Ana", "age": 31,
-  "city": "Paris", "neighborhood": null, "popularity_score": 60.4,
+  "city": "Paris", "neighborhood": null,
+  "review_average": 4.2, "review_count": 12,
   "photo_url": "/api/photos/uuid", "is_online": false, "last_seen_at": null
 }
 ```
@@ -955,13 +1169,15 @@ n'est jamais lue.
 
 | Route | Renvoie | Champs ajoutés à la carte |
 | --- | --- | --- |
-| `GET /api/likes` | `{ "likers": [...] }` — qui m'a liké (§IV.2) | `liked_at` |
+| `GET /api/likes?scope=received` | `{ "likers": [...] }` — qui m'a liké (§IV.2) | `liked_at` |
+| `GET /api/likes?scope=sent` | `{ "likers": [...] }` — qui j'ai liké | `liked_at` |
 | `GET /api/views?scope=received` | `{ "views": [...] }` — qui a consulté mon profil (§IV.2) | `viewed_at`, `visit_count` |
 | `GET /api/views?scope=made` | `{ "views": [...] }` — mon historique de visites (§IV.5) | `viewed_at` |
 | `GET /api/blocks` | `{ "blocked": [...] }` — qui j'ai bloqué | `blocked_at` |
 
-`scope` vaut `received` par défaut ; toute autre valeur que `received` ou `made`
-donne `400 ["scope must be received or made"]`.
+`scope` vaut `received` par défaut. Sur `/api/views`, toute autre valeur que
+`received` ou `made` donne `400 ["scope must be received or made"]` ; sur
+`/api/likes`, `400 ["scope must be received or sent"]`.
 
 `GET /api/blocks` existe pour une raison pratique : sans liste, on ne peut pas
 débloquer quelqu'un qu'on ne retrouve plus.
@@ -1055,30 +1271,50 @@ chaque ligne compte. Le front appelle donc les deux : le `GET` pour afficher, le
 ## `POST /api/presence`
 
 Signale que le connecté est actif. Met `last_seen_at` à l'heure et renvoie
-`{ "ok": true, "window_seconds": 90 }`. `401` sans session, `403` si le compte
-n'est pas vérifié.
+`{ "ok": true, "window_seconds": 120, "channel": "presence-user-<mon-id>" }`.
+`401` sans session, `403` si le compte n'est pas vérifié.
 
-Appelée automatiquement par `PresenceHeartbeat`, monté dans `PrivateScreen` :
-toutes les **30 secondes** tant qu'un onglet est ouvert et visible, plus un
+Appelée automatiquement par `PresenceHeartbeat`, monté dans `PrivateScreen` et
+dans `ThreadPage` — le seul écran privé à ne pas passer par `PrivateScreen`,
+faute de quoi lire une conversation rendrait invisible :
+toutes les **40 secondes** tant qu'un onglet est ouvert et visible, plus un
 battement immédiat au montage et au retour sur l'onglet. Un onglet en arrière-plan
 ne bat pas — inutile de compter en ligne quelqu'un qui a la page ouverte depuis
 trois jours dans un onglet oublié.
 
-**L'état en ligne n'est pas stocké, il est calculé à la lecture** : « en ligne »
-signifie « `last_seen_at` il y a moins de 90 secondes », via la fonction
-`onlineNow()` partagée. La colonne `users.is_online` existe encore mais n'est
-plus ni écrite ni lue — une valeur dénormalisée que rien ne remet à zéro
-resterait vraie pour toujours après une fermeture brutale du navigateur.
+**La présence en direct passe par les canaux de présence Pusher, pas par ce
+battement.** Chacun s'abonne à `presence-user-<son-id>` dès le premier battement
+— le canal est renvoyé par cette route, ce qui évite de faire descendre
+l'identifiant de session jusqu'aux composants de mise en page. Être membre de
+ce canal *est* le fait d'être en ligne : Pusher tient lui-même la liste des
+connexions ouvertes, c'est exactement l'information qu'un battement essaie de
+deviner.
 
-Conséquence assumée : fermer un onglet laisse le profil affiché en ligne pendant
-au plus 90 secondes. Le sujet n'impose aucun délai sur la présence — les 10
-secondes concernent le chat et les notifications.
+Un écran qui affiche quelqu'un s'abonne au canal **du partenaire**. Il y devient
+membre lui aussi, donc il ne regarde pas si le canal est occupé mais si le
+membre attendu s'y trouve : `members.get(partnerId)` à la souscription, puis
+`pusher:member_added` et `pusher:member_removed` filtrés sur cet identifiant.
+Mesuré en bout de chaîne, le point passe du vert au gris **en moins de 200 ms**
+dans les deux sens.
 
-Pourquoi pas les webhooks de présence Pusher, comme le prévoyait
-`docs/db-schema.md` : un webhook part des serveurs de Pusher **vers**
-l'application, et ils ne peuvent pas joindre `http://localhost:3000`. Il aurait
-fallu un tunnel en développement comme à la soutenance. Le raisonnement complet
-est dans `docs/db-schema.md`, section `users`.
+Aucun webhook n'est impliqué : `member_added` et `member_removed` descendent
+directement au navigateur. C'est ce qui rend l'approche utilisable ici, alors
+que les webhooks de présence — qui partent des serveurs de Pusher **vers**
+l'application — ne peuvent pas joindre `http://localhost:3000` sans tunnel. Le
+raisonnement d'origine est dans `docs/db-schema.md`, section `users`.
+
+Le battement n'a donc plus qu'un rôle de repli : il alimente `last_seen_at`,
+d'où viennent le « vu il y a trois heures » d'un absent et l'état affiché au
+premier rendu, avant que la souscription n'ait abouti. **L'état en ligne n'est
+toujours pas stocké, il est calculé à la lecture** : « en ligne » signifie
+« `last_seen_at` il y a moins de 120 secondes », via la fonction `onlineNow()`
+partagée. La colonne `users.is_online` existe encore mais n'est ni écrite ni
+lue — une valeur dénormalisée que rien ne remet à zéro resterait vraie pour
+toujours après une fermeture brutale du navigateur.
+
+Cette valeur de repli n'est plus critique, ce qui permet d'espacer le battement
+à un tiers de sa fenêtre plutôt qu'à un rythme serré : trois fois moins
+d'écritures pour une présence pourtant devenue instantanée.
 
 `is_online` et `last_seen_at` sont exposés partout où un utilisateur est décrit :
 `GET /api/users/[id]`, `GET /api/likes`, `GET /api/views`, `GET /api/blocks` et

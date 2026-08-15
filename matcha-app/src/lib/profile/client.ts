@@ -25,6 +25,7 @@ export interface Profile {
 	latitude: number | null;
 	longitude: number | null;
 	location_consent: boolean;
+	location_updated_at: string | null;
 	tags: string[];
 	photos: ProfilePhoto[];
 	is_verified: boolean;
@@ -76,30 +77,58 @@ export function getProfile(): Promise<ProfileResult> {
 	return request<Payload>("/api/profile", { method: "GET" });
 }
 
+const SHARED_TTL_MS = 30_000;
+
+let shared: { at: number; promise: Promise<ProfileResult> } | null = null;
+
+export function forgetProfile(): void {
+	shared = null;
+}
+
+export function sharedProfile(): Promise<ProfileResult> {
+	if (shared !== null && Date.now() - shared.at < SHARED_TTL_MS) {
+		return shared.promise;
+	}
+	const promise = getProfile();
+	shared = { at: Date.now(), promise };
+	return promise;
+}
+
 export function saveProfile(fields: ProfileFields): Promise<ProfileResult> {
+	forgetProfile();
 	return send<Payload>("PATCH", "/api/profile", fields);
 }
 
 export function saveTags(tags: string[]): Promise<ProfileResult> {
+	forgetProfile();
 	return send<Payload>("PUT", "/api/profile/tags", { tags });
 }
 
+export function setLocationConsent(consent: boolean): Promise<ProfileResult> {
+	forgetProfile();
+	return send<Payload>("PATCH", "/api/profile/location", { consent });
+}
+
 export function saveLocation(fields: LocationFields): Promise<ProfileResult> {
+	forgetProfile();
 	return send<Payload>("PUT", "/api/profile/location", fields);
 }
 
 export function addPhoto(file: File): Promise<ProfileResult> {
 	const body = new FormData();
 	body.set("photo", file);
+	forgetProfile();
 	return upload<Payload>("/api/profile/photos", body);
 }
 
 export function pickProfilePhoto(id: string): Promise<ProfileResult> {
+	forgetProfile();
 	return send<Payload>("PATCH", `/api/profile/photos/${id}`, {
 		is_profile: true,
 	});
 }
 
 export function removePhoto(id: string): Promise<ProfileResult> {
+	forgetProfile();
 	return request<Payload>(`/api/profile/photos/${id}`, { method: "DELETE" });
 }

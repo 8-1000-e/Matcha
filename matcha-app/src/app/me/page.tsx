@@ -20,5 +20,5 @@ export default async function Page() {
 		redirect("/complete-profile");
 	}
 
-	return <AccountPage user={user} />;
+	return <AccountPage />;
 }

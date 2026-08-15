@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirectIfSignedIn } from "@/lib/auth/serverUser";
 import { SignupPage } from "@/views/Signup/SignupPage";
 
 export const metadata: Metadata = {
@@ -6,6 +7,8 @@ export const metadata: Metadata = {
 	description: "Créez votre compte Brewmance.",
 };
 
-export default function Page() {
+export default async function Page() {
+	await redirectIfSignedIn();
+
 	return <SignupPage />;
 }

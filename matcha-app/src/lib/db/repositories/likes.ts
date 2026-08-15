@@ -1,7 +1,8 @@
 import { execute, queryAll, queryOne, transaction } from "../core/client";
 import { boundedInteger } from "../core/identifiers";
+import { contains } from "../core/operators";
 import { createRepository } from "../core/repository";
-import { sql } from "../core/sql";
+import { every, sql, when } from "../core/sql";
 import { createId } from "../core/values";
 import { SUMMARY_COLUMNS, type UserSummaryRow } from "../queries/summaries";
 import type { LikeInsert, LikeRow, MatchInsert, MatchRow } from "../types";
@@ -27,6 +28,7 @@ export interface LikeOutcome {
 export interface UnlikeOutcome {
 	unliked: boolean;
 	disconnected: boolean;
+	match_id: string | null;
 }
 
 function pair(first: string, second: string): [string, string] {
@@ -86,12 +88,16 @@ export function like(likerId: string, likedId: string): LikeOutcome {
 
 export function unlike(likerId: string, likedId: string): UnlikeOutcome {
 	return transaction(() => {
-		const wasConnected
-			= findMatchBetween(likerId, likedId)?.is_active === 1;
+		const existing = findMatchBetween(likerId, likedId);
+		const wasConnected = existing?.is_active === 1;
 		if (likes.remove({ liker_id: likerId, liked_id: likedId }) === 0) {
-			return { unliked: false, disconnected: false };
+			return { unliked: false, disconnected: false, match_id: null };
 		}
-		return { unliked: true, disconnected: wasConnected };
+		return {
+			unliked: true,
+			disconnected: wasConnected,
+			match_id: wasConnected ? (existing?.id ?? null) : null,
+		};
 	});
 }
 
@@ -114,15 +120,94 @@ export function listLikers(
 	);
 }
 
-export function listMatches(userId: string): (MatchRow & { partner_id: string })[] {
-	return queryAll<MatchRow & { partner_id: string }>(
+export function listLiked(
+	likerId: string,
+	limit = 100,
+): (UserSummaryRow & { liked_at: string })[] {
+	return queryAll<UserSummaryRow & { liked_at: string }>(
+		sql`SELECT ${SUMMARY_COLUMNS}, likes.liked_at AS liked_at
+			FROM user_profiles AS profiles
+			JOIN likes ON likes.liked_id = profiles.id
+			WHERE likes.liker_id = ${likerId}
+				AND NOT EXISTS (
+					SELECT 1 FROM blocks
+					WHERE (blocks.blocker_id = ${likerId} AND blocks.blocked_id = profiles.id)
+						OR (blocks.blocker_id = profiles.id AND blocks.blocked_id = ${likerId})
+				)
+			ORDER BY likes.liked_at DESC
+			LIMIT ${boundedInteger(limit, 1, 500, "limit")}`,
+	);
+}
+
+export interface MatchListRow extends MatchRow {
+	partner_id: string;
+	last_body: string | null;
+	last_sent_at: string | null;
+	last_sender_id: string | null;
+	activity_at: string;
+}
+
+export interface MatchCursor {
+	activity_at: string;
+	id: string;
+}
+
+export interface MatchListOptions {
+	limit?: number;
+	before?: MatchCursor;
+	query?: string;
+}
+
+export function listMatches(
+	userId: string,
+	options: MatchListOptions = {},
+): MatchListRow[] {
+	const limit = boundedInteger(options.limit ?? 50, 1, 100, "limit");
+	const query = options.query?.trim() ?? "";
+	const before = options.before;
+
+	const conditions = every([
+		sql`${userId} IN (matches.user_a_id, matches.user_b_id)`,
+		sql`matches.is_active = 1`,
+		sql`NOT EXISTS (
+			SELECT 1 FROM blocks
+			WHERE (blocks.blocker_id = ${userId} AND blocks.blocked_id = partner.id)
+				OR (blocks.blocker_id = partner.id AND blocks.blocked_id = ${userId})
+		)`,
+		when(
+			query.length > 0,
+			() =>
+				sql`(partner.first_name ${contains(query)}
+					OR partner.username ${contains(query)})`,
+		),
+		when(
+			before !== undefined,
+			() =>
+				sql`(COALESCE(last.sent_at, matches.connected_at), matches.id)
+					< (${before?.activity_at}, ${before?.id})`,
+		),
+	]);
+
+	return queryAll<MatchListRow>(
 		sql`SELECT matches.*,
-				CASE WHEN matches.user_a_id = ${userId}
-					THEN matches.user_b_id ELSE matches.user_a_id END AS partner_id
+				partner.id AS partner_id,
+				last.body AS last_body,
+				last.sent_at AS last_sent_at,
+				last.sender_id AS last_sender_id,
+				COALESCE(last.sent_at, matches.connected_at) AS activity_at
 			FROM matches
-			WHERE (matches.user_a_id = ${userId} OR matches.user_b_id = ${userId})
-				AND matches.is_active = 1
-			ORDER BY matches.connected_at DESC`,
+			JOIN users AS partner ON partner.id = CASE
+				WHEN matches.user_a_id = ${userId}
+					THEN matches.user_b_id ELSE matches.user_a_id END
+			LEFT JOIN messages AS last ON last.id = (
+				SELECT messages.id FROM messages
+				WHERE messages.match_id = matches.id
+				ORDER BY messages.sent_at DESC, messages.id DESC
+				LIMIT 1
+			)
+			WHERE ${conditions}
+			ORDER BY activity_at DESC, matches.id DESC
+			LIMIT ${limit}`,
 	);
 }
 

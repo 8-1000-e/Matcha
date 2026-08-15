@@ -78,11 +78,15 @@ export {
 	hasLiked,
 	like,
 	likes,
+	listLiked,
 	listLikers,
 	listMatches,
 	matches,
 	unlike,
 	type LikeOutcome,
+	type MatchCursor,
+	type MatchListOptions,
+	type MatchListRow,
 	type UnlikeOutcome,
 } from "./repositories/likes";
 export {
@@ -106,9 +110,12 @@ export {
 	countUnreadNotifications,
 	listNotifications,
 	markAllNotificationsRead,
+	markLinkedNotificationsRead,
 	markNotificationRead,
+	NOTIFICATION_HISTORY,
 	notifications,
 	notify,
+	pruneNotifications,
 } from "./repositories/notifications";
 export {
 	addPhoto,
@@ -166,6 +173,7 @@ export {
 	markUserVerified,
 	refreshProfileCompletion,
 	setLocation,
+	setLocationConsent,
 	touchLastSeen,
 	updatePassword,
 	users,

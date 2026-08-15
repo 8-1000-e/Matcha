@@ -22,6 +22,9 @@ interface State {
 	loading: boolean;
 }
 
+const SESSION_KEY = "feed:session";
+const POSITION_KEY = "feed:position";
+
 const EMPTY: State = {
 	items: [],
 	session: null,
@@ -52,6 +55,7 @@ export function FeedPage({
 	const [position, setPosition] = useState(0);
 	const deck = useRef<HTMLUListElement>(null);
 	const inFlight = useRef(false);
+	const restored = useRef(false);
 
 	const load = useCallback(
 		async (
@@ -98,11 +102,79 @@ export function FeedPage({
 	);
 
 	function changeFilters(next: FeedFilters) {
+		sessionStorage.removeItem(SESSION_KEY);
+		sessionStorage.removeItem(POSITION_KEY);
 		setFilters(next);
 		setPosition(0);
 		deck.current?.scrollTo({ top: 0 });
 		void load(next, null, 0, true);
 	}
+
+	useEffect(() => {
+		if (restored.current)
+		{
+			return;
+		}
+		restored.current = true;
+
+		const saved = sessionStorage.getItem(SESSION_KEY);
+		if (saved === null)
+		{
+			return;
+		}
+		const target = Number(sessionStorage.getItem(POSITION_KEY) ?? "0");
+
+		void (async () => {
+			const items: Candidate[] = [];
+			let after = 0;
+			let next: number | null = 0;
+			let total = 0;
+
+			while (next !== null && items.length <= target)
+			{
+				const result = await fetchFeed({}, saved, after);
+				if (!result.ok || result.data.reset)
+				{
+					return;
+				}
+				items.push(...result.data.items);
+				next = result.data.next;
+				total = result.data.total;
+				if (next === null)
+				{
+					break;
+				}
+				after = next;
+			}
+
+			setState({
+				items,
+				session: saved,
+				next,
+				total,
+				error: null,
+				loading: false,
+			});
+			const index = Math.min(target, items.length - 1);
+			setPosition(index);
+			requestAnimationFrame(() => {
+				deck.current
+					?.querySelector(`[data-index="${index}"]`)
+					?.scrollIntoView({ block: "start", behavior: "auto" });
+			});
+		})();
+	}, []);
+
+	useEffect(() => {
+		if (state.session !== null)
+		{
+			sessionStorage.setItem(SESSION_KEY, state.session);
+		}
+	}, [state.session]);
+
+	useEffect(() => {
+		sessionStorage.setItem(POSITION_KEY, String(position));
+	}, [position]);
 
 	useEffect(() => {
 		const container = deck.current;
@@ -142,11 +214,11 @@ export function FeedPage({
 	return (
 		<PrivateScreen
 			width="full"
-			title={`Des profils pour vous, ${firstName}`}
-			intro="Classés par proximité, affinités puis note. Ajustez les filtres pour affiner."
+			fit
 			footer={null}
 		>
 			<FilterBar
+				firstName={firstName}
 				filters={filters}
 				onChange={changeFilters}
 				total={state.total}
@@ -176,13 +248,13 @@ export function FeedPage({
 			{state.items.length > 0 ? (
 				<ul
 					ref={deck}
-					className="h-[min(72dvh,36rem)] w-full snap-y snap-mandatory overflow-y-auto overscroll-contain scroll-smooth"
+					className="min-h-0 w-full flex-1 snap-y snap-mandatory overflow-y-auto overscroll-contain scroll-smooth"
 				>
 					{state.items.map((candidate, index) => (
 						<li
 							key={candidate.id}
 							data-index={index}
-							className="h-full snap-start pb-3"
+							className="mx-auto h-full max-w-5xl snap-start pb-3"
 						>
 							<CandidateSlide candidate={candidate} />
 						</li>

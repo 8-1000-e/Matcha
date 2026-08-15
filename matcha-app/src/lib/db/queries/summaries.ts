@@ -12,7 +12,8 @@ export interface UserSummaryRow {
 	neighborhood: string | null;
 	is_online: Flag;
 	last_seen_at: string | null;
-	popularity_score: number;
+	review_average: number;
+	review_count: number;
 	profile_photo_id: string | null;
 }
 
@@ -24,7 +25,8 @@ export const SUMMARY_COLUMNS: SqlFragment = raw(`profiles.id,
 	profiles.neighborhood,
 	${onlineNow("profiles.last_seen_at")} AS is_online,
 	profiles.last_seen_at,
-	profiles.popularity_score,
+	profiles.review_average,
+	profiles.review_count,
 	(
 		SELECT photos.id FROM photos
 		WHERE photos.user_id = profiles.id AND photos.is_profile = 1

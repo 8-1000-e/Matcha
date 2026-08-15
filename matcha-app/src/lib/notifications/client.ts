@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { request, send } from "@/lib/http/client";
 import { subscribe } from "@/lib/realtime/client";
+import { isConversationOpen } from "./active";
 import type { NotificationPayload } from "./notifications";
 
 interface Feed {
@@ -26,11 +27,10 @@ export function useNotifications(): NotificationFeed {
 	const [unreadMessages, setUnreadMessages] = useState(0);
 	const [channel, setChannel] = useState<string | null>(null);
 
-	useEffect(() => {
-		let live = true;
+	const load = useCallback(() => {
 		void request<Feed>("/api/notifications", { method: "GET" }).then(
 			(result) => {
-				if (!live || !result.ok) {
+				if (!result.ok) {
 					return;
 				}
 				setNotifications(result.data.notifications);
@@ -39,10 +39,11 @@ export function useNotifications(): NotificationFeed {
 				setChannel(result.data.channel);
 			},
 		);
-		return () => {
-			live = false;
-		};
 	}, []);
+
+	useEffect(() => {
+		load();
+	}, [load]);
 
 	useEffect(() => {
 		if (channel === null) {
@@ -50,6 +51,9 @@ export function useNotifications(): NotificationFeed {
 		}
 		return subscribe(channel, "notification", (payload) => {
 			const incoming = payload as NotificationPayload;
+			if (incoming.type === "MESSAGE" && isConversationOpen(incoming.link)) {
+				return;
+			}
 			setNotifications((current) =>
 				current.some((entry) => entry.id === incoming.id)
 					? current
@@ -61,6 +65,13 @@ export function useNotifications(): NotificationFeed {
 			}
 		});
 	}, [channel]);
+
+	useEffect(() => {
+		if (channel === null) {
+			return;
+		}
+		return subscribe(channel, "notifications-read", load);
+	}, [channel, load]);
 
 	const markAll = useCallback(() => {
 		setNotifications((current) =>

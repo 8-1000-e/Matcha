@@ -2,7 +2,8 @@ export function ageYears(birthDateColumn: string): string {
 	return `(CAST(strftime('%Y%m%d','now') AS INT)
 		- CAST(strftime('%Y%m%d', ${birthDateColumn}) AS INT)) / 10000`;
 }
-export const PRESENCE_WINDOW_SECONDS = 90;
+export const PRESENCE_WINDOW_SECONDS = 120;
+export const PRESENCE_BEAT_MS = (PRESENCE_WINDOW_SECONDS / 3) * 1000;
 export function onlineNow(lastSeenColumn: string): string {
 	return `(${lastSeenColumn} IS NOT NULL AND ${lastSeenColumn} >
 		strftime('%Y-%m-%dT%H:%M:%fZ','now','-${PRESENCE_WINDOW_SECONDS} seconds'))`;

@@ -24,6 +24,7 @@ export const users = createRepository<UserRow, UserInsert>({
 		"city",
 		"neighborhood",
 		"location_consent",
+		"location_updated_at",
 		"is_online",
 		"last_seen_at",
 		"created_at",
@@ -93,7 +94,15 @@ export function setLocation(
 		city: location.city,
 		neighborhood: location.neighborhood,
 		location_consent: toFlag(location.consent),
+		location_updated_at: new Date().toISOString(),
 	});
+}
+
+export function setLocationConsent(
+	id: string,
+	consent: boolean,
+): UserRow | undefined {
+	return users.updateById(id, { location_consent: toFlag(consent) });
 }
 
 export function refreshProfileCompletion(id: string): Flag {

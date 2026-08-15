@@ -3,8 +3,10 @@ import type { ComponentProps, ReactNode } from "react";
 import { BrandLockup } from "@/components/Brand/Brand";
 import { BackLink } from "@/components/Form/Button";
 import { LogoutButton } from "@/components/Form/LogoutButton";
+import { AppNav } from "@/components/Layout/AppNav";
 import { Backdrop } from "@/components/Layout/Backdrop";
 import { NotificationBell } from "@/components/Notifications/NotificationBell";
+import { LocationSync } from "@/components/Presence/LocationSync";
 import { PresenceHeartbeat } from "@/components/Presence/PresenceHeartbeat";
 
 type ScreenProps = {
@@ -13,6 +15,8 @@ type ScreenProps = {
 	footer: ReactNode;
 	center?: boolean;
 	centerTop?: boolean;
+	fit?: boolean;
+	nav?: boolean;
 	
 	width?: keyof typeof WIDTHS;
 };
@@ -29,13 +33,14 @@ export function Screen({
 	footer,
 	center = false,
 	centerTop = false,
+	fit = false,
+	nav = false,
 	width = "narrow",
 }: ScreenProps) {
 	const max = WIDTHS[width];
 
-	return (
+	const body = (
 		<>
-			<Backdrop />
 
 			<header
 				className={`mx-auto flex w-full ${max} px-6 pt-6 ${
@@ -48,7 +53,9 @@ export function Screen({
 			<main
 				className={`mx-auto flex w-full ${max} flex-1 flex-col px-6 ${
 					width === "narrow" ? "py-10" : "py-6"
-				} ${center ? "justify-center" : ""}`}
+				} ${center ? "justify-center" : ""} ${
+					fit ? "min-h-0 overflow-hidden !py-4" : ""
+				}`}
 			>
 				{children}
 			</main>
@@ -62,6 +69,29 @@ export function Screen({
 			</footer>
 		</>
 	);
+
+	if (!nav) {
+		return (
+			<div className={fit ? "flex h-dvh flex-col overflow-hidden" : "contents"}>
+				<Backdrop />
+				{body}
+			</div>
+		);
+	}
+
+	return (
+		<div className={fit ? "flex h-dvh overflow-hidden" : "flex flex-1"}>
+			<Backdrop />
+			<AppNav />
+			<div
+				className={`flex min-w-0 flex-1 flex-col ${
+					fit ? "min-h-0 overflow-hidden" : ""
+				}`}
+			>
+				{body}
+			</div>
+		</div>
+	);
 }
 
 type PrivateScreenProps = {
@@ -71,6 +101,7 @@ type PrivateScreenProps = {
 	footer: ReactNode;
 	width?: keyof typeof WIDTHS;
 	center?: boolean;
+	fit?: boolean;
 	verified?: boolean;
 };
 
@@ -81,19 +112,22 @@ export function PrivateScreen({
 	footer,
 	width = "narrow",
 	center = false,
+	fit = false,
 	verified = true,
 }: PrivateScreenProps) {
 	return (
 		<Screen
 			width={width}
 			center={center}
+			fit={fit}
+			nav={verified}
 			top={
 				<div className="flex w-full items-center justify-between gap-3">
 					{verified ? <PresenceHeartbeat /> : null}
+					{verified ? <LocationSync /> : null}
 					<BrandLockup />
 					<div className="flex items-center gap-1">
-						{verified ? <NotificationBell /> : null}
-						<LogoutButton />
+						{verified ? <NotificationBell /> : <LogoutButton />}
 					</div>
 				</div>
 			}
@@ -114,7 +148,17 @@ export function PrivateScreen({
 				</p>
 			) : null}
 
-			<div className={title || intro ? (width === "narrow" ? "mt-8" : "mt-6") : ""}>
+			<div
+				className={`${
+					title || intro
+						? fit
+							? "mt-3"
+							: width === "narrow"
+								? "mt-8"
+								: "mt-6"
+						: ""
+				} ${fit ? "flex min-h-0 flex-1 flex-col" : ""}`}
+			>
 				{children}
 			</div>
 		</Screen>

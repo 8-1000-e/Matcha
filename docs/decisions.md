@@ -100,3 +100,31 @@ liste de colonnes explicite.
 
 Écartés volontairement par l'utilisateur : rate limiting, limite de taille du
 corps JSON.
+
+## 2026-08-15 — Feed, profils et chrome
+
+**Les profils likés restent dans la session de feed.** `readFeedPage` lit avec
+`includeLiked: true` ; la matérialisation des tranches suivantes continue de les
+exclure. Sans cela, liker faisait disparaître la carte sous le doigt. Le retour
+sur `/feed` rejoue la session mémorisée dans `sessionStorage` au lieu d'en
+ouvrir une neuve.
+
+**La présence se calcule, elle ne se stocke pas.** `users.is_online` n'était
+jamais écrite : le feed affichait donc tout le monde hors ligne. Toutes les
+requêtes utilisent maintenant `last_seen_at > now - 120 s`.
+
+**Le consentement de géolocalisation est une donnée, pas un effet de bord.**
+`PATCH /api/profile/location` le pose explicitement, et `location_updated_at`
+horodate chaque relevé. Le cycle de 24 h se décide sur cette colonne, pas sur le
+`localStorage` du navigateur.
+
+**La dernière photo ne peut pas être supprimée**, côté serveur. Les autres
+garde-fous de complétude (biographie, genre, trois centres d'intérêt, ville)
+existaient déjà dans les validateurs ; celui-là manquait, un appel direct à
+l'API rendait le profil incomplet.
+
+**Une seule requête de profil par page** via `sharedProfile()`, mémorisée 30 s
+et invalidée à chaque mutation.
+
+**La messagerie vient de la PR #17**, elle n'a pas été réécrite. Le
+`ModerationMenu` de cette PR est réutilisé sur le profil public.

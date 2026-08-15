@@ -15,3 +15,7 @@ export function gt(value: unknown): SqlFragment {
 export function startsWith(value: string): SqlFragment {
 	return sql`LIKE ${`${escapeLike(value)}%`} ESCAPE '\\'`;
 }
+
+export function contains(value: string): SqlFragment {
+	return sql`LIKE ${`%${escapeLike(value)}%`} ESCAPE '\\'`;
+}

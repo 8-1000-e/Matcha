@@ -7,10 +7,37 @@ import type { FeedFilters } from "@/lib/discovery/client";
 const SORTS: readonly { value: string; label: string }[] = [
 	{ value: "", label: "Suggestions" },
 	{ value: "distance", label: "Proximité" },
-	{ value: "common_tags", label: "Affinités" },
+	{ value: "common_tags", label: "Centres d’intérêt en commun" },
 	{ value: "popularity", label: "Note" },
 	{ value: "age", label: "Âge" },
+	{ value: "last_seen", label: "Dernière connexion" },
+	{ value: "online", label: "En ligne" },
 ];
+
+const ORDERS: Record<string, { asc: string; desc: string; natural: "asc" | "desc" }> = {
+	distance: { asc: "Du plus proche", desc: "Du plus loin", natural: "asc" },
+	common_tags: {
+		asc: "Le moins d’affinités",
+		desc: "Le plus d’affinités",
+		natural: "desc",
+	},
+	popularity: {
+		asc: "Les moins bien notés",
+		desc: "Les mieux notés",
+		natural: "desc",
+	},
+	age: { asc: "Du plus jeune", desc: "Du plus âgé", natural: "asc" },
+	last_seen: {
+		asc: "Vus il y a longtemps",
+		desc: "Vus récemment",
+		natural: "desc",
+	},
+	online: {
+		asc: "Hors ligne d’abord",
+		desc: "En ligne d’abord",
+		natural: "desc",
+	},
+};
 
 const DISTANCES: readonly { value: string; label: string }[] = [
 	{ value: "", label: "Partout" },
@@ -64,11 +91,13 @@ function count(filters: FeedFilters): number {
 }
 
 export function FilterBar({
+	firstName,
 	filters,
 	onChange,
 	total,
 	position,
 }: {
+	firstName: string;
 	filters: FeedFilters;
 	onChange: (filters: FeedFilters) => void;
 	total: number;
@@ -95,8 +124,11 @@ export function FilterBar({
 	}
 
 	return (
-		<div className="mb-4 flex flex-col gap-3">
+		<div className="mb-3 flex flex-col gap-3">
 			<div className="flex items-center justify-between gap-3">
+				<h1 className="mr-2 truncate text-base font-semibold tracking-tight">
+					Des profils pour vous, {firstName}
+				</h1>
 				<button
 					type="button"
 					onClick={toggle}
@@ -117,19 +149,49 @@ export function FilterBar({
 					) : null}
 				</button>
 
-				<p className="text-sm text-muted tabular-nums" role="status">
+				<p className="ml-auto text-sm text-muted tabular-nums" role="status">
 					{total === 0 ? "Aucun profil" : `${Math.min(position + 1, total)} / ${total}`}
 				</p>
 			</div>
 
 			{open ? (
 				<div className="flex flex-col gap-4 rounded-xl bg-white/70 p-4 ring-1 ring-edge/40">
-					<div className="grid gap-4 sm:grid-cols-3">
+					<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 						<Field
 							label="Trier par"
 							value={draft.sort ?? ""}
 							options={SORTS}
-							onChange={(value) => patch({ sort: value === "" ? undefined : value })}
+							onChange={(value) =>
+								patch(
+									value === ""
+										? { sort: undefined, direction: undefined }
+										: { sort: value, direction: ORDERS[value]?.natural ?? "asc" },
+								)}
+						/>
+						<Field
+							label="Ordre"
+							value={draft.direction ?? "asc"}
+							options={
+								draft.sort === undefined
+									? [{ value: "asc", label: "Ordre des suggestions" }]
+									: [
+										{
+											value: ORDERS[draft.sort]?.natural ?? "asc",
+											label:
+												ORDERS[draft.sort]?.[ORDERS[draft.sort]?.natural ?? "asc"]
+												?? "Croissant",
+										},
+										{
+											value: ORDERS[draft.sort]?.natural === "asc" ? "desc" : "asc",
+											label:
+												ORDERS[draft.sort]?.natural === "asc"
+													? (ORDERS[draft.sort]?.desc ?? "Décroissant")
+													: (ORDERS[draft.sort]?.asc ?? "Croissant"),
+										},
+									]
+							}
+							onChange={(value) =>
+								patch({ direction: value === "desc" ? "desc" : "asc" })}
 						/>
 						<Field
 							label="Distance"
