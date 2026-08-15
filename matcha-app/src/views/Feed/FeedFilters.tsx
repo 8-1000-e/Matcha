@@ -7,10 +7,31 @@ import type { FeedFilters } from "@/lib/discovery/client";
 const SORTS: readonly { value: string; label: string }[] = [
 	{ value: "", label: "Suggestions" },
 	{ value: "distance", label: "Proximité" },
-	{ value: "common_tags", label: "Affinités" },
+	{ value: "common_tags", label: "Centres d’intérêt en commun" },
 	{ value: "popularity", label: "Note" },
 	{ value: "age", label: "Âge" },
+	{ value: "last_seen", label: "Dernière connexion" },
 ];
+
+const ORDERS: Record<string, { asc: string; desc: string; natural: "asc" | "desc" }> = {
+	distance: { asc: "Du plus proche", desc: "Du plus loin", natural: "asc" },
+	common_tags: {
+		asc: "Le moins d’affinités",
+		desc: "Le plus d’affinités",
+		natural: "desc",
+	},
+	popularity: {
+		asc: "Les moins bien notés",
+		desc: "Les mieux notés",
+		natural: "desc",
+	},
+	age: { asc: "Du plus jeune", desc: "Du plus âgé", natural: "asc" },
+	last_seen: {
+		asc: "Vus il y a longtemps",
+		desc: "Vus récemment",
+		natural: "desc",
+	},
+};
 
 const DISTANCES: readonly { value: string; label: string }[] = [
 	{ value: "", label: "Partout" },
@@ -129,12 +150,42 @@ export function FilterBar({
 
 			{open ? (
 				<div className="flex flex-col gap-4 rounded-xl bg-white/70 p-4 ring-1 ring-edge/40">
-					<div className="grid gap-4 sm:grid-cols-3">
+					<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 						<Field
 							label="Trier par"
 							value={draft.sort ?? ""}
 							options={SORTS}
-							onChange={(value) => patch({ sort: value === "" ? undefined : value })}
+							onChange={(value) =>
+								patch(
+									value === ""
+										? { sort: undefined, direction: undefined }
+										: { sort: value, direction: ORDERS[value]?.natural ?? "asc" },
+								)}
+						/>
+						<Field
+							label="Ordre"
+							value={draft.direction ?? "asc"}
+							options={
+								draft.sort === undefined
+									? [{ value: "asc", label: "Ordre des suggestions" }]
+									: [
+										{
+											value: ORDERS[draft.sort]?.natural ?? "asc",
+											label:
+												ORDERS[draft.sort]?.[ORDERS[draft.sort]?.natural ?? "asc"]
+												?? "Croissant",
+										},
+										{
+											value: ORDERS[draft.sort]?.natural === "asc" ? "desc" : "asc",
+											label:
+												ORDERS[draft.sort]?.natural === "asc"
+													? (ORDERS[draft.sort]?.desc ?? "Décroissant")
+													: (ORDERS[draft.sort]?.asc ?? "Croissant"),
+										},
+									]
+							}
+							onChange={(value) =>
+								patch({ direction: value === "desc" ? "desc" : "asc" })}
 						/>
 						<Field
 							label="Distance"
