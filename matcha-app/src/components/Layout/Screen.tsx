@@ -37,16 +37,9 @@ export function Screen({
 	width = "narrow",
 }: ScreenProps) {
 	const max = WIDTHS[width];
-	const shell = nav
-		? `flex flex-1 flex-col pl-16 ${fit ? "h-dvh overflow-hidden" : ""}`
-		: fit
-			? "flex h-dvh flex-col overflow-hidden"
-			: "contents";
 
-	return (
-		<div className={shell}>
-			<Backdrop />
-			{nav ? <AppNav /> : null}
+	const body = (
+		<>
 
 			<header
 				className={`mx-auto flex w-full ${max} px-6 pt-6 ${
@@ -59,7 +52,9 @@ export function Screen({
 			<main
 				className={`mx-auto flex w-full ${max} flex-1 flex-col px-6 ${
 					width === "narrow" ? "py-10" : "py-6"
-				} ${center ? "justify-center" : ""} ${fit ? "min-h-0 overflow-hidden" : ""}`}
+				} ${center ? "justify-center" : ""} ${
+					fit ? "min-h-0 overflow-hidden !py-4" : ""
+				}`}
 			>
 				{children}
 			</main>
@@ -71,6 +66,29 @@ export function Screen({
 			>
 				{footer}
 			</footer>
+		</>
+	);
+
+	if (!nav) {
+		return (
+			<div className={fit ? "flex h-dvh flex-col overflow-hidden" : "contents"}>
+				<Backdrop />
+				{body}
+			</div>
+		);
+	}
+
+	return (
+		<div className={fit ? "flex h-dvh overflow-hidden" : "flex flex-1"}>
+			<Backdrop />
+			<AppNav />
+			<div
+				className={`flex min-w-0 flex-1 flex-col ${
+					fit ? "min-h-0 overflow-hidden" : ""
+				}`}
+			>
+				{body}
+			</div>
 		</div>
 	);
 }
@@ -129,9 +147,15 @@ export function PrivateScreen({
 			) : null}
 
 			<div
-				className={`${title || intro ? (width === "narrow" ? "mt-8" : "mt-6") : ""} ${
-					fit ? "flex min-h-0 flex-1 flex-col" : ""
-				}`}
+				className={`${
+					title || intro
+						? fit
+							? "mt-3"
+							: width === "narrow"
+								? "mt-8"
+								: "mt-6"
+						: ""
+				} ${fit ? "flex min-h-0 flex-1 flex-col" : ""}`}
 			>
 				{children}
 			</div>

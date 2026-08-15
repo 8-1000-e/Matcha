@@ -7,7 +7,8 @@ export interface UserSummary {
 	age: number;
 	city: string | null;
 	neighborhood: string | null;
-	popularity_score: number;
+	review_average: number;
+	review_count: number;
 	photo_url: string | null;
 	is_online: boolean;
 	last_seen_at: string | null;
@@ -22,7 +23,8 @@ export function serializeUserSummary(row: UserSummaryRow): UserSummary
 		age: row.age,
 		city: row.city,
 		neighborhood: row.neighborhood,
-		popularity_score: row.popularity_score,
+		review_average: row.review_average,
+		review_count: row.review_count,
 		photo_url:
 			row.profile_photo_id === null
 				? null

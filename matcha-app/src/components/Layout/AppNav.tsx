@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { MatchaBowl } from "@/components/Brand/Brand";
+import { ViewsButton } from "@/components/Views/ViewsButton";
 import { logout } from "@/lib/auth/api";
 import { getProfile } from "@/lib/profile/client";
 
@@ -101,7 +102,7 @@ export function AppNav() {
 	return (
 		<nav
 			aria-label="Navigation principale"
-			className="fixed inset-y-0 left-0 z-10 flex w-16 flex-col items-center justify-between border-r border-edge/30 bg-white/60 py-4 backdrop-blur-sm"
+			className="sticky top-0 flex h-dvh w-16 shrink-0 flex-col items-center justify-between border-r border-edge/30 bg-white/60 py-4 backdrop-blur-sm"
 		>
 			<div className="flex flex-col items-center gap-2">
 				<Link href="/feed" aria-label="Accueil" className={LINK}>
@@ -127,6 +128,8 @@ export function AppNav() {
 						</Link>
 					);
 				})}
+
+				<ViewsButton />
 			</div>
 
 			<div className="flex flex-col items-center gap-2">

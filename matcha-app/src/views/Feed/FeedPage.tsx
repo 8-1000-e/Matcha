@@ -216,7 +216,6 @@ export function FeedPage({
 			width="full"
 			fit
 			title={`Des profils pour vous, ${firstName}`}
-			intro="Classés par proximité, affinités puis note. Ajustez les filtres pour affiner."
 			footer={null}
 		>
 			<FilterBar
@@ -255,7 +254,7 @@ export function FeedPage({
 						<li
 							key={candidate.id}
 							data-index={index}
-							className="h-full snap-start pb-3"
+							className="mx-auto h-full max-w-4xl snap-start pb-3"
 						>
 							<CandidateSlide candidate={candidate} />
 						</li>
