@@ -9,7 +9,8 @@ import { logout } from "@/lib/auth/api";
 import { sharedProfile } from "@/lib/profile/client";
 
 const LINK
-	= "flex size-11 items-center justify-center rounded-xl transition-colors duration-200 ease-out";
+	= "flex size-10 items-center justify-center rounded-xl transition-colors"
+	+ " duration-200 ease-out sm:size-11";
 
 function FeedIcon() {
 	return (
@@ -157,10 +158,14 @@ export function AppNav() {
 	return (
 		<nav
 			aria-label="Navigation principale"
-			className="sticky top-0 flex h-dvh w-16 shrink-0 flex-col items-center justify-between border-r border-edge/30 bg-white/60 py-4 backdrop-blur-sm"
+			className="sticky top-0 z-30 flex w-full shrink-0 items-center justify-between gap-1 border-b border-edge/30 bg-white/80 px-2 py-1.5 backdrop-blur-sm sm:h-dvh sm:w-16 sm:flex-col sm:border-r sm:border-b-0 sm:px-0 sm:py-4"
 		>
-			<div className="flex flex-col items-center gap-2">
-				<Link href="/feed" aria-label="Accueil" className={LINK}>
+			<div className="flex items-center gap-1 sm:flex-col sm:gap-2">
+				<Link
+					href="/feed"
+					aria-label="Accueil"
+					className="hidden size-11 items-center justify-center rounded-xl sm:flex"
+				>
 					<MatchaBowl className="size-6" />
 				</Link>
 
@@ -185,12 +190,12 @@ export function AppNav() {
 				})}
 			</div>
 
-			<div className="flex flex-col items-center gap-2">
+			<div className="flex items-center gap-1 sm:flex-col sm:gap-2">
 				<Link
 					href="/me"
 					aria-label="Mon profil"
 					aria-current={pathname === "/me" ? "page" : undefined}
-					className={`relative size-10 overflow-hidden rounded-full bg-leaf/60 ring-2 transition-colors duration-200 ease-out ${
+					className={`relative size-9 shrink-0 overflow-hidden rounded-full bg-leaf/60 ring-2 transition-colors duration-200 ease-out sm:size-10 ${
 						pathname === "/me" ? "ring-matcha" : "ring-edge/30 hover:ring-matcha/60"
 					}`}
 				>
