@@ -1,3 +1,4 @@
+import { ActionLink } from "@/components/Form/Button";
 import { PrivateScreen } from "@/components/Layout/Screen";
 import type { CurrentUser } from "@/lib/auth/api";
 
@@ -7,7 +8,7 @@ export function AccountPage({ user }: { user: CurrentUser }) {
 			title={`Bonjour ${user.first_name}`}
 			footer={
 				<span className="block text-center">
-					Les suggestions, la recherche et le chat arrivent ensuite.
+					Les suggestions et la recherche arrivent ensuite.
 				</span>
 			}
 		>
@@ -31,6 +32,10 @@ export function AccountPage({ user }: { user: CurrentUser }) {
 					<dd className="font-medium text-matcha">complet</dd>
 				</div>
 			</dl>
+
+			<ActionLink href="/messages" tone="primary" className="mt-8">
+				Mes messages
+			</ActionLink>
 		</PrivateScreen>
 	);
 }

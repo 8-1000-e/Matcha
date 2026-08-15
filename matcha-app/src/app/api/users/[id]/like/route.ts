@@ -1,6 +1,7 @@
 import { like, unlike } from "@/lib/db";
 import { emitLiked, emitMatch, emitUnliked } from "@/lib/notifications/emit";
 import { requireTarget } from "@/lib/profile/target";
+import { closeConversation } from "@/lib/realtime/conversation";
 
 interface Context {
 	params: Promise<{ id: string }>;
@@ -51,6 +52,7 @@ export async function DELETE(_request: Request, context: Context)
 	if (outcome.disconnected)
 	{
 		emitUnliked(id, guarded.viewer.id);
+		closeConversation(outcome.match_id);
 	}
 
 	return Response.json({

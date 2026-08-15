@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirectIfSignedIn } from "@/lib/auth/serverUser";
 import { LoginPage, type LoginNotice } from "@/views/Login/LoginPage";
 
 export const metadata: Metadata = {
@@ -12,5 +13,7 @@ function readNotice(query: Record<string, string | string[] | undefined>) {
 }
 
 export default async function Page({ searchParams }: PageProps<"/login">) {
+	await redirectIfSignedIn();
+
 	return <LoginPage notice={readNotice(await searchParams)} />;
 }

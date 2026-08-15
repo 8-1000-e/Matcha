@@ -2,9 +2,11 @@ import { after } from "next/server";
 import { requireSession } from "@/lib/auth/guards";
 import {
 	findActiveMatchForUsers,
+	findUserSummary,
 	isBlockedEitherWay,
 	listConversation,
 	markConversationRead,
+	markLinkedNotificationsRead,
 	sendMessage,
 	type MatchRow,
 	type UserRow,
@@ -16,8 +18,10 @@ import {
 	validateMessageBody,
 } from "@/lib/messages/validation";
 import { emitMessage } from "@/lib/notifications/emit";
+import { conversationLink } from "@/lib/notifications/notifications";
 import { validateRead } from "@/lib/notifications/validation";
-import { chatChannel, publish } from "@/lib/realtime/server";
+import { serializeUserSummary } from "@/lib/profile/summary";
+import { chatChannel, publish, userChannel } from "@/lib/realtime/server";
 
 interface Context {
 	params: Promise<{ matchId: string }>;
@@ -77,8 +81,13 @@ export async function GET(request: Request, context: Context)
 		before: before ?? undefined,
 		limit: limit.value,
 	});
+	const partner = findUserSummary(guarded.partnerId);
 
-	return Response.json({ ok: true, messages: rows.map(serializeMessage) });
+	return Response.json({
+		ok: true,
+		partner: partner === undefined ? null : serializeUserSummary(partner),
+		messages: rows.map(serializeMessage),
+	});
 }
 
 export async function POST(request: Request, context: Context)
@@ -135,9 +144,11 @@ export async function PATCH(request: Request, context: Context)
 		return Response.json({ errors: result.errors }, { status: 400 });
 	}
 
-	const updated = markConversationRead(matchId, guarded.user.id);
-	const readAt = new Date().toISOString();
 	const reader = guarded.user.id;
+	const link = conversationLink(matchId);
+	const updated = markConversationRead(matchId, reader);
+	const dismissed = markLinkedNotificationsRead(reader, link);
+	const readAt = new Date().toISOString();
 
 	after(() => {
 		publish(chatChannel(matchId), "read", {
@@ -145,7 +156,11 @@ export async function PATCH(request: Request, context: Context)
 			reader_id: reader,
 			read_at: readAt,
 		});
+		if (dismissed > 0)
+		{
+			publish(userChannel(reader), "notifications-read", { link });
+		}
 	});
 
-	return Response.json({ ok: true, updated });
+	return Response.json({ ok: true, updated, dismissed });
 }

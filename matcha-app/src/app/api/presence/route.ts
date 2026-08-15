@@ -1,5 +1,6 @@
 import { requireSession } from "@/lib/auth/guards";
 import { PRESENCE_WINDOW_SECONDS, touchLastSeen } from "@/lib/db";
+import { presenceUserChannel } from "@/lib/realtime/server";
 
 export async function POST()
 {
@@ -11,5 +12,9 @@ export async function POST()
 
 	touchLastSeen(session.user.id);
 
-	return Response.json({ ok: true, window_seconds: PRESENCE_WINDOW_SECONDS });
+	return Response.json({
+		ok: true,
+		window_seconds: PRESENCE_WINDOW_SECONDS,
+		channel: presenceUserChannel(session.user.id),
+	});
 }

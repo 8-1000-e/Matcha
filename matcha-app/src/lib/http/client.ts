@@ -7,7 +7,7 @@ import {
 
 export type ApiResult<T> =
 	| { ok: true; data: T }
-	| { ok: false; errors: AuthError[]; code?: string };
+	| { ok: false; errors: AuthError[]; code?: string; status?: number };
 
 function fallback(): AuthError[] {
 	return [{ field: null, message: GENERIC_ERROR }];
@@ -152,6 +152,7 @@ export async function request<T>(
 			ok: false,
 			errors: readErrors(payload),
 			code: readCode(payload),
+			status: response.status,
 		};
 	}
 

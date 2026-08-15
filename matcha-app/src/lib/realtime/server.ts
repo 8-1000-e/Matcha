@@ -1,5 +1,7 @@
 import Pusher from "pusher";
 
+export { chatChannel, presenceUserChannel, userChannel } from "./channels";
+
 let client: Pusher | null | undefined;
 
 function realtime(): Pusher | null {
@@ -16,14 +18,6 @@ function realtime(): Pusher | null {
 	}
 	client = new Pusher({ appId, key, secret, cluster, useTLS: true });
 	return client;
-}
-
-export function userChannel(userId: string): string {
-	return `private-user-${userId}`;
-}
-
-export function chatChannel(matchId: string): string {
-	return `private-chat-${matchId}`;
 }
 
 export function publish(
@@ -43,10 +37,11 @@ export function publish(
 export function authorizeChannel(
 	socketId: string,
 	channel: string,
+	member?: Pusher.PresenceChannelData,
 ): Pusher.ChannelAuthResponse | null {
 	const pusher = realtime();
 	if (pusher === null) {
 		return null;
 	}
-	return pusher.authorizeChannel(socketId, channel);
+	return pusher.authorizeChannel(socketId, channel, member);
 }
