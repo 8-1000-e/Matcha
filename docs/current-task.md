@@ -54,6 +54,12 @@ Mise à jour : 2026-08-15.
 
 ### Levé le 2026-08-15
 
+- **Audit navigateur** (Playwright, Chromium + Firefox, 390/768/1440 px) —
+  aucun débordement horizontal, `<header>`/`<main>`/`<footer>` sur les 13
+  écrans, deck et avis vérifiés au clic et au glisser. Warnings LCP corrigés
+  par `priority` sur la première vignette des grilles photos.
+- **Notifications cliquables** — les 5 types mènent désormais quelque part.
+
 - **Changement de mot de passe** — `PATCH /api/profile/password`, ancien mot de
   passe exigé, politique identique à l'inscription, autres appareils
   déconnectés (`revokeAllRefreshTokens`) et session courante réémise.

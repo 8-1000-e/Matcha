@@ -1,8 +1,9 @@
 import Link from "next/link";
 
 const LINK
-	= "underline decoration-edge underline-offset-4 transition-colors"
-	+ " duration-200 ease-out hover:text-ink hover:decoration-matcha";
+	= "inline-flex min-h-11 items-center px-1 underline decoration-edge"
+	+ " underline-offset-4 transition-colors duration-200 ease-out"
+	+ " hover:text-ink hover:decoration-matcha";
 
 export function Footer() {
 	return (

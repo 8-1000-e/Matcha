@@ -89,9 +89,11 @@ export function TextLink({
 export function BackLink({
 	href,
 	label = "Retour",
+	compact = false,
 }: {
 	href: ComponentProps<typeof Link>["href"];
 	label?: string;
+	compact?: boolean;
 }) {
 	return (
 		<Link
@@ -110,7 +112,9 @@ export function BackLink({
 			>
 				<path d="M9.5 3.5 5 8l4.5 4.5" />
 			</svg>
-			{label}
+			<span className={compact ? "sr-only sm:not-sr-only" : undefined}>
+				{label}
+			</span>
 		</Link>
 	);
 }

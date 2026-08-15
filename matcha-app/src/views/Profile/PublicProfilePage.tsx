@@ -317,6 +317,7 @@ function PhotoGrid({ photos }: { photos: ProfilePhoto[] }) {
 								src={photo.url}
 								alt=""
 								fill
+								priority={index === 0}
 								unoptimized
 								sizes="(min-width: 768px) 14rem, 33vw"
 								className="object-cover"

@@ -465,7 +465,7 @@ function Photos({
 				<p className="py-10 text-center text-sm text-muted">Aucune photo.</p>
 			) : (
 				<ul className="flex flex-wrap justify-center gap-2">
-					{profile.photos.map((photo) => (
+					{profile.photos.map((photo, index) => (
 						<li
 							key={photo.id}
 							className="group relative aspect-square w-[calc((100%-1rem)/3)] overflow-hidden rounded-lg bg-leaf/40 ring-1 ring-edge/30"
@@ -474,6 +474,7 @@ function Photos({
 								src={photo.url}
 								alt=""
 								fill
+								priority={index === 0}
 								unoptimized
 								sizes="(min-width: 768px) 14rem, 33vw"
 								className="object-cover"

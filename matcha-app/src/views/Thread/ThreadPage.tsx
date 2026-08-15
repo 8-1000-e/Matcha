@@ -104,7 +104,7 @@ function Header({
 
 	return (
 		<header className="mx-auto flex w-full max-w-sm shrink-0 items-center gap-3 px-6 pt-6 pb-3">
-			<BackLink href="/messages" />
+			<BackLink href="/messages" compact />
 
 			<Identity partner={partner} online={online} gone={gone} name={name} />
 

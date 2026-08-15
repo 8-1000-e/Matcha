@@ -196,6 +196,30 @@ l'utilisateur et ne serait qu'une fuite.
 
 ---
 
+## 2026-08-15 — Les notifications mènent quelque part
+
+**Constat.** Sur 131 notifications en base, **105 n'avaient aucun lien** : seul
+`MESSAGE` en posait un. `LIKED`, `MATCH`, `UNLIKED` et `VIEWED` sortaient avec
+`link: null`, et la cloche les rendait en `<button>` inerte. Cliquer dessus ne
+faisait rien.
+
+**Décision.** Deux mécanismes complémentaires.
+
+`emitMatch` reçoit désormais le `matchId` et **stocke** le lien vers la
+conversation, comme `emitMessage` le faisait déjà. C'est la destination utile
+d'un match : la discussion qui vient de s'ouvrir.
+
+`serializeNotification` **déduit** un lien vers `/users/<actor_id>` quand la
+colonne est nulle. C'est ce qui répare les 105 lignes existantes sans migration,
+et ça rend le système auto-réparateur : un futur type de notification oublié
+mènera au profil de l'acteur plutôt que nulle part.
+
+**Pourquoi déduire plutôt que migrer.** Une migration aurait figé un lien dans
+des lignes anciennes sans garantir que les prochaines en aient un. Déduire à la
+lecture traite les deux cas d'un coup.
+
+---
+
 ## 2026-08-15 — Suppression de compte : invisible tout de suite, effacé au 14ᵉ jour
 
 **Ce que le RGPD demande vraiment.** L'article 17 dit « sans délai injustifié ».

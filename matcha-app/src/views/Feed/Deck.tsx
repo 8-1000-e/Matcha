@@ -81,7 +81,7 @@ export function Deck({
 
 	return (
 		<div className="flex min-h-0 flex-1 items-stretch gap-3">
-			<div className="flex shrink-0 items-center">
+			<div className="hidden shrink-0 items-center sm:flex">
 				<button
 					type="button"
 					className={arrow}
@@ -110,7 +110,7 @@ export function Deck({
 				{children}
 			</div>
 
-			<div className="flex shrink-0 items-center">
+			<div className="hidden shrink-0 items-center sm:flex">
 				<button
 					type="button"
 					className={arrow}

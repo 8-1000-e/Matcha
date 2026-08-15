@@ -20,9 +20,13 @@ export async function PUT(_request: Request, context: Context)
 	}
 
 	const outcome = like(guarded.viewer.id, id);
-	if (outcome.liked && outcome.matched)
+	if (outcome.liked && outcome.matched && outcome.match !== undefined)
 	{
-		emitMatch(id, guarded.viewer.id);
+		emitMatch(id, guarded.viewer.id, outcome.match.id);
+	}
+	else if (outcome.liked && outcome.matched)
+	{
+		emitLiked(id, guarded.viewer.id);
 	}
 	else if (outcome.liked)
 	{

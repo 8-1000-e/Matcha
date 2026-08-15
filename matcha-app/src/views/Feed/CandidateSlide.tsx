@@ -182,7 +182,7 @@ export function CandidateSlide({
 		<article className="grid size-full gap-3 overflow-hidden rounded-3xl bg-white/60 p-3 ring-1 ring-edge/30 md:grid-cols-2">
 			<Gallery candidate={candidate} />
 
-			<div className="grid min-h-0 rounded-2xl bg-cream ring-1 ring-edge/25 md:grid-rows-[auto_1fr_auto]">
+			<div className="grid min-h-0 overflow-y-auto rounded-2xl bg-cream ring-1 ring-edge/25 md:overflow-hidden md:grid-rows-[auto_1fr_auto]">
 				<div className="border-b border-edge/20 px-5 py-4">
 					<div className="flex items-start justify-between gap-3">
 						<h2 className="flex items-baseline gap-2.5 text-2xl leading-tight font-semibold tracking-tight">
@@ -217,7 +217,7 @@ export function CandidateSlide({
 					</div>
 				</div>
 
-				<div className="min-h-0 overflow-y-auto border-b border-edge/20 px-5 py-4 text-sm leading-relaxed">
+				<div className="min-h-0 border-b border-edge/20 px-5 py-4 text-sm leading-relaxed md:overflow-y-auto">
 					{candidate.biography !== null ? (
 						candidate.biography
 					) : (
