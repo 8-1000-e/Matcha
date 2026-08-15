@@ -22,7 +22,6 @@ export interface PublicProfilePayload {
 	tags: string[];
 	photos: ProfilePhoto[];
 	common_tags: number;
-	popularity_score: number;
 	review_average: number;
 	review_count: number;
 	is_online: boolean;
@@ -61,7 +60,6 @@ export function buildPublicProfile(
 			position: photo.position,
 		})),
 		common_tags: profile.common_tags,
-		popularity_score: profile.popularity_score,
 		review_average: profile.review_average,
 		review_count: profile.review_count,
 		is_online: profile.is_online === 1,
