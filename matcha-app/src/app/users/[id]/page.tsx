@@ -44,5 +44,11 @@ export default async function Page({
 
 	const reviews = await fetchReviewsOnServer(id);
 
-	return <PublicProfilePage profile={result.profile} reviews={reviews} />;
+	return (
+		<PublicProfilePage
+			profile={result.profile}
+			reviews={reviews}
+			viewerId={user.id}
+		/>
+	);
 }

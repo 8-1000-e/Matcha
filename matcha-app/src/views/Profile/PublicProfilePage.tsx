@@ -10,8 +10,10 @@ import { ModerationMenu } from "@/components/Moderation/ModerationMenu";
 import type { ProfilePhoto } from "@/lib/profile/profile";
 import type { PublicProfilePayload } from "@/lib/profile/public";
 import {
+	deleteReview,
 	likeUser,
 	recordView,
+	saveReview,
 	unlikeUser,
 	type ReviewPayload,
 } from "@/lib/profile/publicClient";
@@ -341,7 +343,149 @@ function PhotoGrid({ photos }: { photos: ProfilePhoto[] }) {
 	);
 }
 
-function Reviews({ reviews }: { reviews: ReviewPayload[] }) {
+function ReviewForm({
+	profile,
+	mine,
+	onChanged,
+}: {
+	profile: PublicProfilePayload;
+	mine: ReviewPayload | undefined;
+	onChanged: () => void;
+}) {
+	const [score, setScore] = useState(mine?.score ?? 0);
+	const [body, setBody] = useState(mine?.body ?? "");
+	const [error, setError] = useState<string | null>(null);
+	const [pending, setPending] = useState(false);
+
+	if (!profile.is_connected && mine === undefined) {
+		return (
+			<p className="rounded-xl bg-leaf/30 px-4 py-3 text-xs text-muted">
+				Les avis sont réservés aux profils connectés : vous devez vous être
+				likés mutuellement pour noter {profile.first_name}.
+			</p>
+		);
+	}
+
+	async function submit() {
+		if (score < 1) {
+			setError("Choisissez une note.");
+			return;
+		}
+
+		setError(null);
+		setPending(true);
+		const result = await saveReview(profile.id, score, body.trim() || null);
+		setPending(false);
+
+		if (!result.ok) {
+			setError(result.errors[0]?.message ?? "Enregistrement impossible.");
+			return;
+		}
+		onChanged();
+	}
+
+	async function remove() {
+		setError(null);
+		setPending(true);
+		const result = await deleteReview(profile.id);
+		setPending(false);
+
+		if (!result.ok) {
+			setError(result.errors[0]?.message ?? "Suppression impossible.");
+			return;
+		}
+		setScore(0);
+		setBody("");
+		onChanged();
+	}
+
+	return (
+		<div className="flex flex-col gap-3 rounded-xl bg-white/60 p-4 ring-1 ring-edge/30">
+			<p className="text-sm font-medium">
+				{mine === undefined ? "Laisser un avis" : "Votre avis"}
+			</p>
+
+			<div className="flex items-center gap-1">
+				{[1, 2, 3, 4, 5].map((value) => (
+					<button
+						key={value}
+						type="button"
+						aria-label={`${value} étoile${value > 1 ? "s" : ""}`}
+						aria-pressed={score === value}
+						disabled={pending}
+						onClick={() => setScore(value)}
+						className={`cursor-pointer text-2xl leading-none transition-colors duration-200 ease-out ${
+							value <= score ? "text-matcha" : "text-edge/50 hover:text-matcha/50"
+						}`}
+					>
+						★
+					</button>
+				))}
+				{score > 0 ? (
+					<span className="ml-2 text-xs text-muted">{score} sur 5</span>
+				) : null}
+			</div>
+
+			<textarea
+				value={body}
+				maxLength={2000}
+				rows={3}
+				placeholder="Votre commentaire (facultatif)"
+				disabled={pending}
+				onChange={(event) => setBody(event.target.value)}
+				className="w-full resize-none rounded-lg border border-edge/60 bg-white px-3 py-2 text-sm transition-colors duration-200 ease-out hover:border-matcha/60 focus-visible:border-matcha"
+			/>
+
+			{error !== null ? <p className="text-xs text-muted">{error}</p> : null}
+
+			<div className="flex flex-wrap gap-2">
+				<button
+					type="button"
+					disabled={pending}
+					onClick={() => void submit()}
+					className="flex h-9 cursor-pointer items-center rounded-lg bg-matcha px-4 text-sm font-medium text-white transition-colors duration-200 ease-out hover:bg-matcha-dark disabled:cursor-progress"
+				>
+					{mine === undefined ? "Publier" : "Mettre à jour"}
+				</button>
+
+				{mine !== undefined ? (
+					<button
+						type="button"
+						disabled={pending}
+						onClick={() => void remove()}
+						className="flex h-9 cursor-pointer items-center rounded-lg border border-edge bg-white/70 px-3 text-sm font-medium transition-colors duration-200 ease-out hover:bg-leaf/50 disabled:cursor-progress"
+					>
+						Supprimer
+					</button>
+				) : null}
+			</div>
+		</div>
+	);
+}
+
+function Reviews({
+	profile,
+	reviews,
+	viewerId,
+	onChanged,
+}: {
+	profile: PublicProfilePayload;
+	reviews: ReviewPayload[];
+	viewerId: string;
+	onChanged: () => void;
+}) {
+	const mine = reviews.find((review) => review.author_id === viewerId);
+	const others = reviews.filter((review) => review.author_id !== viewerId);
+
+	return (
+		<div className="flex flex-col gap-5">
+			<ReviewForm profile={profile} mine={mine} onChanged={onChanged} />
+			<ReviewList reviews={others} />
+		</div>
+	);
+}
+
+function ReviewList({ reviews }: { reviews: ReviewPayload[] }) {
 	if (reviews.length === 0) {
 		return (
 			<p className="py-12 text-center text-sm text-muted">
@@ -371,9 +515,11 @@ function Reviews({ reviews }: { reviews: ReviewPayload[] }) {
 export function PublicProfilePage({
 	profile,
 	reviews,
+	viewerId,
 }: {
 	profile: PublicProfilePayload;
 	reviews: ReviewPayload[];
+	viewerId: string;
 }) {
 	const [tab, setTab] = useState<"photos" | "reviews">("photos");
 	const seen = useRef(false);
@@ -516,7 +662,12 @@ export function PublicProfilePage({
 				{tab === "photos" ? (
 					<PhotoGrid photos={profile.photos} />
 				) : (
-					<Reviews reviews={reviews} />
+					<Reviews
+						profile={profile}
+						reviews={reviews}
+						viewerId={viewerId}
+						onChanged={() => router.refresh()}
+					/>
 				)}
 			</div>
 		</PrivateScreen>

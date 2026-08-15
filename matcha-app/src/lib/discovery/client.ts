@@ -3,12 +3,19 @@ import type { CandidatePayload } from "./candidate";
 
 export type Candidate = CandidatePayload;
 
+export interface TagOption {
+	id: number;
+	label: string;
+}
+
 export interface FeedFilters {
 	ageMin?: number;
 	ageMax?: number;
 	ratingMin?: number;
 	maxDistanceKm?: number;
+	city?: string;
 	tags?: number[];
+	tagMode?: "any" | "all";
 	sort?: string;
 	direction?: "asc" | "desc";
 }

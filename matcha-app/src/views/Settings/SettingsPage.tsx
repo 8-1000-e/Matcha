@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Alert } from "@/components/Form/Alert";
 import { PrivateScreen } from "@/components/Layout/Screen";
 import { PresenceAvatar } from "@/components/Presence/PresenceAvatar";
+import type { AuthError } from "@/lib/auth/errorMessages";
 import {
 	listBlocked,
 	unblockUser,
@@ -12,12 +13,14 @@ import {
 import {
 	getProfile,
 	saveLocation,
+	saveProfile,
 	setLocationConsent,
 	type Place,
 	type Profile,
 } from "@/lib/profile/client";
 import { syncDue } from "@/lib/profile/locationSync";
 import { CityPicker } from "@/views/CompleteProfile/CityPicker";
+import { Errors } from "@/views/CompleteProfile/StepBase";
 
 const GHOST
 	= "flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-edge bg-white/70 px-3 text-sm font-medium transition-colors duration-200 ease-out hover:bg-leaf/50 disabled:cursor-progress";
@@ -289,7 +292,104 @@ function Blocked() {
 	);
 }
 
-function Account({ profile }: { profile: Profile }) {
+function EmailForm({
+	profile,
+	onSaved,
+}: {
+	profile: Profile;
+	onSaved: () => void;
+}) {
+	const [open, setOpen] = useState(false);
+	const [email, setEmail] = useState(profile.email);
+	const [errors, setErrors] = useState<AuthError[]>([]);
+	const [sent, setSent] = useState(false);
+	const [pending, setPending] = useState(false);
+
+	function start() {
+		setEmail(profile.email);
+		setErrors([]);
+		setSent(false);
+		setOpen(true);
+	}
+
+	async function submit(event: React.FormEvent) {
+		event.preventDefault();
+		setErrors([]);
+		setPending(true);
+
+		const result = await saveProfile({ email: email.trim().toLowerCase() });
+		setPending(false);
+
+		if (!result.ok) {
+			setErrors(result.errors);
+			return;
+		}
+
+		setOpen(false);
+		setSent(true);
+		onSaved();
+	}
+
+	if (!open) {
+		return (
+			<div className="flex flex-col gap-2">
+				<button type="button" className={GHOST} onClick={start}>
+					Changer d’adresse e-mail
+				</button>
+				{sent ? (
+					<p className="text-xs text-muted">
+						Un lien de vérification vient d’être envoyé à votre nouvelle adresse.
+					</p>
+				) : null}
+			</div>
+		);
+	}
+
+	return (
+		<form onSubmit={(event) => void submit(event)} className="flex flex-col gap-3">
+			<p className="rounded-lg bg-leaf/40 px-3 py-2 text-xs text-ink">
+				Changer d’adresse suspend la vérification de votre compte : vous devrez
+				cliquer sur le lien envoyé à la nouvelle adresse avant de pouvoir
+				réutiliser Brewmance.
+			</p>
+
+			<label className="flex flex-col gap-1.5">
+				<span className="text-xs text-muted">Nouvelle adresse e-mail</span>
+				<input
+					type="email"
+					required
+					autoComplete="email"
+					value={email}
+					onChange={(event) => setEmail(event.target.value)}
+					className="min-h-10 w-full rounded-lg border border-edge/60 bg-white px-3 text-sm transition-colors duration-200 ease-out hover:border-matcha/60 focus-visible:border-matcha"
+				/>
+			</label>
+
+			<Errors errors={errors} />
+
+			<div className="flex gap-2">
+				<button
+					type="submit"
+					className={PRIMARY}
+					disabled={pending || email.trim().toLowerCase() === profile.email}
+				>
+					Envoyer le lien
+				</button>
+				<button type="button" className={GHOST} onClick={() => setOpen(false)}>
+					Annuler
+				</button>
+			</div>
+		</form>
+	);
+}
+
+function Account({
+	profile,
+	onSaved,
+}: {
+	profile: Profile;
+	onSaved: () => void;
+}) {
 	return (
 		<Card
 			title="Compte"
@@ -319,6 +419,10 @@ function Account({ profile }: { profile: Profile }) {
 					</dd>
 				</div>
 			</dl>
+
+			<div className="mt-5 border-t border-edge/30 pt-4">
+				<EmailForm profile={profile} onSaved={onSaved} />
+			</div>
 		</Card>
 	);
 }
@@ -381,7 +485,7 @@ export function SettingsPage() {
 						) : section === "blocked" ? (
 							<Blocked />
 						) : (
-							<Account profile={profile} />
+							<Account profile={profile} onSaved={() => void reload()} />
 						)}
 					</div>
 				</div>

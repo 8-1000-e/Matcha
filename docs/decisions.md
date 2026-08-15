@@ -196,6 +196,67 @@ l'utilisateur et ne serait qu'une fuite.
 
 ---
 
+## 2026-08-15 — Noter quelqu'un exige un match, et c'est la base qui l'impose
+
+**Décision.** `PUT` et `DELETE /api/users/[id]/reviews`. `PUT` et non `POST` :
+`upsertReview` remplace l'avis existant, il n'y en a qu'un par couple.
+
+**La contrainte du match ne vient pas de la route.** Le déclencheur
+`reviews_require_match_before_insert` existe depuis la conception du schéma. La
+route la vérifie d'abord pour rendre un `403 review_requires_match` propre, et
+rattrape quand même la `ConstraintError` : vérifier puis écrire n'est pas
+atomique.
+
+**Pourquoi c'est bien ainsi.** On ne note que quelqu'un avec qui on s'est
+connecté, comme un hôte qu'on a rencontré. Une note ouverte à tous serait un
+outil de harcèlement, et le sujet demande des critères « cohérents ».
+
+**Conséquence assumée.** La note bouge lentement et un profil sans match reste à
+zéro avis. Mesuré de bout en bout : moyenne 0 → 5 → 3, puis retour à 0 après
+suppression.
+
+---
+
+## 2026-08-15 — Les identifiants de tags viennent du serveur, pas d'une requête
+
+**Décision.** `app/feed/page.tsx` appelle `listTags()` et passe la liste en
+props jusqu'à `FilterBar`.
+
+**Pourquoi.** Le filtre de découverte prend des **identifiants**
+(`tags=22,7`), alors que le sélecteur de l'inscription travaille sur des
+**libellés**. Il fallait la correspondance. Trois options : se fier à l'ordre de
+`TAG_LABELS` pour deviner les identifiants — fragile ; ouvrir un `GET /api/tags`
+— un aller-retour et une route de plus ; ou charger la liste dans le composant
+serveur qui rend déjà la première page du feed. La troisième ne coûte rien.
+
+**Limite connue.** Le jour où la recherche avancée aura son propre écran, il
+faudra soit répéter ce chargement, soit ouvrir la route. À ce moment-là
+seulement.
+
+---
+
+## 2026-08-15 — Le rail et la cloche descendent dans la conversation
+
+**Contexte.** `/messages/[matchId]` était le seul écran privé hors
+`PrivateScreen`. Sans rail, donc sans déconnexion (§IV.1) ; sans cloche, donc
+sans notifications ni signal de nouveau message venu d'une autre conversation
+(§IV.6, §IV.7).
+
+**Décision.** `AppNav` et `NotificationBell` ajoutés à l'ossature propre de la
+page, plutôt qu'un passage par `PrivateScreen`.
+
+**Pourquoi ne pas utiliser `PrivateScreen`.** Il impose son propre en-tête et
+son propre pied de page, alors que la conversation a besoin des siens : un
+en-tête qui porte le partenaire, sa présence et le menu de modération, et un
+pied de page qui **est** le composeur. Les emboîter aurait cassé la disposition
+en `h-dvh` qui garde le composeur au bas de l'écran.
+
+**Au passage.** Le §III était déjà respecté sur cette page : `<header>`,
+`<main>` et `<footer>` y étaient tous les trois. `LocationSync` a été ajouté,
+il manquait aussi.
+
+---
+
 ## 2026-08-15 — `GET /api/discovery` ne renvoie plus les colonnes brutes
 
 **Contexte.** La route rendait `page.items` tel quel. Chaque candidat du feed

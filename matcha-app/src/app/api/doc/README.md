@@ -702,6 +702,39 @@ photo de profil.
 Aucune contrainte d'unicité : chaque visite compte, le sujet parle d'un
 historique. Renvoie `{ "ok": true }`.
 
+## `PUT /api/users/[id]/reviews`
+
+Écrit ou remplace **mon** avis sur quelqu'un. Un seul avis par couple
+(auteur, cible) : `upsertReview` met à jour s'il existe déjà, d'où le `PUT` et
+non le `POST`.
+
+**Corps** : `{ "score": 1..5, "body"?: string | null }`. `body` est trimé, 2000
+caractères au plus, retours à la ligne autorisés, autres caractères de contrôle
+refusés. Une chaîne vide vaut `null`.
+
+| Code | Corps | Cas |
+| --- | --- | --- |
+| `200` | `{ "ok": true, "review": { ... } }` | écrit ou mis à jour |
+| `400` | `{ "errors": ["score must be an integer between 1 and 5"] }` | note hors bornes, ou pas un entier |
+| `400` | `{ "errors": ["review is too long"] }` | plus de 2000 caractères |
+| `403` | `{ "errors": ["review_requires_match"] }` | pas de match entre les deux |
+| `404` | `{ "errors": ["user not found"] }` | inconnu, ou blocage |
+
+**Il faut un match pour noter quelqu'un.** Ce n'est pas une règle de la route :
+le déclencheur `reviews_require_match_before_insert` l'impose en base depuis la
+conception du schéma. La route vérifie d'abord pour rendre un `403` propre, et
+rattrape quand même la `ConstraintError` — la vérification et l'écriture ne sont
+pas atomiques.
+
+C'est aussi ce qui rend la note crédible : on ne note que quelqu'un avec qui on
+s'est effectivement connecté, comme un hôte qu'on a rencontré. Conséquence
+assumée : la note bouge lentement, et un profil sans match reste à zéro avis.
+
+## `DELETE /api/users/[id]/reviews`
+
+Supprime mon avis. `200 { "removed": true }`, ou `404 ["review not found"]` si
+je n'en avais pas. Le `404` ne fuite rien : il parle de **mon** avis.
+
 ## `GET /api/users/[id]/reviews`
 
 Les avis reçus par un profil, pour la page publique. Mêmes gardes que

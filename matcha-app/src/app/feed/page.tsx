@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { fetchCurrentUser } from "@/lib/auth/serverUser";
+import { listTags } from "@/lib/db";
 import { fetchInitialFeed } from "@/lib/discovery/serverFeed";
 import { FeedPage } from "@/views/Feed/FeedPage";
 
@@ -22,6 +23,9 @@ export default async function Page() {
 	}
 
 	const initial = await fetchInitialFeed();
+	const tags = listTags().map((tag) => ({ id: tag.id, label: tag.label }));
 
-	return <FeedPage firstName={user.first_name} initial={initial} />;
+	return (
+		<FeedPage firstName={user.first_name} initial={initial} tags={tags} />
+	);
 }

@@ -9,6 +9,7 @@ import {
 	type Candidate,
 	type FeedFilters,
 	type FeedPayload,
+	type TagOption,
 } from "@/lib/discovery/client";
 import { likeUser, unlikeUser } from "@/lib/profile/publicClient";
 import { CandidateSlide } from "./CandidateSlide";
@@ -40,9 +41,11 @@ const EMPTY: State = {
 export function FeedPage({
 	firstName,
 	initial,
+	tags,
 }: {
 	firstName: string;
 	initial: FeedPayload | null;
+	tags: readonly TagOption[];
 }) {
 	const [filters, setFilters] = useState<FeedFilters>({});
 	const [state, setState] = useState<State>(initial === null
@@ -260,6 +263,7 @@ export function FeedPage({
 				onChange={changeFilters}
 				total={state.total}
 				position={position}
+				tags={tags}
 			/>
 
 			{state.error !== null ? <Alert>{state.error}</Alert> : null}
