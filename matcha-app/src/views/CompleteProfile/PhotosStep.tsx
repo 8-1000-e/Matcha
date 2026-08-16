@@ -114,7 +114,10 @@ export function PhotosStep({ profile, onSaved, onNext }: StepProps) {
 
 	return (
 		<PhotoDropZone
-			onFile={(file) => setEditing({ mode: "new", source: file })}
+			onFile={(file) => {
+				const added = profile.photos.length;
+				run(() => addPhoto(file), () => setSlide(added));
+			}}
 			disabled={pending || full}
 			full={full}
 		>

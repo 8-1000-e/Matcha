@@ -101,7 +101,7 @@ export function PhotoEditor({
 	useEffect(() => {
 		const url = typeof source === "string" ? source : URL.createObjectURL(source);
 		const element = new Image();
-		element.crossOrigin = "anonymous";
+		element.decoding = "async";
 		element.onload = () => {
 			image.current = element;
 			setReady(true);

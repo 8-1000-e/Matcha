@@ -378,6 +378,18 @@ function Photos({
 	>(null);
 	const full = profile.photos.length >= 5;
 
+	async function upload(file: File) {
+		setBusy(true);
+		setError(null);
+		const result = await addPhoto(file);
+		setBusy(false);
+		if (!result.ok) {
+			setError(result.errors[0]?.message ?? null);
+			return;
+		}
+		await onChanged();
+	}
+
 	async function saveEdited(file: File) {
 		if (editing === null) {
 			return;
@@ -428,7 +440,7 @@ function Photos({
 
 	return (
 		<PhotoDropZone
-			onFile={(file) => setEditing({ mode: "new", source: file })}
+			onFile={(file) => void upload(file)}
 			disabled={busy || full}
 			full={full}
 		>

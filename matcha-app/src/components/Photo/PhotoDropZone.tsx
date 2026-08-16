@@ -98,7 +98,7 @@ export function PhotoDropZone({
 						<path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
 					</svg>
 					<p className="text-sm font-medium">
-						{disabled ? "Ajout impossible" : "Déposez pour retoucher"}
+						{disabled ? "Ajout impossible" : "Déposez pour envoyer"}
 					</p>
 				</div>
 			) : null}
