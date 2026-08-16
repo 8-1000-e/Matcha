@@ -108,6 +108,37 @@ faite dans la modale se voit immédiatement dans la conversation.
 - Compte de test : `feed19120` / `Qw7!zplmVnb2`.
 - Playwright est installé dans le scratchpad de session, pas dans le projet.
 
+## Écart avec le sujet (audit du 2026-08-16)
+
+Tout le tronc commun est couvert, vérifié fichier par fichier. Deux points
+restent discutables, aucun n'est un manque fonctionnel :
+
+1. **`/search` ne cherche que par nom, prénom ou nom d'utilisateur.** Les
+   critères de la « recherche avancée » exigés par le sujet — tranche d'âge,
+   plage de note, localisation, tags — existent bien, mais dans les **filtres du
+   feed** (`views/Feed/FeedFilters.tsx`), conformément à la décision « un seul
+   endpoint pour les suggestions et la recherche avancée ». Le risque est
+   uniquement de présentation : un correcteur qui ouvre `/search` ne les voit
+   pas. À trancher : soit exposer le panneau de filtres sur `/search`, soit
+   l'expliquer à l'oral en montrant le feed.
+2. **`ratingMax` n'est pas exposé dans l'interface.** L'API l'accepte
+   (`lib/discovery/query.ts`), le formulaire n'offre que `ratingMin` — la
+   « plage » de popularité est donc tronquée à sa borne basse.
+
+Trois réserves à connaître pour la soutenance, sans correctif prévu :
+
+- **Le temps réel dépend entièrement de Pusher.** Sans les variables
+  `PUSHER_*`, `realtime()` renvoie `null` et il n'existe aucun repli par
+  interrogation périodique : chat et notifications cessent d'être instantanés.
+- **La note de popularité est la moyenne des avis reçus**, pas un score dérivé
+  de l'activité. C'est un choix assumé, le sujet laisse la définition libre.
+- **Le seed des 500 profils dépend du réseau** (identités et photos distantes) :
+  il échoue hors ligne. La base actuelle est déjà peuplée.
+
+La politique de mot de passe rejette tout mot de passe contenant un mot anglais
+courant. Le dictionnaire ne descend pas sous 5 lettres, donc la règle est
+sévère mais utilisable — c'est exactement ce que demande le sujet.
+
 ## Points ouverts
 
 - `users.is_online` n'est jamais écrite : la présence se calcule partout depuis
