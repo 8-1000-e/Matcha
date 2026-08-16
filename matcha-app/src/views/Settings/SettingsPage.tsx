@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { GoogleIcon, Intra42Icon } from "@/components/Brand/ProviderLogos";
 import { Alert } from "@/components/Form/Alert";
 import { Footer } from "@/components/Layout/Footer";
 import { PrivateScreen } from "@/components/Layout/Screen";
@@ -12,6 +13,11 @@ import {
 	unblockUser,
 	type BlockedUser,
 } from "@/lib/moderation/client";
+import {
+	fetchLinkedAccounts,
+	unlinkAccount,
+	type LinkedAccount,
+} from "@/lib/oauth/client";
 import {
 	changePassword,
 	deleteAccount,
@@ -34,8 +40,14 @@ const PRIMARY
 
 const SECTIONS = [
 	{ key: "location" as const, label: "Localisation" },
+	{ key: "connections" as const, label: "Connexions" },
 	{ key: "blocked" as const, label: "Comptes bloqués" },
 	{ key: "account" as const, label: "Compte" },
+];
+
+const OAUTH_PROVIDERS = [
+	{ id: "42", name: "Intra 42", Icon: Intra42Icon },
+	{ id: "google", name: "Google", Icon: GoogleIcon },
 ];
 
 type Section = (typeof SECTIONS)[number]["key"];
@@ -387,6 +399,86 @@ function EmailForm({
 	);
 }
 
+function Connections() {
+	const [accounts, setAccounts] = useState<LinkedAccount[] | null>(null);
+	const [busy, setBusy] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+
+	useEffect(() => {
+		let live = true;
+		void fetchLinkedAccounts().then((result) => {
+			if (live) {
+				setAccounts(result.ok ? result.data.accounts : []);
+			}
+		});
+		return () => {
+			live = false;
+		};
+	}, []);
+
+	async function unlink(provider: string) {
+		setBusy(true);
+		setError(null);
+		const result = await unlinkAccount(provider);
+		setBusy(false);
+		if (!result.ok) {
+			setError(result.errors[0]?.message ?? null);
+			return;
+		}
+		setAccounts((current) =>
+			current === null ? current : current.filter((entry) => entry.provider !== provider),
+		);
+	}
+
+	return (
+		<Card
+			title="Connexions"
+			description="Reliez un compte pour vous connecter en un clic, sans mot de passe."
+		>
+			{accounts === null ? (
+				<p className="text-sm text-muted">Chargement…</p>
+			) : (
+				<ul className="flex flex-col divide-y divide-edge/20">
+					{OAUTH_PROVIDERS.map(({ id, name, Icon }) => {
+						const linked = accounts.find((entry) => entry.provider === id);
+						return (
+							<li key={id} className="flex items-center gap-3 py-3">
+								<Icon className="size-5 shrink-0" />
+
+								<span className="min-w-0 flex-1">
+									<span className="block text-sm font-medium">{name}</span>
+									<span className="block truncate text-xs text-muted">
+										{linked === undefined
+											? "Aucun compte relié"
+											: (linked.email ?? "Compte relié")}
+									</span>
+								</span>
+
+								{linked === undefined ? (
+									<a href={`/api/auth/${id}/start?mode=link`} className={GHOST}>
+										Relier
+									</a>
+								) : (
+									<button
+										type="button"
+										disabled={busy}
+										onClick={() => void unlink(id)}
+										className={GHOST}
+									>
+										Délier
+									</button>
+								)}
+							</li>
+						);
+					})}
+				</ul>
+			)}
+
+			{error !== null ? <Alert>{error}</Alert> : null}
+		</Card>
+	);
+}
+
 function Account({
 	profile,
 	onSaved,
@@ -712,6 +804,8 @@ export function SettingsPage() {
 					<div>
 						{section === "location" ? (
 							<Location profile={profile} onChanged={reload} />
+						) : section === "connections" ? (
+							<Connections />
 						) : section === "blocked" ? (
 							<Blocked />
 						) : (

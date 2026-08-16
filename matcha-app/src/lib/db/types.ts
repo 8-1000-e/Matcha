@@ -48,6 +48,7 @@ export interface UserRow {
 	first_name: string;
 	last_name: string;
 	password_hash: string;
+	has_password: Flag;
 	birth_date: string;
 	gender: Gender | null;
 	orientation: Orientation;
@@ -73,6 +74,7 @@ export interface UserInsert {
 	first_name: string;
 	last_name: string;
 	password_hash: string;
+	has_password?: Flag;
 	birth_date: string;
 	gender?: Gender | null;
 	orientation?: Orientation;
@@ -302,4 +304,24 @@ export interface PopularityRow {
 	user_id: string;
 	review_count: number;
 	review_average: number;
+}
+
+export const OAUTH_PROVIDERS = ["42", "google"] as const;
+
+export type OAuthProvider = (typeof OAUTH_PROVIDERS)[number];
+
+export interface OAuthAccountRow {
+	provider: OAuthProvider;
+	provider_user_id: string;
+	user_id: string;
+	email: string | null;
+	linked_at: string;
+}
+
+export interface OAuthAccountInsert {
+	provider: OAuthProvider;
+	provider_user_id: string;
+	user_id: string;
+	email?: string | null;
+	linked_at?: string;
 }

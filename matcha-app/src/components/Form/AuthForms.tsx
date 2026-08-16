@@ -1,10 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 import { GoogleIcon, Intra42Icon } from "@/components/Brand/ProviderLogos";
 import { Alert } from "@/components/Form/Alert";
-import { ActionButton, TextLink } from "@/components/Form/Button";
+import { ActionButton, actionClass, TextLink } from "@/components/Form/Button";
 import {
 	birthDateBounds,
 	EMAIL_MAX,
@@ -22,6 +22,7 @@ import { Notice } from "@/components/Form/Notice";
 import { PasswordField } from "@/components/Form/PasswordField";
 import { TextField } from "@/components/Form/TextField";
 import {
+	completeOauthSignup,
 	login,
 	register,
 	requestPasswordReset,
@@ -32,7 +33,7 @@ import type { AuthError, AuthField } from "@/lib/auth/errorMessages";
 
 const PROVIDERS = [
 	{ id: "google", name: "Google", Icon: GoogleIcon },
-	{ id: "intra42", name: "Intra 42", Icon: Intra42Icon },
+	{ id: "42", name: "Intra 42", Icon: Intra42Icon },
 ] as const;
 
 const LINK_SENT
@@ -93,26 +94,19 @@ const NAME_INPUT = {
 	patternMessage: NAME_MESSAGE,
 } as const;
 
-export function OauthGroup() {
-	const [notice, setNotice] = useState("");
-
+export function OauthGroup({ mode = "login" }: { mode?: "login" | "link" }) {
 	return (
 		<div className="flex flex-col gap-3">
 			{PROVIDERS.map(({ id, name, Icon }) => (
-				<ActionButton
+				<a
 					key={id}
-					type="button"
-					tone="secondary"
-					onClick={() => setNotice(`${name} arrive plus tard.`)}
+					href={`/api/auth/${id}/start${mode === "link" ? "?mode=link" : ""}`}
+					className={actionClass("secondary")}
 				>
 					<Icon className="size-5 shrink-0" />
 					Continuer avec {name}
-				</ActionButton>
+				</a>
 			))}
-
-			<p role="status" className="text-xs text-muted empty:hidden">
-				{notice}
-			</p>
 		</div>
 	);
 }
@@ -216,6 +210,112 @@ export function SignupForm() {
 			<PasswordField
 				defaultValue={state.values.password}
 				error={fieldError(state, "password")}
+			/>
+
+			<GlobalAlert state={state} />
+
+			<ActionButton type="submit" tone="primary" className="mt-1" busy={pending}>
+				{pending ? "Création du compte…" : "Créer mon compte"}
+			</ActionButton>
+		</form>
+	);
+}
+
+export interface OauthDraft {
+	provider: string;
+	providerName: string;
+	email: string;
+	username: string;
+	first_name: string;
+	last_name: string;
+}
+
+export function OauthSignupForm({ draft }: { draft: OauthDraft }) {
+	const router = useRouter();
+	const bounds = birthDateBounds();
+
+	const [state, action, pending] = useActionState(
+		async (_previous: FormState, formData: FormData): Promise<FormState> => {
+			const fields = {
+				first_name: read(formData, "first_name"),
+				last_name: read(formData, "last_name"),
+				username: read(formData, "username"),
+				birth_date: read(formData, "birth_date"),
+			};
+
+			if (!isOldEnough(fields.birth_date)) {
+				return {
+					errors: [
+						{
+							field: "birth_date",
+							message: `Vous devez avoir ${MINIMUM_AGE} ans ou plus.`,
+						},
+					],
+					values: fields,
+				};
+			}
+
+			const result = await completeOauthSignup(fields);
+			if (!result.ok) {
+				return { errors: result.errors, values: fields };
+			}
+
+			router.push("/complete-profile");
+			router.refresh();
+			return CLEAN;
+		},
+		CLEAN,
+	);
+
+	return (
+		<form action={action} className="flex flex-col gap-5">
+			<p className="rounded-xl bg-leaf/40 px-4 py-3 text-sm">
+				Connecté avec {draft.providerName} sous <strong>{draft.email}</strong>.
+				Choisissez votre nom d’utilisateur et indiquez votre date de naissance
+				pour terminer.
+			</p>
+
+			<div className="grid grid-cols-1 gap-5 min-[22rem]:grid-cols-2 min-[22rem]:gap-3">
+				<TextField
+					id="firstName"
+					name="first_name"
+					label="Prénom"
+					autoComplete="given-name"
+					{...NAME_INPUT}
+					defaultValue={state.values.first_name ?? draft.first_name}
+					error={fieldError(state, "first_name")}
+				/>
+				<TextField
+					id="lastName"
+					name="last_name"
+					label="Nom"
+					autoComplete="family-name"
+					{...NAME_INPUT}
+					defaultValue={state.values.last_name ?? draft.last_name}
+					error={fieldError(state, "last_name")}
+				/>
+			</div>
+
+			<TextField
+				id="username"
+				label="Nom d’utilisateur"
+				{...USERNAME_INPUT}
+				hint={`De ${USERNAME_MIN} à ${USERNAME_MAX} caractères : lettres, chiffres, point, tiret et tiret bas.`}
+				defaultValue={state.values.username ?? draft.username}
+				error={fieldError(state, "username")}
+			/>
+
+			<TextField
+				id="birthDate"
+				name="birth_date"
+				label="Date de naissance"
+				type="date"
+				autoComplete="bday"
+				min={bounds.min}
+				max={bounds.max}
+				hint={`Vous devez avoir ${MINIMUM_AGE} ans ou plus.`}
+				defaultValue={state.values.birth_date}
+				error={fieldError(state, "birth_date")}
 			/>
 
 			<GlobalAlert state={state} />

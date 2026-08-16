@@ -25,6 +25,12 @@ const EXPIRED = "Votre session a expiré, reconnectez-vous.";
 const LINK_DEAD = "Ce lien n’est plus valide, demandez-en un nouveau.";
 
 const TRANSLATIONS: Record<string, AuthError> = {
+	last_sign_in_method: {
+		field: null,
+		message:
+			"C’est votre seule façon de vous connecter. Définissez d’abord un mot de passe avec « mot de passe oublié ».",
+	},
+
 	last_photo_required: {
 		field: null,
 		message: "Gardez au moins une photo : votre profil doit rester complet.",

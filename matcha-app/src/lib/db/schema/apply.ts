@@ -5,7 +5,7 @@ import { messagesTable, notificationsTable, TABLES } from "./tables";
 import { TAG_LABELS } from "./tags";
 import { TRIGGERS } from "./triggers";
 import { VIEWS } from "./views";
-export const SCHEMA_VERSION = 11;
+export const SCHEMA_VERSION = 13;
 
 function addMissingColumns(database: Database.Database): void {
 	const columns = database.prepare("PRAGMA table_info(users)").all() as {
@@ -16,6 +16,11 @@ function addMissingColumns(database: Database.Database): void {
 	}
 	if (!columns.some((column) => column.name === "deleted_at")) {
 		database.exec("ALTER TABLE users ADD COLUMN deleted_at TEXT");
+	}
+	if (!columns.some((column) => column.name === "has_password")) {
+		database.exec(
+			"ALTER TABLE users ADD COLUMN has_password INTEGER NOT NULL DEFAULT 1",
+		);
 	}
 }
 

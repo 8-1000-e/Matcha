@@ -204,3 +204,11 @@ export { applySchema, dropSchema, SCHEMA_VERSION } from "./schema/apply";
 export { onlineNow, PRESENCE_WINDOW_SECONDS } from "./schema/views";
 export { TAG_LABELS } from "./schema/tags";
 export * from "./types";
+
+export {
+	findOAuthAccount,
+	linkOAuthAccount,
+	listOAuthAccounts,
+	oauthAccounts,
+	unlinkOAuthAccount,
+} from "./repositories/oauth";

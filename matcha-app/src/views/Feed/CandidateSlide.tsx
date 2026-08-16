@@ -159,6 +159,7 @@ function LikeButton({
 			{error !== null ? (
 				<span className="max-w-40 text-right text-xs text-muted">{error}</span>
 			) : null}
+
 		</div>
 	);
 }

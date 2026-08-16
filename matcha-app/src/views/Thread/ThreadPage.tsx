@@ -246,6 +246,10 @@ export function ThreadPage({
 		void markConversationRead(matchId);
 	}, [matchId]);
 
+	useEffect(() => {
+		void markConversationRead(matchId);
+	}, [matchId]);
+
 	const add = useCallback((incoming: ChatMessage[], atTop: boolean) => {
 		setMessages((current) => {
 			const known = new Set(current.map((entry) => entry.id));

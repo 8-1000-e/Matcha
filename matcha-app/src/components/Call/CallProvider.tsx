@@ -106,7 +106,7 @@ export function useCall(): CallApi {
 
 const SAFETY_MARGIN_MS = 5000;
 
-export function CallProvider({ children }: { children: ReactNode }) {
+export function CallProvider({ children, enabled = false }: { children: ReactNode; enabled?: boolean }) {
 	const [config, setConfig] = useState<IceConfig | null>(null);
 	const [phase, setPhase] = useState<CallPhase>("idle");
 	const [peerInfo, setPeerInfo] = useState<CallPeerInfo | null>(null);
@@ -133,6 +133,10 @@ export function CallProvider({ children }: { children: ReactNode }) {
 	const settled = useRef(false);
 
 	useEffect(() => {
+		if (!enabled) {
+			return;
+		}
+
 		let live = true;
 		void getIceConfig().then((result) => {
 			if (live && result.ok) {
@@ -143,7 +147,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
 		return () => {
 			live = false;
 		};
-	}, []);
+	}, [enabled]);
 
 	const reset = useCallback(() => {
 		if (timeout.current !== null) {

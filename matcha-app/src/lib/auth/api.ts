@@ -49,6 +49,17 @@ export function register(
 	);
 }
 
+export interface OauthSignupFields {
+	first_name: string;
+	last_name: string;
+	username: string;
+	birth_date: string;
+}
+
+export function completeOauthSignup(fields: OauthSignupFields): Promise<AuthResult<SessionUser>> {
+	return post<SessionUser>("/api/auth/oauth/complete", fields);
+}
+
 export function login(
 	fields: LoginFields,
 ): Promise<AuthResult<{ user: SessionUser & { is_verified: boolean } }>> {

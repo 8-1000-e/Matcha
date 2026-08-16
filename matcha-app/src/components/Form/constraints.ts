@@ -1,11 +1,11 @@
 export const USERNAME_MIN = 3;
 export const USERNAME_MAX = 32;
-export const USERNAME_PATTERN = "[A-Za-z0-9._-]+";
+export const USERNAME_PATTERN = "[A-Za-z0-9._\\-]+";
 export const USERNAME_MESSAGE =
 	"Lettres, chiffres, point, tiret et tiret bas uniquement.";
 
 export const NAME_MAX = 50;
-export const NAME_PATTERN = "\\p{L}+(?:[ '-]\\p{L}+)*";
+export const NAME_PATTERN = "\\p{L}+(?:[ '\\-]\\p{L}+)*";
 export const NAME_MESSAGE = "Lettres, espace, apostrophe et tiret uniquement.";
 
 export const EMAIL_MAX = 254;

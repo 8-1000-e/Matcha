@@ -45,6 +45,7 @@ export const TABLES: readonly string[] = [
 		first_name TEXT NOT NULL,
 		last_name TEXT NOT NULL,
 		password_hash TEXT NOT NULL,
+		has_password INTEGER NOT NULL DEFAULT 1 CHECK (has_password IN (0, 1)),
 		birth_date TEXT NOT NULL,
 		gender TEXT CHECK (gender IN ('woman', 'man', 'non_binary', 'other')),
 		orientation TEXT NOT NULL DEFAULT 'bi'
@@ -137,6 +138,15 @@ export const TABLES: readonly string[] = [
 		updated_at TEXT NOT NULL DEFAULT ${TIMESTAMP_DEFAULT},
 		UNIQUE (author_id, target_id),
 		CHECK (author_id <> target_id)
+	) STRICT`,
+	`CREATE TABLE IF NOT EXISTS oauth_accounts (
+		provider TEXT NOT NULL CHECK (provider IN ('42', 'google')),
+		provider_user_id TEXT NOT NULL,
+		user_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+		email TEXT,
+		linked_at TEXT NOT NULL DEFAULT ${TIMESTAMP_DEFAULT},
+		PRIMARY KEY (provider, provider_user_id),
+		UNIQUE (provider, user_id)
 	) STRICT`,
 	`CREATE TABLE IF NOT EXISTS blocks (
 		blocker_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,

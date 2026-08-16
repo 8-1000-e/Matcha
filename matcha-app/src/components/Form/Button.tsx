@@ -12,7 +12,7 @@ const TONES = {
 
 type Tone = keyof typeof TONES;
 
-function actionClass(tone: Tone, className?: string) {
+export function actionClass(tone: Tone, className?: string) {
 	return [ACTION, TONES[tone], className].filter(Boolean).join(" ");
 }
 

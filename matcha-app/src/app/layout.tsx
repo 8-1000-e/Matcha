@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
+import { cookies } from "next/headers";
 import { CallError } from "@/components/Call/CallError";
 import { CallProvider } from "@/components/Call/CallProvider";
 import { FloatingCall } from "@/components/Call/FloatingCall";
@@ -20,11 +21,14 @@ export const viewport: Viewport = {
 	themeColor: "#f4f8ee",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+	const store = await cookies();
+	const signedIn = store.get("refresh") !== undefined;
+
 	return (
 		<html lang="fr" className={geist.className}>
 			<body className="flex min-h-dvh flex-col">
-				<CallProvider>
+				<CallProvider enabled={signedIn}>
 					{children}
 					<IncomingCall />
 					<FloatingCall />

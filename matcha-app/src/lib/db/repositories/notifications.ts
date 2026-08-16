@@ -93,14 +93,23 @@ export function markNotificationRead(
 	recipientId: string,
 	notificationId: string,
 ): boolean {
-	return (
-		execute(
-			sql`UPDATE notifications SET read_at = ${nowIso()}
-				WHERE id = ${notificationId}
-					AND recipient_id = ${recipientId}
-					AND read_at IS NULL`,
-		).changes === 1
+	const owned = queryScalar<number>(
+		sql`SELECT 1 FROM notifications
+			WHERE id = ${notificationId} AND recipient_id = ${recipientId}
+			LIMIT 1`,
+	) === 1;
+	if (!owned) {
+		return false;
+	}
+
+	execute(
+		sql`UPDATE notifications SET read_at = ${nowIso()}
+			WHERE id = ${notificationId}
+				AND recipient_id = ${recipientId}
+				AND read_at IS NULL`,
 	);
+
+	return true;
 }
 
 export function markLinkedNotificationsRead(
