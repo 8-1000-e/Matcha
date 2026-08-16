@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { setAuthCookies } from "@/lib/auth/session";
+import { clearAuthCookies, setAuthCookies } from "@/lib/auth/session";
 import { hashToken } from "@/lib/auth/tokens";
 import {
 	findUsableRefreshToken,
@@ -60,12 +60,14 @@ export async function POST()
 		{
 			revokeAllRefreshTokens(outcome.userId);
 		}
+		await clearAuthCookies();
 		return Response.json({ errors: ["invalid session"] }, { status: 401 });
 	}
 
 	const user = users.findById(outcome.userId);
 	if (!user)
 	{
+		await clearAuthCookies();
 		return Response.json({ errors: ["unauthorized"] }, { status: 401 });
 	}
 
