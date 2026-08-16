@@ -622,6 +622,25 @@ colonne.
 (`ORDER BY is_profile DESC, created_at, id`), pour la galerie de la carte.
 `viewer_liked` dit si le cœur doit être plein au chargement.
 
+**Qui voit qui.** Une suggestion n'apparaît que si l'attirance est réciproque :
+le candidat doit correspondre à l'orientation du visiteur, **et** le visiteur à
+celle du candidat. La règle par orientation :
+
+| Orientation | Genres proposés |
+| --- | --- |
+| `hetero`, visiteur `man` | `woman` |
+| `hetero`, visiteur `woman` | `man` |
+| `hetero`, visiteur `non_binary` ou `other` | tout genre différent du sien |
+| `homo` | le même genre exactement |
+| `bi`, `pan`, `other` | tous les genres |
+
+`hetero` signifiait auparavant « tout genre différent du mien » : un homme
+hétérosexuel recevait donc aussi les profils `non_binary` et `other`. Pour les
+genres binaires, l'opposé est désormais explicite. Il n'existe pas d'opposé
+défini pour `non_binary` et `other`, la lecture littérale est conservée pour
+eux. `bi` et `pan` filtrent pareil : la distinction est identitaire, elle
+n'exclut personne.
+
 **Le feed est figé par session.** L'ordre est calculé une fois, stocké dans
 `feed_entries`, puis relu page par page : aucun doublon ni saut pendant le
 défilement, même si une note change entre deux pages. La session dure une heure.

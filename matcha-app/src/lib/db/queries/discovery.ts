@@ -106,11 +106,17 @@ function yearsAgo(years: number, label: string): string {
 function orientationClause(viewer: UserRow): SqlFragment {
 	return every([
 		sql`CASE ${viewer.orientation}
-			WHEN 'hetero' THEN candidate.gender IS NOT ${viewer.gender}
+			WHEN 'hetero' THEN CASE ${viewer.gender}
+				WHEN 'man' THEN candidate.gender = 'woman'
+				WHEN 'woman' THEN candidate.gender = 'man'
+				ELSE candidate.gender IS NOT ${viewer.gender} END
 			WHEN 'homo' THEN candidate.gender IS ${viewer.gender}
 			ELSE 1 END`,
 		sql`CASE candidate.orientation
-			WHEN 'hetero' THEN ${viewer.gender} IS NOT candidate.gender
+			WHEN 'hetero' THEN CASE candidate.gender
+				WHEN 'man' THEN ${viewer.gender} = 'woman'
+				WHEN 'woman' THEN ${viewer.gender} = 'man'
+				ELSE ${viewer.gender} IS NOT candidate.gender END
 			WHEN 'homo' THEN ${viewer.gender} IS candidate.gender
 			ELSE 1 END`,
 	]);
