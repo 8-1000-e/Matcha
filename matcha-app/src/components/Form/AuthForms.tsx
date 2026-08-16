@@ -149,7 +149,11 @@ export function SignupForm() {
 				return { errors: result.errors, values: fields };
 			}
 
-			router.push("/verify-email");
+			router.push(
+				result.data.verification_email_sent
+					? "/verify-email"
+					: "/verify-email?mail=failed",
+			);
 			return CLEAN;
 		},
 		CLEAN,

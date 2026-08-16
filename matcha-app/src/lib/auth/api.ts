@@ -42,8 +42,11 @@ function post<T>(path: string, fields: unknown): Promise<AuthResult<T>> {
 
 export function register(
 	fields: RegisterFields,
-): Promise<AuthResult<SessionUser>> {
-	return post<SessionUser>("/api/auth/register", fields);
+): Promise<AuthResult<SessionUser & { verification_email_sent: boolean }>> {
+	return post<SessionUser & { verification_email_sent: boolean }>(
+		"/api/auth/register",
+		fields,
+	);
 }
 
 export function login(
