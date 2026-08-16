@@ -1,16 +1,26 @@
 import { encryptMessage } from "@/lib/crypto/messages";
-import { execute, queryAll, queryScalar } from "../core/client";
+import { execute, queryAll, queryOne, queryScalar } from "../core/client";
 import { DatabaseError } from "../core/errors";
 import { boundedInteger } from "../core/identifiers";
 import { createRepository } from "../core/repository";
 import { sql } from "../core/sql";
 import { createId, nowIso } from "../core/values";
-import type { MessageInsert, MessageRow } from "../types";
+import type { CallStatus, MessageInsert, MessageRow } from "../types";
 import { findActiveMatchForUsers } from "./likes";
 
 export const messages = createRepository<MessageRow, MessageInsert>({
 	table: "messages",
-	columns: ["id", "match_id", "sender_id", "body", "sent_at", "read_at"],
+	columns: [
+		"id",
+		"match_id",
+		"sender_id",
+		"kind",
+		"body",
+		"call_status",
+		"call_duration_s",
+		"sent_at",
+		"read_at",
+	],
 	defaultOrder: [{ column: "sent_at", direction: "asc" }],
 });
 
@@ -26,7 +36,36 @@ export function sendMessage(
 		id: createId(),
 		match_id: matchId,
 		sender_id: senderId,
+		kind: "text",
 		body: encryptMessage(body),
+	});
+}
+
+export function recordCall(
+	callId: string,
+	matchId: string,
+	callerId: string,
+	status: CallStatus,
+	durationSeconds: number | null,
+): MessageRow {
+	const existing = queryOne<MessageRow>(
+		sql`SELECT * FROM messages WHERE id = ${callId}`,
+	);
+	if (existing !== undefined) {
+		return existing;
+	}
+	if (findActiveMatchForUsers(matchId, callerId) === undefined) {
+		throw new DatabaseError("match_inactive");
+	}
+	return messages.insert({
+		id: callId,
+		match_id: matchId,
+		sender_id: callerId,
+		kind: "call",
+		body: null,
+		call_status: status,
+		call_duration_s: status === "answered" ? (durationSeconds ?? 0) : null,
+		read_at: status === "missed" ? null : nowIso(),
 	});
 }
 

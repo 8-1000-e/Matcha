@@ -477,8 +477,10 @@ automatiquement la photo de profil.
 
 Le type est déterminé par les **octets d'en-tête** du fichier, jamais par son
 `content-type` ni son extension : JPEG, PNG, WebP. Le nom du client est jeté,
-le fichier est stocké sous un uuid dans `UPLOAD_DIR` (`./data/uploads`), en
-dehors de `public/` — rien n'y est donc servi statiquement.
+le fichier est stocké sous un uuid dans `./data/uploads`, en dehors de
+`public/` — rien n'y est donc servi statiquement. Le chemin est une constante
+et non une variable d'environnement : le rendre dynamique empêche l'analyse
+statique de Turbopack, qui trace alors tout le projet dans le bundle serveur.
 
 L'image est ensuite **ré-encodée en WebP** par sharp : l'orientation EXIF est
 appliquée puis toutes les métadonnées disparaissent — une photo de téléphone
@@ -1298,7 +1300,7 @@ mot de passe ». Pour son propre profil, c'est `GET /api/profile`.
       { "id": "uuid", "url": "/api/photos/uuid", "is_profile": true, "position": 0 }
     ],
     "common_tags": 3,
-    "popularity_score": 38.2, "review_average": 0, "review_count": 0,
+    "review_average": 0, "review_count": 0,
     "is_online": false, "last_seen_at": null,
     "created_at": "2026-08-14T11:25:45.467Z",
     "viewer_liked_target": false, "target_liked_viewer": true,

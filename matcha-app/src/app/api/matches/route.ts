@@ -1,5 +1,4 @@
 import { requireSession } from "@/lib/auth/guards";
-import { decryptMessage } from "@/lib/crypto/messages";
 import {
 	countUnreadMessages,
 	findUserSummary,
@@ -7,17 +6,21 @@ import {
 	listUnreadByMatch,
 	type MatchListRow,
 } from "@/lib/db";
+import { readBody } from "@/lib/messages/messages";
 import { validateMatchList } from "@/lib/messages/validation";
 import { serializeUserSummary } from "@/lib/profile/summary";
 
 function lastMessage(match: MatchListRow, viewerId: string)
 {
-	if (match.last_sent_at === null || match.last_body === null)
+	if (match.last_sent_at === null || match.last_kind === null)
 	{
 		return null;
 	}
 	return {
-		body: decryptMessage(match.last_body),
+		kind: match.last_kind,
+		body: readBody(match.last_kind, match.last_body),
+		call_status: match.last_call_status,
+		call_duration_s: match.last_call_duration_s,
 		sent_at: match.last_sent_at,
 		mine: match.last_sender_id === viewerId,
 	};

@@ -1,3 +1,4 @@
+import type { CallStatus, MessageKind } from "@/lib/db";
 import { request, send, type ApiResult } from "@/lib/http/client";
 
 export const PAGE_SIZE = 30;
@@ -15,7 +16,10 @@ export interface Partner {
 }
 
 export interface LastMessage {
-	body: string;
+	kind: MessageKind;
+	body: string | null;
+	call_status: CallStatus | null;
+	call_duration_s: number | null;
 	sent_at: string;
 	mine: boolean;
 }
@@ -44,7 +48,10 @@ export interface ChatMessage {
 	id: string;
 	match_id: string;
 	sender_id: string;
-	body: string;
+	kind: MessageKind;
+	body: string | null;
+	call_status: CallStatus | null;
+	call_duration_s: number | null;
 	sent_at: string;
 	read: boolean;
 }

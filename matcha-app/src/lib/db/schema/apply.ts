@@ -1,11 +1,11 @@
 import type Database from "better-sqlite3";
 import { encryptMessage, isEncrypted } from "@/lib/crypto/messages";
 import { INDEXES } from "./indexes";
-import { MESSAGE_MAX_STORED, messagesTable, TABLES } from "./tables";
+import { messagesTable, notificationsTable, TABLES } from "./tables";
 import { TAG_LABELS } from "./tags";
 import { TRIGGERS } from "./triggers";
 import { VIEWS } from "./views";
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 function addMissingColumns(database: Database.Database): void {
 	const columns = database.prepare("PRAGMA table_info(users)").all() as {
@@ -19,17 +19,39 @@ function addMissingColumns(database: Database.Database): void {
 	}
 }
 
-function encryptExistingMessages(database: Database.Database): void {
+function definitionOf(
+	database: Database.Database,
+	name: string,
+): string | undefined {
 	const table = database
+		.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?")
+		.get(name) as { sql: string } | undefined;
+	return table?.sql;
+}
+
+function dropTriggers(database: Database.Database): void {
+	const rows = database
 		.prepare(
-			"SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'messages'",
+			"SELECT name FROM sqlite_master WHERE type = 'trigger' AND name NOT LIKE 'sqlite_%'",
 		)
-		.get() as { sql: string } | undefined;
-	if (
-		table === undefined
-		|| (table.sql.includes(`AND ${MESSAGE_MAX_STORED}`)
-			&& table.sql.includes("sent_at TEXT NOT NULL DEFAULT"))
-	) {
+		.all() as { name: string }[];
+	for (const row of rows) {
+		database.exec(`DROP TRIGGER IF EXISTS "${row.name}"`);
+	}
+}
+
+interface StoredMessage {
+	id: string;
+	match_id: string;
+	sender_id: string;
+	body: string;
+	sent_at: string;
+	read_at: string | null;
+}
+
+function rebuildMessages(database: Database.Database): void {
+	const definition = definitionOf(database, "messages");
+	if (definition === undefined || definition.includes("kind TEXT NOT NULL")) {
 		return;
 	}
 
@@ -37,19 +59,12 @@ function encryptExistingMessages(database: Database.Database): void {
 
 	const rows = database
 		.prepare("SELECT id, match_id, sender_id, body, sent_at, read_at FROM messages")
-		.all() as {
-			id: string;
-			match_id: string;
-			sender_id: string;
-			body: string;
-			sent_at: string;
-			read_at: string | null;
-		}[];
+		.all() as StoredMessage[];
 
 	const insert = database.prepare(
 		`INSERT INTO messages_rebuilt
-			(id, match_id, sender_id, body, sent_at, read_at)
-		VALUES (?, ?, ?, ?, ?, ?)`,
+			(id, match_id, sender_id, kind, body, sent_at, read_at)
+		VALUES (?, ?, ?, 'text', ?, ?, ?)`,
 	);
 	for (const row of rows) {
 		insert.run(
@@ -64,6 +79,23 @@ function encryptExistingMessages(database: Database.Database): void {
 
 	database.exec("DROP TABLE messages");
 	database.exec("ALTER TABLE messages_rebuilt RENAME TO messages");
+}
+
+function rebuildNotifications(database: Database.Database): void {
+	const definition = definitionOf(database, "notifications");
+	if (definition === undefined || definition.includes("MISSED_CALL")) {
+		return;
+	}
+
+	database.exec(notificationsTable("notifications_rebuilt"));
+	database.exec(
+		`INSERT INTO notifications_rebuilt
+			(id, recipient_id, actor_id, type, link, created_at, read_at)
+		SELECT id, recipient_id, actor_id, type, link, created_at, read_at
+		FROM notifications`,
+	);
+	database.exec("DROP TABLE notifications");
+	database.exec("ALTER TABLE notifications_rebuilt RENAME TO notifications");
 }
 
 function seedTags(database: Database.Database): void {
@@ -85,7 +117,9 @@ export function applySchema(database: Database.Database): void {
 			database.exec(statement);
 		}
 		addMissingColumns(database);
-		encryptExistingMessages(database);
+		dropTriggers(database);
+		rebuildMessages(database);
+		rebuildNotifications(database);
 		for (const statement of [...INDEXES, ...TRIGGERS, ...VIEWS]) {
 			database.exec(statement);
 		}

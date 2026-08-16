@@ -113,7 +113,7 @@ export async function readPhotoFile(
 	const extension = name.slice(name.lastIndexOf(".") + 1);
 	try
 	{
-		const bytes = await readFile(join(process.cwd(), "data", "uploads", name));
+		const bytes = await readFile(join(DIRECTORY, name));
 		return { bytes, mime: MIME_TYPES[extension] };
 	}
 	catch

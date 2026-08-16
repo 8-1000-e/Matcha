@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { CallArrow } from "@/components/Call/CallIcons";
 import { Footer } from "@/components/Layout/Footer";
 import { PrivateScreen } from "@/components/Layout/Screen";
 import { PresenceAvatar } from "@/components/Presence/PresenceAvatar";
+import { callLabel } from "@/lib/calls/format";
 import {
 	CONVERSATION_PAGE_SIZE,
 	getConversations,
@@ -33,6 +35,21 @@ function Preview({ conversation }: { conversation: Conversation }) {
 		return (
 			<span className="block truncate text-sm text-muted italic">
 				Dites-vous bonjour.
+			</span>
+		);
+	}
+
+	if (last.kind === "call" && last.call_status !== null) {
+		return (
+			<span
+				className={`flex items-center gap-1.5 truncate text-sm ${
+					unread ? "font-semibold text-ink" : "text-muted"
+				}`}
+			>
+				<CallArrow outgoing={last.mine} className="size-3.5 shrink-0" />
+				<span className="truncate">
+					{callLabel(last.call_status, last.call_duration_s, last.mine)}
+				</span>
 			</span>
 		);
 	}

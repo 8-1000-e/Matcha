@@ -27,7 +27,7 @@ function fallbackLink(
 	if (actorId === null) {
 		return null;
 	}
-	if (type === "MESSAGE") {
+	if (type === "MESSAGE" || type === "MISSED_CALL") {
 		return null;
 	}
 	return profileLink(actorId);
@@ -42,6 +42,7 @@ export const NOTIFICATION_LABELS: Record<
 	UNLIKED: (actor) => `${actor} a retiré son like`,
 	VIEWED: (actor) => `${actor} a consulté votre profil`,
 	MESSAGE: (actor) => `${actor} vous a envoyé un message`,
+	MISSED_CALL: (actor) => `${actor} a essayé de vous appeler`,
 };
 
 export function serializeNotification(

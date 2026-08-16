@@ -52,6 +52,19 @@ export function emitViewed(recipientId: string, actorId: string): void {
 	emit({ recipient_id: recipientId, actor_id: actorId, type: "VIEWED" });
 }
 
+export function emitMissedCall(
+	recipientId: string,
+	actorId: string,
+	matchId: string,
+): void {
+	emit({
+		recipient_id: recipientId,
+		actor_id: actorId,
+		type: "MISSED_CALL",
+		link: conversationLink(matchId),
+	});
+}
+
 export function emitMessage(
 	recipientId: string,
 	actorId: string,

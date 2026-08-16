@@ -20,6 +20,14 @@ export const NOTIFICATION_TYPES = [
 	"MESSAGE",
 	"MATCH",
 	"UNLIKED",
+	"MISSED_CALL",
+] as const;
+export const MESSAGE_KINDS = ["text", "call"] as const;
+export const CALL_STATUSES = [
+	"answered",
+	"missed",
+	"declined",
+	"cancelled",
 ] as const;
 
 export type Gender = (typeof GENDERS)[number];
@@ -27,6 +35,8 @@ export type Orientation = (typeof ORIENTATIONS)[number];
 export type EmailTokenType = (typeof EMAIL_TOKEN_TYPES)[number];
 export type ReportReason = (typeof REPORT_REASONS)[number];
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+export type MessageKind = (typeof MESSAGE_KINDS)[number];
+export type CallStatus = (typeof CALL_STATUSES)[number];
 
 export const MAX_PHOTOS_PER_USER = 5;
 export const MINIMUM_TAGS = 3;
@@ -198,7 +208,10 @@ export interface MessageRow {
 	id: string;
 	match_id: string;
 	sender_id: string;
-	body: string;
+	kind: MessageKind;
+	body: string | null;
+	call_status: CallStatus | null;
+	call_duration_s: number | null;
 	sent_at: string;
 	read_at: string | null;
 }
@@ -207,7 +220,10 @@ export interface MessageInsert {
 	id?: string;
 	match_id: string;
 	sender_id: string;
-	body: string;
+	kind?: MessageKind;
+	body?: string | null;
+	call_status?: CallStatus | null;
+	call_duration_s?: number | null;
 	sent_at?: string;
 	read_at?: string | null;
 }
