@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { ActionButton } from "@/components/Form/Button";
 import type { FeedFilters, TagOption } from "@/lib/discovery/client";
 import { CityPicker } from "@/views/CompleteProfile/CityPicker";
@@ -178,8 +178,10 @@ export function FilterBar({
 	filters,
 	onChange,
 	tags,
+	actions,
 }: {
 	firstName: string;
+	actions?: ReactNode;
 	filters: FeedFilters;
 	onChange: (filters: FeedFilters) => void;
 	tags: readonly TagOption[];
@@ -206,8 +208,8 @@ export function FilterBar({
 
 	return (
 		<div className="mb-3 flex shrink-0 flex-col gap-3">
-			<div className="flex items-center justify-between gap-3">
-				<h1 className="mr-2 truncate text-base font-semibold tracking-tight">
+			<div className="flex flex-wrap items-center gap-3">
+				<h1 className="mr-auto truncate text-base font-semibold tracking-tight">
 					Des profils pour vous, {firstName}
 				</h1>
 				<button
@@ -230,6 +232,7 @@ export function FilterBar({
 					) : null}
 				</button>
 
+				{actions}
 			</div>
 
 			{open ? (
@@ -287,7 +290,7 @@ export function FilterBar({
 						/>
 					</div>
 
-					<div className="grid gap-4 sm:grid-cols-2">
+					<div className="grid gap-4 sm:grid-cols-[1fr_auto_auto]">
 						<div className="flex flex-col gap-1.5">
 							{draft.city === undefined ? (
 								<CityPicker
@@ -314,26 +317,6 @@ export function FilterBar({
 							)}
 						</div>
 
-						<TagPicker
-							tags={tags}
-							selected={draft.tags ?? []}
-							mode={draft.tagMode ?? "any"}
-							onToggle={(id) => {
-								const current = draft.tags ?? [];
-								const next = current.includes(id)
-									? current.filter((entry) => entry !== id)
-									: [...current, id];
-								patch(
-									next.length === 0
-										? { tags: undefined, tagMode: undefined }
-										: { tags: next },
-								);
-							}}
-							onMode={(mode) => patch({ tagMode: mode })}
-						/>
-					</div>
-
-					<div className="flex flex-wrap items-end gap-3">
 						<label className="flex flex-col gap-1.5">
 							<span className="text-xs text-muted">Âge minimum</span>
 							<input
@@ -358,6 +341,26 @@ export function FilterBar({
 								className={`${FIELD} w-24`}
 							/>
 						</label>
+					</div>
+
+					<div>
+						<TagPicker
+							tags={tags}
+							selected={draft.tags ?? []}
+							mode={draft.tagMode ?? "any"}
+							onToggle={(id) => {
+								const current = draft.tags ?? [];
+								const next = current.includes(id)
+									? current.filter((entry) => entry !== id)
+									: [...current, id];
+								patch(
+									next.length === 0
+										? { tags: undefined, tagMode: undefined }
+										: { tags: next },
+								);
+							}}
+							onMode={(mode) => patch({ tagMode: mode })}
+						/>
 					</div>
 
 					<div className="flex flex-wrap justify-end gap-3">
