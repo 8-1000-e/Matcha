@@ -632,14 +632,17 @@ celle du candidat. La règle par orientation :
 | `hetero`, visiteur `woman` | `man` |
 | `hetero`, visiteur `non_binary` ou `other` | tout genre différent du sien |
 | `homo` | le même genre exactement |
-| `bi`, `pan`, `other` | tous les genres |
+| `bi` | `woman` et `man` |
+| `pan` | tous les genres sauf `other` |
+| `other` | tous les genres |
 
 `hetero` signifiait auparavant « tout genre différent du mien » : un homme
 hétérosexuel recevait donc aussi les profils `non_binary` et `other`. Pour les
-genres binaires, l'opposé est désormais explicite. Il n'existe pas d'opposé
-défini pour `non_binary` et `other`, la lecture littérale est conservée pour
-eux. `bi` et `pan` filtrent pareil : la distinction est identitaire, elle
-n'exclut personne.
+genres binaires, l'opposé est désormais explicite ; il n'existe pas d'opposé
+défini pour `non_binary` et `other`, la lecture littérale est conservée pour eux.
+
+La réciprocité a des conséquences visibles : un profil `other` n'est jamais
+proposé à quelqu'un de `bi` ou de `pan`, et ne les voit pas non plus.
 
 **Le feed est figé par session.** L'ordre est calculé une fois, stocké dans
 `feed_entries`, puis relu page par page : aucun doublon ni saut pendant le

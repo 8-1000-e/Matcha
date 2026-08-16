@@ -111,6 +111,8 @@ function orientationClause(viewer: UserRow): SqlFragment {
 				WHEN 'woman' THEN candidate.gender = 'man'
 				ELSE candidate.gender IS NOT ${viewer.gender} END
 			WHEN 'homo' THEN candidate.gender IS ${viewer.gender}
+			WHEN 'bi' THEN candidate.gender IN ('woman', 'man')
+			WHEN 'pan' THEN candidate.gender <> 'other'
 			ELSE 1 END`,
 		sql`CASE candidate.orientation
 			WHEN 'hetero' THEN CASE candidate.gender
@@ -118,6 +120,8 @@ function orientationClause(viewer: UserRow): SqlFragment {
 				WHEN 'woman' THEN ${viewer.gender} = 'man'
 				ELSE ${viewer.gender} IS NOT candidate.gender END
 			WHEN 'homo' THEN ${viewer.gender} IS candidate.gender
+			WHEN 'bi' THEN ${viewer.gender} IN ('woman', 'man')
+			WHEN 'pan' THEN ${viewer.gender} <> 'other'
 			ELSE 1 END`,
 	]);
 }
