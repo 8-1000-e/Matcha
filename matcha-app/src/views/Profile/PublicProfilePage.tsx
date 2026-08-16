@@ -559,7 +559,7 @@ function Reviews({
 					onEdit={() => setEditing(true)}
 					onChanged={onChanged}
 				/>
-			) : profile.is_connected ? (
+			) : profile.can_review ? (
 				<button
 					type="button"
 					onClick={() => setEditing(true)}
@@ -569,8 +569,11 @@ function Reviews({
 				</button>
 			) : (
 				<p className="rounded-xl bg-leaf/30 px-4 py-3 text-xs text-muted">
-					Les avis sont réservés aux profils connectés : vous devez vous être
-					likés mutuellement pour noter {profile.first_name}.
+					Les avis se méritent : échangez au moins {profile.review_min_messages}{" "}
+					messages avec {profile.first_name} pour pouvoir le noter.
+					{profile.exchanged_messages > 0
+						? ` Vous en êtes à ${profile.exchanged_messages}.`
+						: ""}
 				</p>
 			)}
 

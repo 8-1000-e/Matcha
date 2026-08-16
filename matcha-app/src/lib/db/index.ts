@@ -153,6 +153,8 @@ export {
 export {
 	findPopularity,
 	listVisibleReviews,
+	canReview,
+	countExchangedMessages,
 	removeReview,
 	reviews,
 	upsertReview,

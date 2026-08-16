@@ -200,6 +200,11 @@ const TRANSLATIONS: Record<string, AuthError> = {
 		field: null,
 		message: "Vérifiez votre adresse e-mail pour continuer.",
 	},
+	review_requires_conversation: {
+		field: null,
+		message:
+			"Échangez au moins vingt messages avec cette personne avant de la noter.",
+	},
 	guest_google_required: {
 		field: null,
 		message:

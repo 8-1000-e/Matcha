@@ -40,6 +40,7 @@ export type CallStatus = (typeof CALL_STATUSES)[number];
 
 export const MAX_PHOTOS_PER_USER = 5;
 export const MINIMUM_TAGS = 3;
+export const REVIEW_MIN_MESSAGES = 20;
 
 export interface UserRow {
 	id: string;

@@ -78,6 +78,11 @@ restaurer le contexte complet de la session précédente.
   choix assumé, qui protège du vol du fichier SQLite et de rien d'autre.
 - **Le blocage n'est plus un `404`** sur `GET /api/users/[id]` seulement. Toutes
   les autres routes gardent le `404` indistinct.
+- **Un avis se mérite : 20 messages texte échangés, au moins un de chaque
+  côté.** Un simple match ne suffit plus. Le droit de noter et l'avis lui-même
+  survivent au « dématch » et au blocage : ni les messages ni la ligne `matches`
+  ne sont supprimés, et la liste des avis n'exclut plus les auteurs bloqués —
+  sinon on effacerait un avis gênant en bloquant son auteur.
 - **Un rendez-vous est un message de type `event`**, pas un texte : le message
   porte un `event_id` et aucun corps, la carte du fil lit le rendez-vous en
   direct. Une modification ou une annulation se reflète donc dans la

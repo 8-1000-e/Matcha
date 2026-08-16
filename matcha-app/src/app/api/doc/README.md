@@ -741,18 +741,33 @@ refusés. Une chaîne vide vaut `null`.
 | `200` | `{ "ok": true, "review": { ... } }` | écrit ou mis à jour |
 | `400` | `{ "errors": ["score must be an integer between 1 and 5"] }` | note hors bornes, ou pas un entier |
 | `400` | `{ "errors": ["review is too long"] }` | plus de 2000 caractères |
-| `403` | `{ "errors": ["review_requires_match"] }` | pas de match entre les deux |
+| `403` | `{ "errors": ["review_requires_conversation"] }` | moins de 20 messages échangés |
 | `404` | `{ "errors": ["user not found"] }` | inconnu, ou blocage |
 
-**Il faut un match pour noter quelqu'un.** Ce n'est pas une règle de la route :
-le déclencheur `reviews_require_match_before_insert` l'impose en base depuis la
-conception du schéma. La route vérifie d'abord pour rendre un `403` propre, et
-rattrape quand même la `ConstraintError` — la vérification et l'écriture ne sont
-pas atomiques.
+**Il faut avoir vraiment discuté pour noter quelqu'un.** Deux garde-fous se
+superposent :
 
-C'est aussi ce qui rend la note crédible : on ne note que quelqu'un avec qui on
-s'est effectivement connecté, comme un hôte qu'on a rencontré. Conséquence
-assumée : la note bouge lentement, et un profil sans match reste à zéro avis.
+- en base, le déclencheur `reviews_require_match_before_insert` exige une ligne
+  `matches` entre les deux, depuis la conception du schéma ;
+- dans la route, `canReview` exige **au moins 20 messages texte** dans la
+  conversation, **dont au moins un de chaque côté**. Sans cette seconde
+  condition, il suffirait d'envoyer vingt messages dans le vide pour gagner le
+  droit de noter.
+
+Les appels et les rendez-vous ne comptent pas : seuls les messages de type
+`text`. La route vérifie d'abord pour rendre un `403` propre, et rattrape quand
+même la `ConstraintError` — la vérification et l'écriture ne sont pas atomiques.
+
+C'est ce qui rend la note crédible : on ne note pas quelqu'un croisé une fois,
+mais quelqu'un avec qui on a tenu une conversation. Conséquence assumée : la
+note bouge lentement, et un profil sans conversation reste à zéro avis.
+
+**Le droit de noter, comme l'avis lui-même, survit à tout.** Se « dématcher »
+désactive le match (`is_active = 0`) mais ne supprime ni la ligne, ni les
+messages ; un blocage supprime les likes et les notifications, jamais les
+messages. `canReview` reste donc vrai, et l'avis déjà écrit reste en base, reste
+visible et continue de compter dans la moyenne. Quelqu'un ne peut pas effacer un
+avis qui le dérange en bloquant son auteur.
 
 ## `DELETE /api/users/[id]/reviews`
 
@@ -779,12 +794,9 @@ Les avis reçus par un profil, pour la page publique. Mêmes gardes que
 }
 ```
 
-Les avis écrits par quelqu'un que la **cible** a bloqué sont exclus, et la liste
-est plafonnée à 50, du plus récemment modifié au plus ancien. La note affichée
+La liste est plafonnée à 50, du plus récemment modifié au plus ancien. La note affichée
 sur le profil reste `review_average` de `GET /api/users/[id]` : la moyenne des
 avis sur 5, rien d'autre.
-
-Écrire ou supprimer un avis n'a **pas** encore de route.
 
 ## `GET /api/profile/reviews`
 
