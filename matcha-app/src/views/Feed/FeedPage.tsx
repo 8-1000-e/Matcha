@@ -1,6 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert } from "@/components/Form/Alert";
 import { ActionButton } from "@/components/Form/Button";
@@ -19,17 +18,6 @@ import { CandidateSlide } from "./CandidateSlide";
 import { Deck } from "./Deck";
 import { FilterBar } from "./FeedFilters";
 
-const FeedMap = dynamic(
-	() => import("@/components/Map/FeedMap").then((module) => module.FeedMap),
-	{
-		ssr: false,
-		loading: () => (
-			<p className="flex h-full items-center justify-center text-sm text-muted">
-				Chargement de la carte…
-			</p>
-		),
-	},
-);
 
 interface State {
 	items: Candidate[];
@@ -75,7 +63,6 @@ export function FeedPage({
 		});
 	const [position, setPosition] = useState(0);
 	const [liked, setLiked] = useState<Record<string, boolean>>({});
-	const [view, setView] = useState<"deck" | "map">("deck");
 	const [celebrated, setCelebrated] = useState<
 		{ name: string; photoUrl: string | null; matchId: string | null } | null
 	>(null);
@@ -297,25 +284,6 @@ export function FeedPage({
 				filters={filters}
 				onChange={changeFilters}
 				tags={tags}
-				actions={
-					<div className="flex shrink-0 rounded-lg border border-edge/60 bg-white p-0.5">
-						{([["deck", "Profils"], ["map", "Carte"]] as const).map(([key, label]) => (
-							<button
-								key={key}
-								type="button"
-								onClick={() => setView(key)}
-								aria-pressed={view === key}
-								className={`cursor-pointer rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-200 ease-out ${
-									view === key
-										? "bg-leaf/70 text-matcha-dark"
-										: "text-muted hover:text-ink"
-								}`}
-							>
-								{label}
-							</button>
-						))}
-					</div>
-				}
 			/>
 
 			{state.error !== null ? <Alert>{state.error}</Alert> : null}
@@ -338,13 +306,7 @@ export function FeedPage({
 				</div>
 			) : null}
 
-			{view === "map" && !empty ? (
-				<div className="mt-3 min-h-0 flex-1 overflow-hidden rounded-2xl ring-1 ring-edge/30">
-					<FeedMap candidates={state.items} />
-				</div>
-			) : null}
-
-			{view === "deck" && current !== null ? (
+			{current !== null ? (
 				<Deck
 					canGoBack={position > 0}
 					canGoForward={position < state.items.length - 1 || state.next !== null}

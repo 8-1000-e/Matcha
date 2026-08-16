@@ -54,6 +54,7 @@ export {
 	countCandidates,
 	findCandidates,
 	findCandidatesByIds,
+	findMapCandidates,
 	SORT_KEYS,
 	type DiscoveryFilters,
 	type DiscoveryOptions,

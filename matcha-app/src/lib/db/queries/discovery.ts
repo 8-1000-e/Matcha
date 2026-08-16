@@ -8,6 +8,7 @@ import {
 } from "../core/identifiers";
 import { startsWith } from "../core/operators";
 import { every, join, raw, sql, when, type SqlFragment } from "../core/sql";
+import type { Flag } from "../core/values";
 import { ageYears, onlineNow } from "../schema/views";
 import { GENDERS, type Gender, type UserRow } from "../types";
 
@@ -323,6 +324,74 @@ export function findCandidates(
 			LIMIT ${limit} OFFSET ${offset}`,
 	);
 }
+export interface MapBounds {
+	south: number;
+	north: number;
+	west: number;
+	east: number;
+}
+
+export interface MapCandidateRow {
+	id: string;
+	first_name: string;
+	age: number;
+	city: string | null;
+	latitude: number | null;
+	longitude: number | null;
+	distance_km: number | null;
+	is_online: Flag;
+	profile_photo_id: string | null;
+}
+
+export function findMapCandidates(
+	viewer: UserRow,
+	bounds: MapBounds,
+	limit: number,
+	options: DiscoveryOptions = {},
+): MapCandidateRow[] {
+	if (viewer.profile_completed !== 1) {
+		throw new DatabaseError("profile_incomplete");
+	}
+
+	const south = finiteNumber(bounds.south, -90, 90, "south");
+	const north = finiteNumber(bounds.north, -90, 90, "north");
+	const west = finiteNumber(bounds.west, -180, 180, "west");
+	const east = finiteNumber(bounds.east, -180, 180, "east");
+	const rows = boundedInteger(limit, 1, 1000, "limit");
+
+	const inside = west <= east
+		? sql`candidate.longitude BETWEEN ${west} AND ${east}`
+		: sql`(candidate.longitude >= ${west} OR candidate.longitude <= ${east})`;
+
+	return queryAll<MapCandidateRow>(
+		sql`SELECT
+				candidate.id,
+				candidate.first_name,
+				${raw(ageYears("candidate.birth_date"))} AS age,
+				candidate.city,
+				candidate.latitude,
+				candidate.longitude,
+				distance_km(
+					${viewer.latitude}, ${viewer.longitude},
+					candidate.latitude, candidate.longitude
+				) AS distance_km,
+				${raw(onlineNow("candidate.last_seen_at"))} AS is_online,
+				(
+					SELECT id FROM photos
+					WHERE photos.user_id = candidate.id AND photos.is_profile = 1
+				) AS profile_photo_id
+			FROM users AS candidate
+			JOIN user_popularity AS popularity ON popularity.user_id = candidate.id
+			WHERE ${discoveryConditions(viewer, options)}
+				AND candidate.latitude IS NOT NULL
+				AND candidate.longitude IS NOT NULL
+				AND candidate.latitude BETWEEN ${south} AND ${north}
+				AND ${inside}
+			ORDER BY distance_km IS NULL, distance_km
+			LIMIT ${rows}`,
+	);
+}
+
 export function findCandidatesByIds(
 	viewer: UserRow,
 	ids: readonly string[],

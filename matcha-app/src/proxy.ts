@@ -57,6 +57,7 @@ export const config = {
 		"/me",
 		"/feed",
 		"/search",
+		"/map",
 		"/users/:path*",
 		"/messages",
 		"/messages/:path*",
