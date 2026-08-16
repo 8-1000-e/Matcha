@@ -1,4 +1,4 @@
-import { queryAll, queryOne } from "../core/client";
+import { execute, queryAll, queryOne } from "../core/client";
 import { createRepository } from "../core/repository";
 import { sql } from "../core/sql";
 import type {
@@ -44,3 +44,25 @@ export function unlinkOAuthAccount(
 ): boolean {
 	return oauthAccounts.remove({ user_id: userId, provider }) === 1;
 }
+
+export function setOAuthRefreshToken(
+	provider: OAuthProvider,
+	userId: string,
+	refreshToken: string | null,
+): void {
+	execute(
+		sql`UPDATE oauth_accounts SET refresh_token = ${refreshToken}
+			WHERE provider = ${provider} AND user_id = ${userId}`,
+	);
+}
+
+export function findOAuthAccountFor(
+	provider: OAuthProvider,
+	userId: string,
+): OAuthAccountRow | undefined {
+	return queryOne<OAuthAccountRow>(
+		sql`SELECT * FROM oauth_accounts
+			WHERE provider = ${provider} AND user_id = ${userId}`,
+	);
+}
+

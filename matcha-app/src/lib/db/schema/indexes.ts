@@ -31,4 +31,5 @@ export const INDEXES: readonly string[] = [
 		ON feed_sessions (created_at)`,
 	`CREATE INDEX IF NOT EXISTS cities_search
 		ON cities (search_name, population DESC)`,
+	"CREATE INDEX IF NOT EXISTS events_match_idx ON events (match_id, starts_at)",
 ];

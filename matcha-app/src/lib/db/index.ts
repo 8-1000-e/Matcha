@@ -208,8 +208,22 @@ export * from "./types";
 
 export {
 	findOAuthAccount,
+	findOAuthAccountFor,
+	setOAuthRefreshToken,
 	linkOAuthAccount,
 	listOAuthAccounts,
 	oauthAccounts,
 	unlinkOAuthAccount,
 } from "./repositories/oauth";
+
+export {
+	createEvent,
+	events,
+	findEvent,
+	listEvents,
+	listUpcomingEvents,
+	setEventStatus,
+	setGoogleEventId,
+	updateEvent,
+} from "./repositories/events";
+

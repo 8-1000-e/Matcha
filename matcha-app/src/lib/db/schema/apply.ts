@@ -5,7 +5,16 @@ import { messagesTable, notificationsTable, TABLES } from "./tables";
 import { TAG_LABELS } from "./tags";
 import { TRIGGERS } from "./triggers";
 import { VIEWS } from "./views";
-export const SCHEMA_VERSION = 13;
+export const SCHEMA_VERSION = 14;
+
+function addOauthColumns(database: Database.Database): void {
+	const columns = database.prepare("PRAGMA table_info(oauth_accounts)").all() as {
+		name: string;
+	}[];
+	if (columns.length > 0 && !columns.some((column) => column.name === "refresh_token")) {
+		database.exec("ALTER TABLE oauth_accounts ADD COLUMN refresh_token TEXT");
+	}
+}
 
 function addMissingColumns(database: Database.Database): void {
 	const columns = database.prepare("PRAGMA table_info(users)").all() as {
@@ -122,6 +131,7 @@ export function applySchema(database: Database.Database): void {
 			database.exec(statement);
 		}
 		addMissingColumns(database);
+		addOauthColumns(database);
 		dropTriggers(database);
 		rebuildMessages(database);
 		rebuildNotifications(database);

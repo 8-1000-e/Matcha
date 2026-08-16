@@ -127,6 +127,23 @@ export const TABLES: readonly string[] = [
 		UNIQUE (user_a_id, user_b_id),
 		CHECK (user_a_id < user_b_id)
 	) STRICT`,
+	`CREATE TABLE IF NOT EXISTS events (
+		id TEXT PRIMARY KEY,
+		match_id TEXT NOT NULL REFERENCES matches (id) ON DELETE CASCADE,
+		organiser_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+		guest_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+		title TEXT NOT NULL CHECK (length(title) BETWEEN 1 AND 120),
+		location TEXT CHECK (location IS NULL OR length(location) <= 200),
+		starts_at TEXT NOT NULL,
+		ends_at TEXT NOT NULL,
+		google_event_id TEXT,
+		status TEXT NOT NULL DEFAULT 'planned'
+			CHECK (status IN ('planned', 'cancelled')),
+		created_at TEXT NOT NULL DEFAULT ${TIMESTAMP_DEFAULT},
+		updated_at TEXT NOT NULL DEFAULT ${TIMESTAMP_DEFAULT},
+		CHECK (organiser_id <> guest_id),
+		CHECK (ends_at > starts_at)
+	) STRICT`,
 	messagesTable("messages"),
 	`CREATE TABLE IF NOT EXISTS reviews (
 		id TEXT PRIMARY KEY,

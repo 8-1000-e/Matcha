@@ -315,6 +315,7 @@ export interface OAuthAccountRow {
 	provider_user_id: string;
 	user_id: string;
 	email: string | null;
+	refresh_token: string | null;
 	linked_at: string;
 }
 
@@ -323,5 +324,40 @@ export interface OAuthAccountInsert {
 	provider_user_id: string;
 	user_id: string;
 	email?: string | null;
+	refresh_token?: string | null;
 	linked_at?: string;
+}
+
+export const EVENT_STATUSES = ["planned", "cancelled"] as const;
+
+export type EventStatus = (typeof EVENT_STATUSES)[number];
+
+export interface EventRow {
+	id: string;
+	match_id: string;
+	organiser_id: string;
+	guest_id: string;
+	title: string;
+	location: string | null;
+	starts_at: string;
+	ends_at: string;
+	google_event_id: string | null;
+	status: EventStatus;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface EventInsert {
+	id?: string;
+	match_id: string;
+	organiser_id: string;
+	guest_id: string;
+	title: string;
+	location?: string | null;
+	starts_at: string;
+	ends_at: string;
+	google_event_id?: string | null;
+	status?: EventStatus;
+	created_at?: string;
+	updated_at?: string;
 }
