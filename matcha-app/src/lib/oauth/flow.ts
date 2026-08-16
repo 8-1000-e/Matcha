@@ -12,7 +12,12 @@ export interface OAuthProfile {
 	avatarUrl: string | null;
 }
 
-export async function exchangeCode(provider: OAuthProvider, config: ProviderConfig, code: string): Promise<string | null>
+export interface OAuthTokens {
+	accessToken: string;
+	refreshToken: string | null;
+}
+
+export async function exchangeCode(provider: OAuthProvider, config: ProviderConfig, code: string): Promise<OAuthTokens | null>
 {
 	const body = new URLSearchParams();
 	body.set("grant_type", "authorization_code");
@@ -34,9 +39,20 @@ export async function exchangeCode(provider: OAuthProvider, config: ProviderConf
 		return null;
 	}
 
-	const parsed = (await response.json()) as { access_token?: unknown };
+	const parsed = (await response.json()) as {
+		access_token?: unknown;
+		refresh_token?: unknown;
+	};
 
-	return typeof parsed.access_token === "string" ? parsed.access_token : null;
+	if (typeof parsed.access_token !== "string")
+	{
+		return null;
+	}
+
+	return {
+		accessToken: parsed.access_token,
+		refreshToken: typeof parsed.refresh_token === "string" ? parsed.refresh_token : null,
+	};
 }
 
 interface IntraProfile {

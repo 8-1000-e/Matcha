@@ -7,18 +7,22 @@ export function messagesTable(name: string): string {
 		id TEXT PRIMARY KEY,
 		match_id TEXT NOT NULL REFERENCES matches (id) ON DELETE CASCADE,
 		sender_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-		kind TEXT NOT NULL DEFAULT 'text' CHECK (kind IN ('text', 'call')),
+		kind TEXT NOT NULL DEFAULT 'text' CHECK (kind IN ('text', 'call', 'event')),
 		body TEXT,
 		call_status TEXT CHECK (call_status IS NULL OR call_status IN
 			('answered', 'missed', 'declined', 'cancelled')),
 		call_duration_s INTEGER
 			CHECK (call_duration_s IS NULL OR call_duration_s >= 0),
+		event_id TEXT REFERENCES events (id) ON DELETE CASCADE,
 		sent_at TEXT NOT NULL DEFAULT ${TIMESTAMP_DEFAULT},
 		read_at TEXT,
 		CHECK (kind <> 'text' OR (body IS NOT NULL
 			AND length(body) BETWEEN 1 AND ${MESSAGE_MAX_STORED}
 			AND call_status IS NULL AND call_duration_s IS NULL)),
 		CHECK (kind <> 'call' OR (body IS NULL AND call_status IS NOT NULL)),
+		CHECK (kind <> 'event' OR (body IS NULL AND event_id IS NOT NULL
+			AND call_status IS NULL AND call_duration_s IS NULL)),
+		CHECK (kind = 'event' OR event_id IS NULL),
 		CHECK (call_status <> 'answered' OR call_duration_s IS NOT NULL)
 	) STRICT`;
 }

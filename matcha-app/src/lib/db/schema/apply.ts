@@ -5,7 +5,7 @@ import { messagesTable, notificationsTable, TABLES } from "./tables";
 import { TAG_LABELS } from "./tags";
 import { TRIGGERS } from "./triggers";
 import { VIEWS } from "./views";
-export const SCHEMA_VERSION = 14;
+export const SCHEMA_VERSION = 15;
 
 function addOauthColumns(database: Database.Database): void {
 	const columns = database.prepare("PRAGMA table_info(oauth_accounts)").all() as {
@@ -112,6 +112,25 @@ function rebuildNotifications(database: Database.Database): void {
 	database.exec("ALTER TABLE notifications_rebuilt RENAME TO notifications");
 }
 
+function rebuildEventMessages(database: Database.Database): void {
+	const definition = definitionOf(database, "messages");
+	if (definition === undefined || definition.includes("'event'")) {
+		return;
+	}
+
+	database.exec(messagesTable("messages_with_events"));
+	database.exec(
+		`INSERT INTO messages_with_events
+			(id, match_id, sender_id, kind, body, call_status, call_duration_s,
+				sent_at, read_at)
+		SELECT id, match_id, sender_id, kind, body, call_status, call_duration_s,
+			sent_at, read_at
+		FROM messages`,
+	);
+	database.exec("DROP TABLE messages");
+	database.exec("ALTER TABLE messages_with_events RENAME TO messages");
+}
+
 function seedTags(database: Database.Database): void {
 	const insert = database.prepare(
 		"INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING",
@@ -134,6 +153,7 @@ export function applySchema(database: Database.Database): void {
 		addOauthColumns(database);
 		dropTriggers(database);
 		rebuildMessages(database);
+		rebuildEventMessages(database);
 		rebuildNotifications(database);
 		for (const statement of [...INDEXES, ...TRIGGERS, ...VIEWS]) {
 			database.exec(statement);

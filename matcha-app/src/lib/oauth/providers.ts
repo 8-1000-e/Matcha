@@ -1,4 +1,5 @@
 import { OAUTH_PROVIDERS, type OAuthProvider } from "@/lib/db/types";
+import { CALENDAR_SCOPE } from "../calendar/google";
 
 export interface ProviderConfig {
 	clientId: string;
@@ -23,7 +24,7 @@ const ENDPOINTS: Record<
 		authorizeUrl: "https://accounts.google.com/o/oauth2/v2/auth",
 		tokenUrl: "https://oauth2.googleapis.com/token",
 		profileUrl: "https://openidconnect.googleapis.com/v1/userinfo",
-		scope: "openid email profile",
+		scope: `openid email profile ${CALENDAR_SCOPE}`,
 	},
 };
 
@@ -64,6 +65,11 @@ export function authorizeUrl(provider: OAuthProvider, config: ProviderConfig, st
 	url.searchParams.set("response_type", "code");
 	url.searchParams.set("scope", config.scope);
 	url.searchParams.set("state", state);
+	if (provider === "google")
+	{
+		url.searchParams.set("access_type", "offline");
+		url.searchParams.set("prompt", "consent");
+	}
 
 	return url.toString();
 }

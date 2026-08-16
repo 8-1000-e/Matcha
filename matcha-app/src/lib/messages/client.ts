@@ -52,6 +52,7 @@ export interface ChatMessage {
 	body: string | null;
 	call_status: CallStatus | null;
 	call_duration_s: number | null;
+	event_id: string | null;
 	sent_at: string;
 	read: boolean;
 }

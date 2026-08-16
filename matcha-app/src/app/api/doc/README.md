@@ -1446,3 +1446,96 @@ d'écritures pour une présence pourtant devenue instantanée.
 `is_online` et `last_seen_at` sont exposés partout où un utilisateur est décrit :
 `GET /api/users/[id]`, `GET /api/likes`, `GET /api/views`, `GET /api/blocks` et
 `GET /api/matches`.
+
+---
+
+# Rendez-vous
+
+Bonus « planifier un rendez-vous ». Les quatre routes vivent sous une
+conversation : elles passent toutes par `requireConversation(matchId)`, le même
+garde que les appels — session valide, match actif, aucun blocage dans un sens
+ou dans l'autre, partenaire non supprimé. Tout échec donne un **404** indistinct,
+pour ne rien révéler de l'existence d'une conversation.
+
+L'événement est créé dans l'agenda Google de **l'organisateur** ; l'invité est
+ajouté en `attendees` avec `sendUpdates=all`, donc c'est Google qui envoie
+l'invitation, la modification et l'annulation par courriel — l'application n'en
+envoie aucun.
+
+## `GET /api/matches/[matchId]/events`
+
+Liste les rendez-vous de la conversation, du plus proche au plus lointain,
+annulés compris.
+
+```json
+{ "ok": true, "events": [ { "id": "…", "organiser_id": "…", "guest_id": "…",
+  "title": "Café", "location": "Le Peloton", "starts_at": "2026-08-20T17:00:00.000Z",
+  "ends_at": "2026-08-20T18:00:00.000Z", "status": "planned", "synced": true,
+  "created_at": "…" } ] }
+```
+
+`google_event_id` n'est **jamais** exposé : c'est un identifiant interne. Le
+booléen `synced` dit seulement si la synchronisation a abouti.
+
+## `POST /api/matches/[matchId]/events`
+
+Propose un rendez-vous. Corps : `title` (1 à 120 après trim), `location`
+(facultatif, `null` ou 200 max), `starts_at` et `ends_at` (dates lisibles par
+`new Date`). Le début doit être à venir, la fin après le début, la durée
+inférieure à 12 heures. Les valeurs sont renormalisées en ISO avant écriture.
+
+- **409 `guest_google_required`** — l'invité n'a pas relié Google, ou son compte
+  lié n'a pas d'adresse : impossible de l'inviter.
+- **409 `calendar_not_connected`** — l'organisateur n'a pas de `refresh_token`
+  utilisable. Cas normal quand le compte a été créé *via* Google : le jeton
+  d'actualisation n'est stocké que lorsqu'une ligne `oauth_accounts` existe déjà.
+- **201** sinon, avec l'événement sérialisé.
+
+Un échec de l'appel Google **n'est pas une erreur** : l'événement reste en base
+avec `google_event_id` à `null` et la réponse est quand même `201`, `synced` à
+`false`. Le rendez-vous existe dans l'application, l'agenda est un bonus.
+
+Un message de type **`event`** est publié dans la conversation (canal Pusher +
+notification), pour que les deux le voient sans quitter le chat.
+
+Ce troisième type de message — après `text` et `call` — porte un `event_id` et
+**aucun corps** : la carte affichée dans le fil lit le rendez-vous lui-même, donc
+un changement de date ou une annulation se reflète dans le fil sans réécrire
+l'historique. Un texte figé aurait menti dès la première modification. La
+contrainte `CHECK (kind <> 'event' OR (body IS NULL AND event_id IS NOT NULL …))`
+interdit les combinaisons incohérentes, et `ON DELETE CASCADE` retire le message
+si le rendez-vous disparaît. Migration : `user_version 15`, table `messages`
+reconstruite par `rebuildEventMessages`.
+
+## `PATCH /api/matches/[matchId]/events/[eventId]`
+
+Modifie un rendez-vous. Mêmes règles de validation que la création. **403** si
+le demandeur n'est pas l'organisateur, **409 `event is cancelled`** sur un
+rendez-vous déjà annulé, **404** si l'identifiant n'appartient pas à cette
+conversation. Si l'événement était synchronisé, l'agenda est mis à jour ; un
+échec côté Google ne fait pas échouer la requête.
+
+## `DELETE /api/matches/[matchId]/events/[eventId]`
+
+Annule un rendez-vous, réservé à l'organisateur. La ligne est **conservée** avec
+`status = "cancelled"` : on garde la trace, on n'efface pas l'historique.
+L'événement est supprimé de l'agenda Google si besoin — un `410` renvoyé par
+Google (déjà supprimé) compte comme un succès. Renvoie
+`{ "ok": true, "cancelled": true }`.
+
+## Jetons Google
+
+`accessTokenFor(userId)` échange le `refresh_token` stocké contre un jeton
+d'accès à chaque besoin — rien n'est mis en cache. Le jeton d'actualisation est
+**chiffré en base** avec le mécanisme des messages (`MESSAGES_KEY`, AES-256-GCM) :
+en clair, il donnerait à quiconque lit le fichier SQLite un accès permanent à
+l'agenda de la personne.
+
+Il n'est émis par Google que si `access_type=offline` et `prompt=consent` sont
+présents sur l'URL d'autorisation, et il n'est stocké que là où une ligne
+`oauth_accounts` existe déjà : liaison depuis les réglages, reconnexion d'un
+compte lié, rattachement par courriel vérifié.
+
+**Tant que l'application OAuth reste en statut « Test » côté Google, ces jetons
+expirent au bout de 7 jours** et il faut relier le compte. Le code le gère
+proprement — `accessTokenFor` renvoie `null`, donc `409 calendar_not_connected`.

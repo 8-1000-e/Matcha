@@ -1,4 +1,5 @@
-import type { EventRow } from "@/lib/db";
+import { decryptMessage } from "@/lib/crypto/messages";
+import { findOAuthAccountFor, type EventRow } from "@/lib/db";
 
 export const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
 
@@ -17,41 +18,105 @@ export interface CalendarInvite {
 
 export async function accessTokenFor(userId: string): Promise<string | null>
 {
-	// 1. findOAuthAccountFor("google", userId) : pas de compte -> null.
-	// 2. Pas de refresh_token stocke -> null (l'utilisateur doit relier
-	//    son compte pour accorder l'acces au calendrier).
-	// 3. Dechiffrer le refresh_token (meme mecanisme que les messages).
-	// 4. POST TOKEN_URL en x-www-form-urlencoded :
-	//    grant_type "refresh_token", refresh_token, client_id, client_secret.
-	// 5. Reponse non ok -> null. Sinon renvoyer access_token.
-	throw new Error(`accessTokenFor not implemented for ${userId}`);
+	const clientId = process.env.OAUTH_GOOGLE_CLIENT_ID;
+	const clientSecret = process.env.OAUTH_GOOGLE_CLIENT_SECRET;
+
+	if (!clientId || !clientSecret)
+	{
+		return null;
+	}
+	const account = findOAuthAccountFor("google", userId);
+	if (account === undefined || account.refresh_token === null)
+	{
+		return null;
+	}
+
+	const form = new URLSearchParams();
+	form.set("grant_type", "refresh_token");
+	form.set("refresh_token", decryptMessage(account.refresh_token));
+	form.set("client_id", clientId);
+	form.set("client_secret", clientSecret);
+
+	const response = await fetch(TOKEN_URL, {
+		method: "POST",
+		headers: {
+			"content-type": "application/x-www-form-urlencoded",
+			accept: "application/json",
+		},
+		body: form,
+	});
+	if (!response.ok)
+	{
+		return null;
+	}
+
+	const parsed = (await response.json()) as { access_token?: unknown };
+
+	return typeof parsed.access_token === "string" ? parsed.access_token : null;
 }
 
-export async function createCalendarEvent(_accessToken: string, _invite: CalendarInvite): Promise<string | null>
+function headers(accessToken: string): HeadersInit
 {
-	// 1. POST EVENTS_URL?sendUpdates=all avec l'en-tete
-	//    authorization: `Bearer ${accessToken}` et un corps JSON :
-	//    { summary, location, start: { dateTime }, end: { dateTime },
-	//      attendees: [{ email: invite.guestEmail }] }
-	// 2. Reponse non ok -> null.
-	// 3. Renvoyer l'id de l'evenement cree (champ "id").
-	throw new Error("createCalendarEvent not implemented");
+	return {
+		authorization: `Bearer ${accessToken}`,
+		"content-type": "application/json",
+		accept: "application/json",
+	};
 }
 
-export async function updateCalendarEvent(_accessToken: string, googleEventId: string, _invite: CalendarInvite): Promise<boolean>
+function payload(invite: CalendarInvite): string
 {
-	// 1. PATCH `${EVENTS_URL}/${googleEventId}?sendUpdates=all`, meme corps
-	//    que la creation (seuls les champs envoyes sont modifies).
-	// 2. Renvoyer response.ok.
-	throw new Error(`updateCalendarEvent not implemented for ${googleEventId}`);
+	return JSON.stringify({
+		summary: invite.title,
+		location: invite.location,
+		start: { dateTime: invite.startsAt },
+		end: { dateTime: invite.endsAt },
+		attendees: [{ email: invite.guestEmail }],
+	});
 }
 
-export async function cancelCalendarEvent(_accessToken: string, googleEventId: string): Promise<boolean>
+export async function createCalendarEvent(accessToken: string, invite: CalendarInvite): Promise<string | null>
 {
-	// 1. DELETE `${EVENTS_URL}/${googleEventId}?sendUpdates=all`.
-	// 2. Google renvoie 410 si l'evenement etait deja supprime :
-	//    le traiter comme un succes.
-	throw new Error(`cancelCalendarEvent not implemented for ${googleEventId}`);
+	const response = await fetch(`${EVENTS_URL}?sendUpdates=all`, {
+		method: "POST",
+		headers: headers(accessToken),
+		body: payload(invite),
+	});
+	if (!response.ok)
+	{
+		return null;
+	}
+
+	const parsed = (await response.json()) as { id?: unknown };
+
+	return typeof parsed.id === "string" ? parsed.id : null;
+}
+
+export async function updateCalendarEvent(accessToken: string, googleEventId: string, invite: CalendarInvite): Promise<boolean>
+{
+	const response = await fetch(
+		`${EVENTS_URL}/${encodeURIComponent(googleEventId)}?sendUpdates=all`,
+		{
+			method: "PATCH",
+			headers: headers(accessToken),
+			body: payload(invite),
+		},
+	);
+
+	return response.ok;
+}
+
+export async function cancelCalendarEvent(accessToken: string, googleEventId: string): Promise<boolean>
+{
+	const response = await fetch(
+		`${EVENTS_URL}/${encodeURIComponent(googleEventId)}?sendUpdates=all`,
+		{
+			method: "DELETE",
+			headers: { authorization: `Bearer ${accessToken}` },
+		},
+	);
+
+	return response.ok || response.status === 410;
 }
 
 export function inviteFrom(event: EventRow, guestEmail: string): CalendarInvite

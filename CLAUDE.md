@@ -33,39 +33,23 @@ restaurer le contexte complet de la session précédente.
 
 ## Current State
 
-- **Branche** : `fix/activity-and-deck`
-- **Statut** : feed en deck avec tous les filtres du §IV.3, avis, changement
-  d'e-mail, suppression de compte RGPD, messages chiffrés. Reste la recherche
-  avancée et les manques listés dans `docs/current-task.md`.
-- **Dernière mise à jour** : 2026-08-15
+- **Branche** : `bonus` (poussée sur origin, part de `main`)
+- **Statut** : tous les bonus visés sont écrits — OAuth 42 + Google, éditeur de
+  photos, recherche, carte globe, et **rendez-vous** (routes, agenda Google,
+  panneau dans la conversation, carte dédiée dans le fil). Reste à dérouler un
+  test complet au navigateur avec deux comptes Google.
+- **Dernière mise à jour** : 2026-08-16
 
 ## Task Progress
 
-- [x] Auth complète (inscription, vérification e-mail, login, reset, refresh)
-- [x] Profil complet (genre, orientation, bio, tags, photos, géolocalisation)
-- [x] Audit complet (sécurité, conformité, back, front) + correctifs appliqués
-- [x] Référentiel GeoNames embarqué, chargé automatiquement
-- [x] Seed de 500 faux profils (identités, villes, photos, likes, avis)
-- [x] `GET /api/discovery` — feed figé par session, filtres, tri, pagination
-- [x] `POST/DELETE /api/users/[id]/like`
-- [x] Front du feed (carte, filtres, tri, like, session rejouée)
-- [x] Page profil public + historique de visites + avis
-- [x] Mon profil éditable, réglages, likes reçus et envoyés
-- [x] Chat temps réel, notifications (repris de la PR #17)
-- [x] Blocage / signalement, statut en ligne
-- [x] Chrome applicatif global (rail gauche, cloche, déconnexion)
-- [x] Visites et likes paginés (20/page), écran de profil bloqué
-- [x] Messages chiffrés en base (AES-256-GCM, réversible pour le RGPD)
-- [x] Feed en deck mono-carte (flèches, clavier, glisser)
-- [x] Filtres par centres d'intérêt et par ville dans la barre
-- [x] Écrire, modifier et supprimer un avis (match exigé)
-- [x] Changement d'adresse e-mail dans les réglages
-- [x] Suppression de compte RGPD (rétention 14 jours, restauration, purge)
-- [ ] **Recherche avancée** (même endpoint, écran dédié) <- EN COURS
-- [x] Changement de mot de passe dans les réglages
-- [x] Page `/privacy` (article 13) et composant `Footer`
-- [ ] Pied de page visible sur tous les écrans (§III) — `Footer` prêt à poser
-- [ ] Export RGPD — reporté à la fin du projet
+- [x] Tronc commun : auth, profil, feed, recherche, chat, notifications, modération
+- [x] Bonus : connexion 42 et Google, liaison de comptes depuis les réglages
+- [x] Bonus : éditeur de photos (recadrage, rotation, filtres) + glisser-déposer
+- [x] Bonus : carte globe MapLibre avec regroupement et chargement par zone
+- [x] Recherche par nom, prénom ou nom d'utilisateur (`/search`)
+- [x] Bonus rendez-vous : agenda Google, quatre routes, panneau et carte dans le
+      fil de conversation — voir `docs/current-task.md`
+- [ ] Repli de localisation quand l'utilisateur refuse le GPS (décision : écarté)
 
 ## Key Decisions
 
@@ -81,6 +65,9 @@ restaurer le contexte complet de la session précédente.
 - **Consentement de géolocalisation en base** avec `location_updated_at` : le
   front ne redemande la position que passé 24 h, et seulement si l'utilisateur a
   accepté.
+- **Coordonnées floutées** avant d'atteindre le client : `blurPoint` décale de
+  700 m maximum, de façon déterministe (hash de l'identifiant). Un décalage
+  aléatoire serait moyennable sur plusieurs chargements.
 - **Villes embarquées** dans le dépôt (`data/cities.tsv.gz`) et chargées à
   l'ouverture de la base : ce sont des données de référence, pas un seed.
 - **Pagination par `LIMIT/OFFSET`** sur les listes d'activité, contrairement au
@@ -91,6 +78,10 @@ restaurer le contexte complet de la session précédente.
   choix assumé, qui protège du vol du fichier SQLite et de rien d'autre.
 - **Le blocage n'est plus un `404`** sur `GET /api/users/[id]` seulement. Toutes
   les autres routes gardent le `404` indistinct.
+- **Un rendez-vous est un message de type `event`**, pas un texte : le message
+  porte un `event_id` et aucun corps, la carte du fil lit le rendez-vous en
+  direct. Une modification ou une annulation se reflète donc dans la
+  conversation, alors qu'un texte figé aurait menti dès le premier changement.
 - **Compte supprimé = invisible tout de suite, effacé au 14ᵉ jour.** Le RGPD
   n'accorde aucun délai de rétention ; il impose l'arrêt du traitement. Les 14
   jours sont un garde-fou produit, la rétention reste technique et invisible.

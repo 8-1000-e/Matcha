@@ -106,6 +106,7 @@ export {
 	markConversationRead,
 	messages,
 	recordCall,
+	sendEventMessage,
 	sendMessage,
 } from "./repositories/messages";
 export {

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CallArrow } from "@/components/Call/CallIcons";
+import { CalendarIcon } from "@/components/Event/EventIcons";
 import { Footer } from "@/components/Layout/Footer";
 import { PrivateScreen } from "@/components/Layout/Screen";
 import { PresenceAvatar } from "@/components/Presence/PresenceAvatar";
@@ -49,6 +50,21 @@ function Preview({ conversation }: { conversation: Conversation }) {
 				<CallArrow outgoing={last.mine} className="size-3.5 shrink-0" />
 				<span className="truncate">
 					{callLabel(last.call_status, last.call_duration_s, last.mine)}
+				</span>
+			</span>
+		);
+	}
+
+	if (last.kind === "event") {
+		return (
+			<span
+				className={`flex items-center gap-1.5 truncate text-sm ${
+					unread ? "font-semibold text-ink" : "text-muted"
+				}`}
+			>
+				<CalendarIcon className="size-3.5 shrink-0" />
+				<span className="truncate">
+					{last.mine ? "Vous avez proposé un rendez-vous" : "Rendez-vous proposé"}
 				</span>
 			</span>
 		);

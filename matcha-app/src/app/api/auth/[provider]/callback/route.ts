@@ -1,11 +1,13 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getSession, setAuthCookies } from "@/lib/auth/session";
+import { encryptMessage } from "@/lib/crypto/messages";
 import {
 	ConstraintError,
 	findOAuthAccount,
 	findUserByEmail,
 	linkOAuthAccount,
+	setOAuthRefreshToken,
 	users,
 } from "@/lib/db";
 import type { OAuthProvider } from "@/lib/db/types";
@@ -35,6 +37,16 @@ function back(request: Request, path: string, error?: string): NextResponse
 	return NextResponse.redirect(url);
 }
 
+function rememberRefresh(userId: string, provider: OAuthProvider, token: string | null): void
+{
+	if (token === null)
+	{
+		return;
+	}
+
+	setOAuthRefreshToken(provider, userId, encryptMessage(token));
+}
+
 export async function GET(request: Request, context: Context)
 {
 	const { provider } = await context.params;
@@ -60,13 +72,13 @@ export async function GET(request: Request, context: Context)
 		return back(request, "/login", "state");
 	}
 
-	const accessToken = await exchangeCode(provider, config, code);
-	if (accessToken === null)
+	const tokens = await exchangeCode(provider, config, code);
+	if (tokens === null)
 	{
 		return back(request, "/login", "exchange");
 	}
 
-	const profile = await fetchOAuthProfile(provider, config, accessToken);
+	const profile = await fetchOAuthProfile(provider, config, tokens.accessToken);
 	if (profile === null)
 	{
 		return back(request, "/login", "profile");
@@ -99,12 +111,15 @@ export async function GET(request: Request, context: Context)
 			throw error;
 		}
 
+		rememberRefresh(session.sub, provider, tokens.refreshToken);
+
 		return back(request, "/settings", "linked");
 	}
 
 	const linked = findOAuthAccount(provider, profile.providerUserId);
 	if (linked !== undefined)
 	{
+		rememberRefresh(linked.user_id, provider, tokens.refreshToken);
 		await setAuthCookies(linked.user_id);
 
 		return back(request, "/feed");
@@ -132,6 +147,7 @@ export async function GET(request: Request, context: Context)
 				}
 				throw error;
 			}
+			rememberRefresh(known.id, provider, tokens.refreshToken);
 			if (known.is_verified !== 1)
 			{
 				users.updateById(known.id, { is_verified: 1 });

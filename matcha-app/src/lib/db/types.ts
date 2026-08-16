@@ -22,7 +22,7 @@ export const NOTIFICATION_TYPES = [
 	"UNLIKED",
 	"MISSED_CALL",
 ] as const;
-export const MESSAGE_KINDS = ["text", "call"] as const;
+export const MESSAGE_KINDS = ["text", "call", "event"] as const;
 export const CALL_STATUSES = [
 	"answered",
 	"missed",
@@ -214,6 +214,7 @@ export interface MessageRow {
 	body: string | null;
 	call_status: CallStatus | null;
 	call_duration_s: number | null;
+	event_id: string | null;
 	sent_at: string;
 	read_at: string | null;
 }
@@ -226,6 +227,7 @@ export interface MessageInsert {
 	body?: string | null;
 	call_status?: CallStatus | null;
 	call_duration_s?: number | null;
+	event_id?: string | null;
 	sent_at?: string;
 	read_at?: string | null;
 }
