@@ -22,7 +22,7 @@ export const NOTIFICATION_TYPES = [
 	"UNLIKED",
 	"MISSED_CALL",
 ] as const;
-export const MESSAGE_KINDS = ["text", "call"] as const;
+export const MESSAGE_KINDS = ["text", "call", "event"] as const;
 export const CALL_STATUSES = [
 	"answered",
 	"missed",
@@ -40,6 +40,7 @@ export type CallStatus = (typeof CALL_STATUSES)[number];
 
 export const MAX_PHOTOS_PER_USER = 5;
 export const MINIMUM_TAGS = 3;
+export const REVIEW_MIN_MESSAGES = 20;
 
 export interface UserRow {
 	id: string;
@@ -48,6 +49,7 @@ export interface UserRow {
 	first_name: string;
 	last_name: string;
 	password_hash: string;
+	has_password: Flag;
 	birth_date: string;
 	gender: Gender | null;
 	orientation: Orientation;
@@ -73,6 +75,7 @@ export interface UserInsert {
 	first_name: string;
 	last_name: string;
 	password_hash: string;
+	has_password?: Flag;
 	birth_date: string;
 	gender?: Gender | null;
 	orientation?: Orientation;
@@ -212,6 +215,7 @@ export interface MessageRow {
 	body: string | null;
 	call_status: CallStatus | null;
 	call_duration_s: number | null;
+	event_id: string | null;
 	sent_at: string;
 	read_at: string | null;
 }
@@ -224,6 +228,7 @@ export interface MessageInsert {
 	body?: string | null;
 	call_status?: CallStatus | null;
 	call_duration_s?: number | null;
+	event_id?: string | null;
 	sent_at?: string;
 	read_at?: string | null;
 }
@@ -302,4 +307,60 @@ export interface PopularityRow {
 	user_id: string;
 	review_count: number;
 	review_average: number;
+}
+
+export const OAUTH_PROVIDERS = ["42", "google"] as const;
+
+export type OAuthProvider = (typeof OAUTH_PROVIDERS)[number];
+
+export interface OAuthAccountRow {
+	provider: OAuthProvider;
+	provider_user_id: string;
+	user_id: string;
+	email: string | null;
+	refresh_token: string | null;
+	linked_at: string;
+}
+
+export interface OAuthAccountInsert {
+	provider: OAuthProvider;
+	provider_user_id: string;
+	user_id: string;
+	email?: string | null;
+	refresh_token?: string | null;
+	linked_at?: string;
+}
+
+export const EVENT_STATUSES = ["planned", "cancelled"] as const;
+
+export type EventStatus = (typeof EVENT_STATUSES)[number];
+
+export interface EventRow {
+	id: string;
+	match_id: string;
+	organiser_id: string;
+	guest_id: string;
+	title: string;
+	location: string | null;
+	starts_at: string;
+	ends_at: string;
+	google_event_id: string | null;
+	status: EventStatus;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface EventInsert {
+	id?: string;
+	match_id: string;
+	organiser_id: string;
+	guest_id: string;
+	title: string;
+	location?: string | null;
+	starts_at: string;
+	ends_at: string;
+	google_event_id?: string | null;
+	status?: EventStatus;
+	created_at?: string;
+	updated_at?: string;
 }

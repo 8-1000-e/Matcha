@@ -7,11 +7,14 @@ import { Alert } from "@/components/Form/Alert";
 import { ActionButton } from "@/components/Form/Button";
 import { Footer } from "@/components/Layout/Footer";
 import { PrivateScreen } from "@/components/Layout/Screen";
+import { PhotoDropZone } from "@/components/Photo/PhotoDropZone";
+import { PhotoEditor } from "@/components/Photo/PhotoEditor";
 import { TAG_LABELS } from "@/lib/db/schema/tags";
 import { MINIMUM_TAGS } from "@/lib/db/types";
 import {
 	addPhoto,
 	getProfile,
+	replacePhoto,
 	pickProfilePhoto,
 	removePhoto,
 	saveProfile,
@@ -370,6 +373,9 @@ function Photos({
 }) {
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [editing, setEditing] = useState<
+		{ mode: "new"; source: File } | { mode: "replace"; id: string; source: string } | null
+	>(null);
 	const full = profile.photos.length >= 5;
 
 	async function upload(file: File) {
@@ -381,6 +387,24 @@ function Photos({
 			setError(result.errors[0]?.message ?? null);
 			return;
 		}
+		await onChanged();
+	}
+
+	async function saveEdited(file: File) {
+		if (editing === null) {
+			return;
+		}
+		setBusy(true);
+		setError(null);
+		const result = editing.mode === "new"
+			? await addPhoto(file)
+			: await replacePhoto(editing.id, file);
+		setBusy(false);
+		if (!result.ok) {
+			setError(result.errors[0]?.message ?? null);
+			return;
+		}
+		setEditing(null);
 		await onChanged();
 	}
 
@@ -415,86 +439,150 @@ function Photos({
 	}
 
 	return (
-		<div className="flex flex-col gap-4">
-			<div className="flex flex-wrap items-center justify-between gap-3">
-				<h2 className="text-sm font-semibold">
+		<PhotoDropZone
+			onFile={(file) => void upload(file)}
+			disabled={busy || full}
+			full={full}
+		>
+			<div className="flex flex-col gap-4">
+				<div className="flex flex-wrap items-center justify-between gap-3">
+					<h2 className="text-sm font-semibold">
 					Photos
-					<span className="ml-2 font-normal text-muted tabular-nums">
-						{profile.photos.length} / 5
-					</span>
-				</h2>
+						<span className="ml-2 font-normal text-muted tabular-nums">
+							{profile.photos.length} / 5
+						</span>
+						<span className="ml-3 hidden font-normal text-muted sm:inline">
+						ou glissez une image ici
+						</span>
+					</h2>
 
-				<label
-					className={`flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium transition-colors duration-200 ease-out ${
-						full || busy
-							? "cursor-not-allowed bg-leaf/40 text-muted"
-							: "cursor-pointer bg-matcha text-white hover:bg-matcha-dark"
-					}`}
-				>
-					<svg
-						viewBox="0 0 20 20"
-						className="size-4"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth="1.8"
-						strokeLinecap="round"
-						aria-hidden="true"
+					<label
+						className={`flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium transition-colors duration-200 ease-out ${
+							full || busy
+								? "cursor-not-allowed bg-leaf/40 text-muted"
+								: "cursor-pointer bg-matcha text-white hover:bg-matcha-dark"
+						}`}
 					>
-						<path d="M10 4.5v11M4.5 10h11" />
-					</svg>
-					{busy ? "Envoi…" : full ? "Maximum atteint" : "Ajouter une photo"}
-					<input
-						type="file"
-						accept="image/jpeg,image/png,image/webp"
-						disabled={busy || full}
-						onChange={(event) => {
-							const file = event.target.files?.[0];
-							event.target.value = "";
-							if (file !== undefined) {
-								void upload(file);
-							}
-						}}
-						className="sr-only"
-					/>
-				</label>
-			</div>
-
-			{error !== null ? <Alert>{error}</Alert> : null}
-
-			{profile.photos.length === 0 ? (
-				<p className="py-10 text-center text-sm text-muted">Aucune photo.</p>
-			) : (
-				<ul className="flex flex-wrap justify-center gap-2">
-					{profile.photos.map((photo, index) => (
-						<li
-							key={photo.id}
-							className="group relative aspect-square w-[calc((100%-1rem)/3)] overflow-hidden rounded-lg bg-leaf/40 ring-1 ring-edge/30"
+						<svg
+							viewBox="0 0 20 20"
+							className="size-4"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="1.8"
+							strokeLinecap="round"
+							aria-hidden="true"
 						>
-							<Image
-								src={photo.url}
-								alt=""
-								fill
-								priority={index === 0}
-								unoptimized
-								sizes="(min-width: 768px) 14rem, 33vw"
-								className="object-cover"
-							/>
+							<path d="M10 4.5v11M4.5 10h11" />
+						</svg>
+						{busy ? "Envoi…" : full ? "Maximum atteint" : "Ajouter une photo"}
+						<input
+							type="file"
+							accept="image/jpeg,image/png,image/webp"
+							disabled={busy || full}
+							onChange={(event) => {
+								const file = event.target.files?.[0];
+								event.target.value = "";
+								if (file !== undefined) {
+									setEditing({ mode: "new", source: file });
+								}
+							}}
+							className="sr-only"
+						/>
+					</label>
+				</div>
 
-							{photo.is_profile ? (
-								<span className="absolute top-2 left-2 rounded-md bg-matcha px-2 py-0.5 text-xs font-medium text-white">
+				{error !== null ? <Alert>{error}</Alert> : null}
+
+				{editing !== null ? (
+					<PhotoEditor
+						source={editing.source}
+						busy={busy}
+						onCancel={() => setEditing(null)}
+						onDone={(file) => void saveEdited(file)}
+					/>
+				) : null}
+
+				{profile.photos.length === 0 ? (
+					<p className="py-10 text-center text-sm text-muted">Aucune photo.</p>
+				) : (
+					<ul className="flex flex-wrap justify-center gap-2">
+						{profile.photos.map((photo, index) => (
+							<li
+								key={photo.id}
+								className="group relative aspect-square w-[calc((100%-1rem)/3)] overflow-hidden rounded-lg bg-leaf/40 ring-1 ring-edge/30"
+							>
+								<Image
+									src={photo.url}
+									alt=""
+									fill
+									priority={index === 0}
+									unoptimized
+									sizes="(min-width: 768px) 14rem, 33vw"
+									className="object-cover"
+								/>
+
+								{photo.is_profile ? (
+									<span className="absolute top-2 left-2 rounded-md bg-matcha px-2 py-0.5 text-xs font-medium text-white">
 									Photo de profil
-								</span>
-							) : null}
+									</span>
+								) : null}
 
-							<div className="absolute inset-x-0 bottom-0 flex justify-end gap-1.5 bg-linear-to-t from-ink/70 to-transparent p-2 opacity-0 transition-opacity duration-200 ease-out group-hover:opacity-100 focus-within:opacity-100">
-								{photo.is_profile ? null : (
+								<div className="absolute inset-x-0 bottom-0 flex justify-end gap-1.5 bg-linear-to-t from-ink/70 to-transparent p-2 opacity-0 transition-opacity duration-200 ease-out group-hover:opacity-100 focus-within:opacity-100">
 									<button
 										type="button"
 										disabled={busy}
-										onClick={() => void makeProfile(photo.id)}
-										aria-label="Définir comme photo de profil"
-										title="Définir comme photo de profil"
+										onClick={() =>
+											setEditing({ mode: "replace", id: photo.id, source: photo.url })}
+										aria-label="Retoucher la photo"
+										title="Retoucher la photo"
 										className="flex size-8 cursor-pointer items-center justify-center rounded-lg bg-white/90 text-ink transition-colors duration-200 ease-out hover:bg-white disabled:cursor-progress"
+									>
+										<svg
+											viewBox="0 0 20 20"
+											className="size-4"
+											fill="none"
+											stroke="currentColor"
+											strokeWidth="1.7"
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											aria-hidden="true"
+										>
+											<path d="M13.5 3.5 16.5 6.5 7 16H4v-3z" />
+											<path d="m11.5 5.5 3 3" />
+										</svg>
+									</button>
+
+									{photo.is_profile ? null : (
+										<button
+											type="button"
+											disabled={busy}
+											onClick={() => void makeProfile(photo.id)}
+											aria-label="Définir comme photo de profil"
+											title="Définir comme photo de profil"
+											className="flex size-8 cursor-pointer items-center justify-center rounded-lg bg-white/90 text-ink transition-colors duration-200 ease-out hover:bg-white disabled:cursor-progress"
+										>
+											<svg
+												viewBox="0 0 20 20"
+												className="size-4"
+												fill="none"
+												stroke="currentColor"
+												strokeWidth="1.8"
+												strokeLinecap="round"
+												strokeLinejoin="round"
+												aria-hidden="true"
+											>
+												<path d="m4 10.5 4 4 8-8" />
+											</svg>
+										</button>
+									)}
+
+									<button
+										type="button"
+										disabled={busy}
+										onClick={() => void drop(photo.id, photo.is_profile)}
+										aria-label="Supprimer la photo"
+										title="Supprimer la photo"
+										className="flex size-8 cursor-pointer items-center justify-center rounded-lg bg-white/90 text-red-700 transition-colors duration-200 ease-out hover:bg-white disabled:cursor-progress"
 									>
 										<svg
 											viewBox="0 0 20 20"
@@ -506,38 +594,16 @@ function Photos({
 											strokeLinejoin="round"
 											aria-hidden="true"
 										>
-											<path d="m4 10.5 4 4 8-8" />
+											<path d="M4 6h12M8 6V4.5h4V6M6.5 6l.6 9h5.8l.6-9" />
 										</svg>
 									</button>
-								)}
-
-								<button
-									type="button"
-									disabled={busy}
-									onClick={() => void drop(photo.id, photo.is_profile)}
-									aria-label="Supprimer la photo"
-									title="Supprimer la photo"
-									className="flex size-8 cursor-pointer items-center justify-center rounded-lg bg-white/90 text-red-700 transition-colors duration-200 ease-out hover:bg-white disabled:cursor-progress"
-								>
-									<svg
-										viewBox="0 0 20 20"
-										className="size-4"
-										fill="none"
-										stroke="currentColor"
-										strokeWidth="1.8"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										aria-hidden="true"
-									>
-										<path d="M4 6h12M8 6V4.5h4V6M6.5 6l.6 9h5.8l.6-9" />
-									</svg>
-								</button>
-							</div>
-						</li>
-					))}
-				</ul>
-			)}
-		</div>
+								</div>
+							</li>
+						))}
+					</ul>
+				)}
+			</div>
+		</PhotoDropZone>
 	);
 }
 

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { MatchaBowl } from "@/components/Brand/Brand";
 import { BackLink } from "@/components/Form/Button";
 import { PrivateScreen } from "@/components/Layout/Screen";
+import { MatchCelebration } from "@/components/Match/MatchCelebration";
 import { ModerationMenu } from "@/components/Moderation/ModerationMenu";
 import type { ProfilePhoto } from "@/lib/profile/profile";
 import type { PublicProfilePayload } from "@/lib/profile/public";
@@ -137,6 +138,8 @@ function Avatar({ profile }: { profile: PublicProfilePayload }) {
 function LikeAction({ profile }: { profile: PublicProfilePayload }) {
 	const [liked, setLiked] = useState(profile.viewer_liked_target);
 	const [matched, setMatched] = useState(profile.is_connected);
+	const [match, setMatch] = useState<string | null>(profile.match_id);
+	const [celebrating, setCelebrating] = useState(false);
 	const [pending, setPending] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
@@ -154,6 +157,10 @@ function LikeAction({ profile }: { profile: PublicProfilePayload }) {
 				return;
 			}
 			setMatched(result.data.matched);
+			if (result.data.matched) {
+				setMatch(result.data.match_id);
+				setCelebrating(true);
+			}
 			return;
 		}
 
@@ -204,6 +211,18 @@ function LikeAction({ profile }: { profile: PublicProfilePayload }) {
 			) : null}
 
 			{error !== null ? <span className="text-xs text-muted">{error}</span> : null}
+
+			{celebrating ? (
+				<MatchCelebration
+					name={profile.first_name}
+					photoUrl={
+						(profile.photos.find((entry) => entry.is_profile) ?? profile.photos[0])
+							?.url ?? null
+					}
+					matchId={match}
+					onClose={() => setCelebrating(false)}
+				/>
+			) : null}
 		</div>
 	);
 }
@@ -540,7 +559,7 @@ function Reviews({
 					onEdit={() => setEditing(true)}
 					onChanged={onChanged}
 				/>
-			) : profile.is_connected ? (
+			) : profile.can_review ? (
 				<button
 					type="button"
 					onClick={() => setEditing(true)}
@@ -550,8 +569,11 @@ function Reviews({
 				</button>
 			) : (
 				<p className="rounded-xl bg-leaf/30 px-4 py-3 text-xs text-muted">
-					Les avis sont réservés aux profils connectés : vous devez vous être
-					likés mutuellement pour noter {profile.first_name}.
+					Les avis se méritent : échangez au moins {profile.review_min_messages}{" "}
+					messages avec {profile.first_name} pour pouvoir le noter.
+					{profile.exchanged_messages > 0
+						? ` Vous en êtes à ${profile.exchanged_messages}.`
+						: ""}
 				</p>
 			)}
 

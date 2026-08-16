@@ -36,7 +36,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function validateRegister(body: unknown):
+export interface RegisterChecks {
+	email?: boolean;
+	password?: boolean;
+}
+
+export function validateRegister(body: unknown, checks: RegisterChecks = {}):
     { ok: true; value: RegisterInput } | { ok: false; errors: string[] }
 {
 	if (!isRecord(body))
@@ -47,7 +52,11 @@ export function validateRegister(body: unknown):
 	const errors: string[] = [];
 
 	let email = "";
-	if (typeof body.email !== "string")
+	if (checks.email === false)
+	{
+		email = "";
+	}
+	else if (typeof body.email !== "string")
 	{
 		errors.push("email is required");
 	}
@@ -181,7 +190,11 @@ export function validateRegister(body: unknown):
 	}
 
 	let password = "";
-	if (typeof body.password !== "string")
+	if (checks.password === false)
+	{
+		password = "";
+	}
+	else if (typeof body.password !== "string")
 	{
 		errors.push("password is required");
 	}
@@ -212,3 +225,36 @@ export function validateRegister(body: unknown):
 		},
 	};
 }
+
+export interface OauthSignupInput {
+	username: string;
+	first_name: string;
+	last_name: string;
+	birth_date: string;
+}
+
+export function validateOauthSignup(body: unknown):
+	{ ok: true; value: OauthSignupInput } | { ok: false; errors: string[] }
+{
+	if (!isRecord(body))
+	{
+		return { ok: false, errors: ["invalid request body"] };
+	}
+
+	const complete = validateRegister(body, { email: false, password: false });
+	if (!complete.ok)
+	{
+		return complete;
+	}
+
+	return {
+		ok: true,
+		value: {
+			username: complete.value.username,
+			first_name: complete.value.first_name,
+			last_name: complete.value.last_name,
+			birth_date: complete.value.birth_date,
+		},
+	};
+}
+

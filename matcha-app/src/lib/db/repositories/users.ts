@@ -19,6 +19,7 @@ export const users = createRepository<UserRow, UserInsert>({
 		"first_name",
 		"last_name",
 		"password_hash",
+		"has_password",
 		"birth_date",
 		"gender",
 		"orientation",
@@ -74,7 +75,7 @@ export function markUserVerified(id: string): UserRow | undefined {
 }
 
 export function updatePassword(id: string, passwordHash: string): void {
-	users.updateById(id, { password_hash: passwordHash });
+	users.updateById(id, { password_hash: passwordHash, has_password: 1 });
 }
 
 export function touchLastSeen(id: string): boolean {

@@ -5,7 +5,16 @@ import { messagesTable, notificationsTable, TABLES } from "./tables";
 import { TAG_LABELS } from "./tags";
 import { TRIGGERS } from "./triggers";
 import { VIEWS } from "./views";
-export const SCHEMA_VERSION = 11;
+export const SCHEMA_VERSION = 15;
+
+function addOauthColumns(database: Database.Database): void {
+	const columns = database.prepare("PRAGMA table_info(oauth_accounts)").all() as {
+		name: string;
+	}[];
+	if (columns.length > 0 && !columns.some((column) => column.name === "refresh_token")) {
+		database.exec("ALTER TABLE oauth_accounts ADD COLUMN refresh_token TEXT");
+	}
+}
 
 function addMissingColumns(database: Database.Database): void {
 	const columns = database.prepare("PRAGMA table_info(users)").all() as {
@@ -16,6 +25,11 @@ function addMissingColumns(database: Database.Database): void {
 	}
 	if (!columns.some((column) => column.name === "deleted_at")) {
 		database.exec("ALTER TABLE users ADD COLUMN deleted_at TEXT");
+	}
+	if (!columns.some((column) => column.name === "has_password")) {
+		database.exec(
+			"ALTER TABLE users ADD COLUMN has_password INTEGER NOT NULL DEFAULT 1",
+		);
 	}
 }
 
@@ -98,6 +112,25 @@ function rebuildNotifications(database: Database.Database): void {
 	database.exec("ALTER TABLE notifications_rebuilt RENAME TO notifications");
 }
 
+function rebuildEventMessages(database: Database.Database): void {
+	const definition = definitionOf(database, "messages");
+	if (definition === undefined || definition.includes("'event'")) {
+		return;
+	}
+
+	database.exec(messagesTable("messages_with_events"));
+	database.exec(
+		`INSERT INTO messages_with_events
+			(id, match_id, sender_id, kind, body, call_status, call_duration_s,
+				sent_at, read_at)
+		SELECT id, match_id, sender_id, kind, body, call_status, call_duration_s,
+			sent_at, read_at
+		FROM messages`,
+	);
+	database.exec("DROP TABLE messages");
+	database.exec("ALTER TABLE messages_with_events RENAME TO messages");
+}
+
 function seedTags(database: Database.Database): void {
 	const insert = database.prepare(
 		"INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING",
@@ -117,8 +150,10 @@ export function applySchema(database: Database.Database): void {
 			database.exec(statement);
 		}
 		addMissingColumns(database);
+		addOauthColumns(database);
 		dropTriggers(database);
 		rebuildMessages(database);
+		rebuildEventMessages(database);
 		rebuildNotifications(database);
 		for (const statement of [...INDEXES, ...TRIGGERS, ...VIEWS]) {
 			database.exec(statement);

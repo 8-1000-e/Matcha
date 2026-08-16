@@ -1,5 +1,5 @@
 import type { CallStatus } from "@/lib/db";
-import { send, type ApiResult } from "@/lib/http/client";
+import { request, send, type ApiResult } from "@/lib/http/client";
 import type { ChatMessage } from "@/lib/messages/client";
 import type { IceServer } from "./ice";
 import type { SignalKind } from "./validation";
@@ -16,16 +16,8 @@ export interface OpenedCall {
 	ring_timeout_ms: number;
 }
 
-export async function getIceConfig(): Promise<ApiResult<IceConfig>> {
-	try {
-		const response = await fetch("/api/calls/ice", { method: "GET" });
-		if (!response.ok) {
-			return { ok: false, errors: [], status: response.status };
-		}
-		return { ok: true, data: (await response.json()) as IceConfig };
-	} catch {
-		return { ok: false, errors: [] };
-	}
+export function getIceConfig(): Promise<ApiResult<IceConfig>> {
+	return request<IceConfig>("/api/calls/ice", { method: "GET" });
 }
 
 export function openCall(matchId: string): Promise<ApiResult<OpenedCall>> {

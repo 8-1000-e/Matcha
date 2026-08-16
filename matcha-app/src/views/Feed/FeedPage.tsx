@@ -5,6 +5,7 @@ import { Alert } from "@/components/Form/Alert";
 import { ActionButton } from "@/components/Form/Button";
 import { Footer } from "@/components/Layout/Footer";
 import { PrivateScreen } from "@/components/Layout/Screen";
+import { MatchCelebration } from "@/components/Match/MatchCelebration";
 import {
 	fetchFeed,
 	type Candidate,
@@ -16,6 +17,7 @@ import { likeUser, unlikeUser } from "@/lib/profile/publicClient";
 import { CandidateSlide } from "./CandidateSlide";
 import { Deck } from "./Deck";
 import { FilterBar } from "./FeedFilters";
+
 
 interface State {
 	items: Candidate[];
@@ -61,6 +63,9 @@ export function FeedPage({
 		});
 	const [position, setPosition] = useState(0);
 	const [liked, setLiked] = useState<Record<string, boolean>>({});
+	const [celebrated, setCelebrated] = useState<
+		{ name: string; photoUrl: string | null; matchId: string | null } | null
+	>(null);
 	const [likePending, setLikePending] = useState(false);
 	const [likeError, setLikeError] = useState<string | null>(null);
 	const inFlight = useRef(false);
@@ -147,6 +152,18 @@ export function FeedPage({
 			{
 				setLiked((previous) => ({ ...previous, [candidate.id]: current }));
 				setLikeError(result.errors[0]?.message ?? null);
+				return;
+			}
+
+			if (next && "matched" in result.data && result.data.matched)
+			{
+				setCelebrated({
+					name: candidate.first_name,
+					photoUrl: candidate.profile_photo_id === null
+						? null
+						: `/api/photos/${candidate.profile_photo_id}`,
+					matchId: result.data.match_id,
+				});
 			}
 		},
 		[liked],
@@ -334,6 +351,14 @@ export function FeedPage({
 						</ActionButton>
 					</div>
 				</div>
+			) : null}
+			{celebrated !== null ? (
+				<MatchCelebration
+					name={celebrated.name}
+					photoUrl={celebrated.photoUrl}
+					matchId={celebrated.matchId}
+					onClose={() => setCelebrated(null)}
+				/>
 			) : null}
 		</PrivateScreen>
 	);

@@ -1,7 +1,7 @@
 import {
+	canReview,
 	ConstraintError,
 	DatabaseError,
-	findMatchBetween,
 	listVisibleReviews,
 	removeReview,
 	upsertReview,
@@ -47,9 +47,12 @@ export async function PUT(request: Request, context: Context)
 		return guarded.response;
 	}
 
-	if (findMatchBetween(guarded.viewer.id, id) === undefined)
+	if (!canReview(guarded.viewer.id, id))
 	{
-		return Response.json({ errors: ["review_requires_match"] }, { status: 403 });
+		return Response.json(
+			{ errors: ["review_requires_conversation"] },
+			{ status: 403 },
+		);
 	}
 
 	const body = await readJsonBody(request);
@@ -95,7 +98,7 @@ export async function PUT(request: Request, context: Context)
 		)
 		{
 			return Response.json(
-				{ errors: ["review_requires_match"] },
+				{ errors: ["review_requires_conversation"] },
 				{ status: 403 },
 			);
 		}

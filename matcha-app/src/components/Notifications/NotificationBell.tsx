@@ -170,10 +170,16 @@ export function NotificationBell() {
 									<Entry
 										entry={entry}
 										onOpen={() => {
-											markOne(entry.id);
+											if (!entry.read) {
+												markOne(entry.id);
+											}
 											setOpen(false);
 										}}
-										onRead={() => markOne(entry.id)}
+										onRead={() => {
+											if (!entry.read) {
+												markOne(entry.id);
+											}
+										}}
 									/>
 								</li>
 							))}

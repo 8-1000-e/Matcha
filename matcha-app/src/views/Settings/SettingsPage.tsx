@@ -2,7 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { GoogleIcon, Intra42Icon } from "@/components/Brand/ProviderLogos";
 import { Alert } from "@/components/Form/Alert";
+import { Notice } from "@/components/Form/Notice";
 import { Footer } from "@/components/Layout/Footer";
 import { PrivateScreen } from "@/components/Layout/Screen";
 import { PresenceAvatar } from "@/components/Presence/PresenceAvatar";
@@ -12,6 +14,12 @@ import {
 	unblockUser,
 	type BlockedUser,
 } from "@/lib/moderation/client";
+import {
+	fetchLinkedAccounts,
+	unlinkAccount,
+	type LinkedAccount,
+} from "@/lib/oauth/client";
+import type { OauthFeedback } from "@/lib/oauth/messages";
 import {
 	changePassword,
 	deleteAccount,
@@ -34,8 +42,14 @@ const PRIMARY
 
 const SECTIONS = [
 	{ key: "location" as const, label: "Localisation" },
+	{ key: "connections" as const, label: "Connexions" },
 	{ key: "blocked" as const, label: "Comptes bloqués" },
 	{ key: "account" as const, label: "Compte" },
+];
+
+const OAUTH_PROVIDERS = [
+	{ id: "42", name: "Intra 42", Icon: Intra42Icon },
+	{ id: "google", name: "Google", Icon: GoogleIcon },
 ];
 
 type Section = (typeof SECTIONS)[number]["key"];
@@ -387,6 +401,90 @@ function EmailForm({
 	);
 }
 
+function Connections() {
+	const [accounts, setAccounts] = useState<LinkedAccount[] | null>(null);
+	const [busy, setBusy] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	const [done, setDone] = useState<string | null>(null);
+
+	useEffect(() => {
+		let live = true;
+		void fetchLinkedAccounts().then((result) => {
+			if (live) {
+				setAccounts(result.ok ? result.data.accounts : []);
+			}
+		});
+		return () => {
+			live = false;
+		};
+	}, []);
+
+	async function unlink(provider: string) {
+		setBusy(true);
+		setError(null);
+		setDone(null);
+		const result = await unlinkAccount(provider);
+		setBusy(false);
+		if (!result.ok) {
+			setError(result.errors[0]?.message ?? null);
+			return;
+		}
+		setAccounts((current) =>
+			current === null ? current : current.filter((entry) => entry.provider !== provider),
+		);
+		setDone(provider === "42" ? "Compte Intra 42 délié." : "Compte Google délié.");
+	}
+
+	return (
+		<Card
+			title="Connexions"
+			description="Reliez un compte pour vous connecter en un clic, sans mot de passe."
+		>
+			{accounts === null ? (
+				<p className="text-sm text-muted">Chargement…</p>
+			) : (
+				<ul className="flex flex-col divide-y divide-edge/20">
+					{OAUTH_PROVIDERS.map(({ id, name, Icon }) => {
+						const linked = accounts.find((entry) => entry.provider === id);
+						return (
+							<li key={id} className="flex items-center gap-3 py-3">
+								<Icon className="size-5 shrink-0" />
+
+								<span className="min-w-0 flex-1">
+									<span className="block text-sm font-medium">{name}</span>
+									<span className="block truncate text-xs text-muted">
+										{linked === undefined
+											? "Aucun compte relié"
+											: (linked.email ?? "Compte relié")}
+									</span>
+								</span>
+
+								{linked === undefined ? (
+									<a href={`/api/auth/${id}/start?mode=link`} className={GHOST}>
+										Relier
+									</a>
+								) : (
+									<button
+										type="button"
+										disabled={busy}
+										onClick={() => void unlink(id)}
+										className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-red-200 bg-white/70 px-3 text-sm font-medium text-red-700 transition-colors duration-200 ease-out hover:bg-red-50 disabled:cursor-progress"
+									>
+										Délier
+									</button>
+								)}
+							</li>
+						);
+					})}
+				</ul>
+			)}
+
+			{error !== null ? <Alert>{error}</Alert> : null}
+			{done !== null ? <Notice>{done}</Notice> : null}
+		</Card>
+	);
+}
+
 function Account({
 	profile,
 	onSaved,
@@ -657,9 +755,20 @@ function DeleteAccount() {
 	);
 }
 
-export function SettingsPage() {
+export function SettingsPage({ oauthMessage }: { oauthMessage?: OauthFeedback }) {
 	const [profile, setProfile] = useState<Profile | null>(null);
-	const [section, setSection] = useState<Section>("location");
+	const [section, setSection] = useState<Section>(
+		oauthMessage === undefined ? "location" : "connections",
+	);
+
+	useEffect(() => {
+		if (oauthMessage === undefined) {
+			return;
+		}
+		const url = new URL(window.location.href);
+		url.searchParams.delete("oauth");
+		window.history.replaceState(null, "", url.toString());
+	}, [oauthMessage]);
 
 	async function reload() {
 		const result = await getProfile();
@@ -710,8 +819,20 @@ export function SettingsPage() {
 					</nav>
 
 					<div>
+						{oauthMessage !== undefined && section === "connections" ? (
+							<div className="mb-4">
+								{oauthMessage.tone === "success" ? (
+									<Notice>{oauthMessage.text}</Notice>
+								) : (
+									<Alert>{oauthMessage.text}</Alert>
+								)}
+							</div>
+						) : null}
+
 						{section === "location" ? (
 							<Location profile={profile} onChanged={reload} />
+						) : section === "connections" ? (
+							<Connections />
 						) : section === "blocked" ? (
 							<Blocked />
 						) : (

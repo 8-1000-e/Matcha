@@ -4,7 +4,12 @@ import { boundedInteger } from "../core/identifiers";
 import { createRepository } from "../core/repository";
 import { sql } from "../core/sql";
 import { createId } from "../core/values";
-import type { PopularityRow, ReviewInsert, ReviewRow } from "../types";
+import {
+	REVIEW_MIN_MESSAGES,
+	type PopularityRow,
+	type ReviewInsert,
+	type ReviewRow,
+} from "../types";
 
 export const reviews = createRepository<ReviewRow, ReviewInsert>({
 	table: "reviews",
@@ -19,6 +24,28 @@ export const reviews = createRepository<ReviewRow, ReviewInsert>({
 	],
 	defaultOrder: [{ column: "created_at", direction: "desc" }],
 });
+
+export function countExchangedMessages(first: string, second: string): number {
+	const row = queryOne<{ total: number; mine: number; theirs: number }>(
+		sql`SELECT
+				COUNT(*) AS total,
+				COUNT(*) FILTER (WHERE messages.sender_id = ${first}) AS mine,
+				COUNT(*) FILTER (WHERE messages.sender_id = ${second}) AS theirs
+			FROM messages
+			JOIN matches ON matches.id = messages.match_id
+			WHERE messages.kind = 'text'
+				AND matches.user_a_id = MIN(${first}, ${second})
+				AND matches.user_b_id = MAX(${first}, ${second})`,
+	);
+	if (row === undefined || row.mine === 0 || row.theirs === 0) {
+		return 0;
+	}
+	return row.total;
+}
+
+export function canReview(authorId: string, targetId: string): boolean {
+	return countExchangedMessages(authorId, targetId) >= REVIEW_MIN_MESSAGES;
+}
 
 export function upsertReview(values: ReviewInsert): ReviewRow {
 	if (!Number.isInteger(values.score) || values.score < 1 || values.score > 5) {
@@ -60,11 +87,6 @@ export function listVisibleReviews(
 			FROM reviews
 			JOIN users ON users.id = reviews.author_id
 			WHERE reviews.target_id = ${targetId}
-				AND NOT EXISTS (
-					SELECT 1 FROM blocks
-					WHERE blocks.blocker_id = ${targetId}
-						AND blocks.blocked_id = reviews.author_id
-				)
 			ORDER BY reviews.updated_at DESC
 			LIMIT ${boundedInteger(limit, 1, 200, "limit")}`,
 	);

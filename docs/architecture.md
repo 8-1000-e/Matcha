@@ -172,3 +172,57 @@ montage. Chacun appelait `GET /api/profile`, et le Strict Mode de développement
 doublait encore les effets : quatre requêtes par chargement. `sharedProfile()`
 mémorise la promesse 30 s et la partage ; chaque mutation du profil appelle
 `forgetProfile()`. Mesuré : 4 requêtes → 1.
+
+## OAuth 42 et Google (2026-08-16)
+
+```
+/signup ─ clic « Continuer avec 42 »
+   │  (balise <a>, jamais next/link : une route API n'est pas une page)
+   ▼
+GET /api/auth/[provider]/start
+   ├─ isOAuthProvider ?              non -> 404
+   ├─ providerConfig(provider)       null -> 503 (fournisseur non configure)
+   ├─ createState + rememberState    cookie httpOnly, SameSite=lax, 10 min
+   └─ 307 vers la page d'autorisation du fournisseur
+   ▼
+GET /api/auth/[provider]/callback
+   ├─ consumeState + sameState       (timingSafeEqual)  echec -> /login?oauth=state
+   ├─ exchangeCode                   POST serveur a serveur, x-www-form-urlencoded
+   ├─ fetchOAuthProfile              normalise 42 (id, login) et Google (sub)
+   └─ decision :
+        compte deja lie              -> setAuthCookies, /feed
+        e-mail connu ET verifie      -> linkOAuthAccount, /feed
+        e-mail absent ou non verifie -> /signup?oauth=email
+        inconnu                      -> brouillon signe + /signup/oauth
+   ▼
+POST /api/auth/oauth/complete
+   └─ cree l'utilisateur (has_password = 0, is_verified = 1), lie le compte,
+      importe l'avatar du fournisseur, ouvre la session
+```
+
+Le brouillon (`oauth_draft`) est un JSON scellé par HMAC-SHA256 : il transporte
+`provider_user_id`, donc il ne doit pas etre falsifiable.
+
+`mode=link` reprend le meme chemin mais exige une session et n'ecrit que dans
+`oauth_accounts`.
+
+## Carte et globe
+
+```
+/map ─ UsersGlobe (MapLibre, projection globe, tuiles OSM)
+   │
+   ├─ moveend / zoomend (400 ms de temporisation)
+   │     └─ GET /api/discovery/map?south=&north=&west=&east=
+   │            ├─ findMapCandidates : memes conditions que le feed
+   │            │   (orientation, blocages, profil complet) + bbox
+   │            ├─ plafond 500 points
+   │            └─ blurPoint : decalage deterministe <= 700 m
+   │
+   └─ regroupement maison : grille de 56 px en coordonnees ecran
+         1 profil  -> photo de profil en marqueur HTML
+         plusieurs -> pastille chiffree au barycentre, clic = zoom + 2,5
+```
+
+Les coordonnees exactes ne quittent jamais le serveur : `serializeCandidate` ne
+renvoie que `map_latitude` / `map_longitude`.
+

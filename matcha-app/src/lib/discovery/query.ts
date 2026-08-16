@@ -10,6 +10,7 @@ const MAX_RATING = 5;
 const MAX_DISTANCE_KM = 20038;
 const MAX_ENTRIES = 500;
 const CITY_MAX = 100;
+const USERNAME_MAX = 32;
 
 export const PAGE_SIZE = 20;
 export const MAX_PAGE_SIZE = 40;
@@ -47,6 +48,7 @@ export function validateDiscoveryQuery(params: URLSearchParams): QueryResult
 
 	const maxDistanceKm = readInteger(params, "maxDistanceKm", 0, MAX_DISTANCE_KM, errors);
 	const city = readCity(params, errors);
+	const usernameQuery = readUsername(params, errors);
 	const tagMode = readTagMode(params, errors);
 	const limit = readInteger(params, "limit", 1, MAX_PAGE_SIZE, errors) ?? PAGE_SIZE;
 	const after = readInteger(params, "after", 0, MAX_ENTRIES, errors) ?? 0;
@@ -66,6 +68,7 @@ export function validateDiscoveryQuery(params: URLSearchParams): QueryResult
 				popularityMax: ratingMax,
 				maxDistanceKm,
 				city,
+				usernameQuery,
 				tagIds,
 				tagMode,
 			},
@@ -87,6 +90,7 @@ export function filtersHash(query: DiscoveryQuery): string
 		popularityMax: filters.popularityMax ?? null,
 		maxDistanceKm: filters.maxDistanceKm ?? null,
 		city: filters.city ?? null,
+		usernameQuery: filters.usernameQuery ?? null,
 		tagIds: [...(filters.tagIds ?? [])].sort((a, b) => a - b),
 		tagMode: filters.tagMode ?? "any",
 		sort: query.sort.map((one) => `${one.key}:${one.direction ?? "asc"}`),
@@ -111,6 +115,28 @@ function readCity(params: URLSearchParams, errors: string[]): string | undefined
 	}
 
 	return city;
+}
+
+function readUsername(
+	params: URLSearchParams,
+	errors: string[],
+): string | undefined
+{
+	const raw = params.get("username");
+	if (raw === null)
+	{
+		return undefined;
+	}
+
+	const username = raw.trim();
+	if (username.length === 0 || username.length > USERNAME_MAX
+		|| CONTROL_RE.test(username))
+	{
+		errors.push("username is invalid");
+		return undefined;
+	}
+
+	return username;
 }
 
 function readTagMode(

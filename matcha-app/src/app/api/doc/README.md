@@ -622,6 +622,28 @@ colonne.
 (`ORDER BY is_profile DESC, created_at, id`), pour la galerie de la carte.
 `viewer_liked` dit si le cœur doit être plein au chargement.
 
+**Qui voit qui.** Une suggestion n'apparaît que si l'attirance est réciproque :
+le candidat doit correspondre à l'orientation du visiteur, **et** le visiteur à
+celle du candidat. La règle par orientation :
+
+| Orientation | Genres proposés |
+| --- | --- |
+| `hetero`, visiteur `man` | `woman` |
+| `hetero`, visiteur `woman` | `man` |
+| `hetero`, visiteur `non_binary` ou `other` | tout genre différent du sien |
+| `homo` | le même genre exactement |
+| `bi` | `woman` et `man` |
+| `pan` | tous les genres sauf `other` |
+| `other` | tous les genres |
+
+`hetero` signifiait auparavant « tout genre différent du mien » : un homme
+hétérosexuel recevait donc aussi les profils `non_binary` et `other`. Pour les
+genres binaires, l'opposé est désormais explicite ; il n'existe pas d'opposé
+défini pour `non_binary` et `other`, la lecture littérale est conservée pour eux.
+
+La réciprocité a des conséquences visibles : un profil `other` n'est jamais
+proposé à quelqu'un de `bi` ou de `pan`, et ne les voit pas non plus.
+
 **Le feed est figé par session.** L'ordre est calculé une fois, stocké dans
 `feed_entries`, puis relu page par page : aucun doublon ni saut pendant le
 défilement, même si une note change entre deux pages. La session dure une heure.
@@ -719,18 +741,33 @@ refusés. Une chaîne vide vaut `null`.
 | `200` | `{ "ok": true, "review": { ... } }` | écrit ou mis à jour |
 | `400` | `{ "errors": ["score must be an integer between 1 and 5"] }` | note hors bornes, ou pas un entier |
 | `400` | `{ "errors": ["review is too long"] }` | plus de 2000 caractères |
-| `403` | `{ "errors": ["review_requires_match"] }` | pas de match entre les deux |
+| `403` | `{ "errors": ["review_requires_conversation"] }` | moins de 20 messages échangés |
 | `404` | `{ "errors": ["user not found"] }` | inconnu, ou blocage |
 
-**Il faut un match pour noter quelqu'un.** Ce n'est pas une règle de la route :
-le déclencheur `reviews_require_match_before_insert` l'impose en base depuis la
-conception du schéma. La route vérifie d'abord pour rendre un `403` propre, et
-rattrape quand même la `ConstraintError` — la vérification et l'écriture ne sont
-pas atomiques.
+**Il faut avoir vraiment discuté pour noter quelqu'un.** Deux garde-fous se
+superposent :
 
-C'est aussi ce qui rend la note crédible : on ne note que quelqu'un avec qui on
-s'est effectivement connecté, comme un hôte qu'on a rencontré. Conséquence
-assumée : la note bouge lentement, et un profil sans match reste à zéro avis.
+- en base, le déclencheur `reviews_require_match_before_insert` exige une ligne
+  `matches` entre les deux, depuis la conception du schéma ;
+- dans la route, `canReview` exige **au moins 20 messages texte** dans la
+  conversation, **dont au moins un de chaque côté**. Sans cette seconde
+  condition, il suffirait d'envoyer vingt messages dans le vide pour gagner le
+  droit de noter.
+
+Les appels et les rendez-vous ne comptent pas : seuls les messages de type
+`text`. La route vérifie d'abord pour rendre un `403` propre, et rattrape quand
+même la `ConstraintError` — la vérification et l'écriture ne sont pas atomiques.
+
+C'est ce qui rend la note crédible : on ne note pas quelqu'un croisé une fois,
+mais quelqu'un avec qui on a tenu une conversation. Conséquence assumée : la
+note bouge lentement, et un profil sans conversation reste à zéro avis.
+
+**Le droit de noter, comme l'avis lui-même, survit à tout.** Se « dématcher »
+désactive le match (`is_active = 0`) mais ne supprime ni la ligne, ni les
+messages ; un blocage supprime les likes et les notifications, jamais les
+messages. `canReview` reste donc vrai, et l'avis déjà écrit reste en base, reste
+visible et continue de compter dans la moyenne. Quelqu'un ne peut pas effacer un
+avis qui le dérange en bloquant son auteur.
 
 ## `DELETE /api/users/[id]/reviews`
 
@@ -757,12 +794,9 @@ Les avis reçus par un profil, pour la page publique. Mêmes gardes que
 }
 ```
 
-Les avis écrits par quelqu'un que la **cible** a bloqué sont exclus, et la liste
-est plafonnée à 50, du plus récemment modifié au plus ancien. La note affichée
+La liste est plafonnée à 50, du plus récemment modifié au plus ancien. La note affichée
 sur le profil reste `review_average` de `GET /api/users/[id]` : la moyenne des
 avis sur 5, rien d'autre.
-
-Écrire ou supprimer un avis n'a **pas** encore de route.
 
 ## `GET /api/profile/reviews`
 
@@ -1424,3 +1458,96 @@ d'écritures pour une présence pourtant devenue instantanée.
 `is_online` et `last_seen_at` sont exposés partout où un utilisateur est décrit :
 `GET /api/users/[id]`, `GET /api/likes`, `GET /api/views`, `GET /api/blocks` et
 `GET /api/matches`.
+
+---
+
+# Rendez-vous
+
+Bonus « planifier un rendez-vous ». Les quatre routes vivent sous une
+conversation : elles passent toutes par `requireConversation(matchId)`, le même
+garde que les appels — session valide, match actif, aucun blocage dans un sens
+ou dans l'autre, partenaire non supprimé. Tout échec donne un **404** indistinct,
+pour ne rien révéler de l'existence d'une conversation.
+
+L'événement est créé dans l'agenda Google de **l'organisateur** ; l'invité est
+ajouté en `attendees` avec `sendUpdates=all`, donc c'est Google qui envoie
+l'invitation, la modification et l'annulation par courriel — l'application n'en
+envoie aucun.
+
+## `GET /api/matches/[matchId]/events`
+
+Liste les rendez-vous de la conversation, du plus proche au plus lointain,
+annulés compris.
+
+```json
+{ "ok": true, "events": [ { "id": "…", "organiser_id": "…", "guest_id": "…",
+  "title": "Café", "location": "Le Peloton", "starts_at": "2026-08-20T17:00:00.000Z",
+  "ends_at": "2026-08-20T18:00:00.000Z", "status": "planned", "synced": true,
+  "created_at": "…" } ] }
+```
+
+`google_event_id` n'est **jamais** exposé : c'est un identifiant interne. Le
+booléen `synced` dit seulement si la synchronisation a abouti.
+
+## `POST /api/matches/[matchId]/events`
+
+Propose un rendez-vous. Corps : `title` (1 à 120 après trim), `location`
+(facultatif, `null` ou 200 max), `starts_at` et `ends_at` (dates lisibles par
+`new Date`). Le début doit être à venir, la fin après le début, la durée
+inférieure à 12 heures. Les valeurs sont renormalisées en ISO avant écriture.
+
+- **409 `guest_google_required`** — l'invité n'a pas relié Google, ou son compte
+  lié n'a pas d'adresse : impossible de l'inviter.
+- **409 `calendar_not_connected`** — l'organisateur n'a pas de `refresh_token`
+  utilisable. Cas normal quand le compte a été créé *via* Google : le jeton
+  d'actualisation n'est stocké que lorsqu'une ligne `oauth_accounts` existe déjà.
+- **201** sinon, avec l'événement sérialisé.
+
+Un échec de l'appel Google **n'est pas une erreur** : l'événement reste en base
+avec `google_event_id` à `null` et la réponse est quand même `201`, `synced` à
+`false`. Le rendez-vous existe dans l'application, l'agenda est un bonus.
+
+Un message de type **`event`** est publié dans la conversation (canal Pusher +
+notification), pour que les deux le voient sans quitter le chat.
+
+Ce troisième type de message — après `text` et `call` — porte un `event_id` et
+**aucun corps** : la carte affichée dans le fil lit le rendez-vous lui-même, donc
+un changement de date ou une annulation se reflète dans le fil sans réécrire
+l'historique. Un texte figé aurait menti dès la première modification. La
+contrainte `CHECK (kind <> 'event' OR (body IS NULL AND event_id IS NOT NULL …))`
+interdit les combinaisons incohérentes, et `ON DELETE CASCADE` retire le message
+si le rendez-vous disparaît. Migration : `user_version 15`, table `messages`
+reconstruite par `rebuildEventMessages`.
+
+## `PATCH /api/matches/[matchId]/events/[eventId]`
+
+Modifie un rendez-vous. Mêmes règles de validation que la création. **403** si
+le demandeur n'est pas l'organisateur, **409 `event is cancelled`** sur un
+rendez-vous déjà annulé, **404** si l'identifiant n'appartient pas à cette
+conversation. Si l'événement était synchronisé, l'agenda est mis à jour ; un
+échec côté Google ne fait pas échouer la requête.
+
+## `DELETE /api/matches/[matchId]/events/[eventId]`
+
+Annule un rendez-vous, réservé à l'organisateur. La ligne est **conservée** avec
+`status = "cancelled"` : on garde la trace, on n'efface pas l'historique.
+L'événement est supprimé de l'agenda Google si besoin — un `410` renvoyé par
+Google (déjà supprimé) compte comme un succès. Renvoie
+`{ "ok": true, "cancelled": true }`.
+
+## Jetons Google
+
+`accessTokenFor(userId)` échange le `refresh_token` stocké contre un jeton
+d'accès à chaque besoin — rien n'est mis en cache. Le jeton d'actualisation est
+**chiffré en base** avec le mécanisme des messages (`MESSAGES_KEY`, AES-256-GCM) :
+en clair, il donnerait à quiconque lit le fichier SQLite un accès permanent à
+l'agenda de la personne.
+
+Il n'est émis par Google que si `access_type=offline` et `prompt=consent` sont
+présents sur l'URL d'autorisation, et il n'est stocké que là où une ligne
+`oauth_accounts` existe déjà : liaison depuis les réglages, reconnexion d'un
+compte lié, rattachement par courriel vérifié.
+
+**Tant que l'application OAuth reste en statut « Test » côté Google, ces jetons
+expirent au bout de 7 jours** et il faut relier le compte. Le code le gère
+proprement — `accessTokenFor` renvoie `null`, donc `409 calendar_not_connected`.

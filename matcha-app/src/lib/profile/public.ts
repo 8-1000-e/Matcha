@@ -1,6 +1,7 @@
 import {
 	listPhotos,
 	listUserTags,
+	REVIEW_MIN_MESSAGES,
 	type Gender,
 	type Orientation,
 	type PublicProfile,
@@ -34,6 +35,9 @@ export interface PublicProfilePayload {
 	viewer_blocked_target: boolean;
 	viewer_reported_target: boolean;
 	viewer_review_score: number | null;
+	exchanged_messages: number;
+	review_min_messages: number;
+	can_review: boolean;
 }
 
 export function buildPublicProfile(
@@ -72,5 +76,8 @@ export function buildPublicProfile(
 		viewer_blocked_target: profile.viewer_blocked_target === 1,
 		viewer_reported_target: profile.viewer_reported_target === 1,
 		viewer_review_score: profile.viewer_review_score,
+		exchanged_messages: profile.exchanged_messages,
+		review_min_messages: REVIEW_MIN_MESSAGES,
+		can_review: profile.exchanged_messages >= REVIEW_MIN_MESSAGES,
 	};
 }

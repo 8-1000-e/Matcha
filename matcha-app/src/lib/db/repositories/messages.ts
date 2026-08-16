@@ -18,6 +18,7 @@ export const messages = createRepository<MessageRow, MessageInsert>({
 		"body",
 		"call_status",
 		"call_duration_s",
+		"event_id",
 		"sent_at",
 		"read_at",
 	],
@@ -38,6 +39,20 @@ export function sendMessage(
 		sender_id: senderId,
 		kind: "text",
 		body: encryptMessage(body),
+	});
+}
+
+export function sendEventMessage(
+	matchId: string,
+	senderId: string,
+	eventId: string,
+): MessageRow {
+	return messages.insert({
+		id: createId(),
+		match_id: matchId,
+		sender_id: senderId,
+		kind: "event",
+		event_id: eventId,
 	});
 }
 

@@ -1,8 +1,15 @@
 import Link from "next/link";
+import { Alert } from "@/components/Form/Alert";
 import { ResendVerificationForm } from "@/components/Form/AuthForms";
 import { PrivateScreen } from "@/components/Layout/Screen";
 
-export function VerifyEmailPage({ firstName }: { firstName: string }) {
+export function VerifyEmailPage({
+	firstName,
+	mailFailed = false,
+}: {
+	firstName: string;
+	mailFailed?: boolean;
+}) {
 	return (
 		<PrivateScreen
 			verified={false}
@@ -18,6 +25,13 @@ export function VerifyEmailPage({ firstName }: { firstName: string }) {
 				</span>
 			}
 		>
+			{mailFailed ? (
+				<Alert>
+					Votre compte est créé, mais l’envoi du lien de vérification a échoué.
+					Vérifiez votre adresse puis demandez un nouvel envoi.
+				</Alert>
+			) : null}
+
 			<ResendVerificationForm />
 		</PrivateScreen>
 	);

@@ -8,7 +8,11 @@ export const metadata: Metadata = {
 	description: "Confirmez votre adresse e-mail pour activer votre compte.",
 };
 
-export default async function Page() {
+export default async function Page({
+	searchParams,
+}: {
+	searchParams: Promise<{ mail?: string }>;
+}) {
 	const user = await fetchCurrentUser();
 	if (!user) {
 		redirect("/login");
@@ -17,5 +21,9 @@ export default async function Page() {
 		redirect("/feed");
 	}
 
-	return <VerifyEmailPage firstName={user.first_name} />;
+	const { mail } = await searchParams;
+
+	return (
+		<VerifyEmailPage firstName={user.first_name} mailFailed={mail === "failed"} />
+	);
 }

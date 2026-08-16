@@ -7,18 +7,22 @@ export function messagesTable(name: string): string {
 		id TEXT PRIMARY KEY,
 		match_id TEXT NOT NULL REFERENCES matches (id) ON DELETE CASCADE,
 		sender_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-		kind TEXT NOT NULL DEFAULT 'text' CHECK (kind IN ('text', 'call')),
+		kind TEXT NOT NULL DEFAULT 'text' CHECK (kind IN ('text', 'call', 'event')),
 		body TEXT,
 		call_status TEXT CHECK (call_status IS NULL OR call_status IN
 			('answered', 'missed', 'declined', 'cancelled')),
 		call_duration_s INTEGER
 			CHECK (call_duration_s IS NULL OR call_duration_s >= 0),
+		event_id TEXT REFERENCES events (id) ON DELETE CASCADE,
 		sent_at TEXT NOT NULL DEFAULT ${TIMESTAMP_DEFAULT},
 		read_at TEXT,
 		CHECK (kind <> 'text' OR (body IS NOT NULL
 			AND length(body) BETWEEN 1 AND ${MESSAGE_MAX_STORED}
 			AND call_status IS NULL AND call_duration_s IS NULL)),
 		CHECK (kind <> 'call' OR (body IS NULL AND call_status IS NOT NULL)),
+		CHECK (kind <> 'event' OR (body IS NULL AND event_id IS NOT NULL
+			AND call_status IS NULL AND call_duration_s IS NULL)),
+		CHECK (kind = 'event' OR event_id IS NULL),
 		CHECK (call_status <> 'answered' OR call_duration_s IS NOT NULL)
 	) STRICT`;
 }
@@ -45,6 +49,7 @@ export const TABLES: readonly string[] = [
 		first_name TEXT NOT NULL,
 		last_name TEXT NOT NULL,
 		password_hash TEXT NOT NULL,
+		has_password INTEGER NOT NULL DEFAULT 1 CHECK (has_password IN (0, 1)),
 		birth_date TEXT NOT NULL,
 		gender TEXT CHECK (gender IN ('woman', 'man', 'non_binary', 'other')),
 		orientation TEXT NOT NULL DEFAULT 'bi'
@@ -126,6 +131,23 @@ export const TABLES: readonly string[] = [
 		UNIQUE (user_a_id, user_b_id),
 		CHECK (user_a_id < user_b_id)
 	) STRICT`,
+	`CREATE TABLE IF NOT EXISTS events (
+		id TEXT PRIMARY KEY,
+		match_id TEXT NOT NULL REFERENCES matches (id) ON DELETE CASCADE,
+		organiser_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+		guest_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+		title TEXT NOT NULL CHECK (length(title) BETWEEN 1 AND 120),
+		location TEXT CHECK (location IS NULL OR length(location) <= 200),
+		starts_at TEXT NOT NULL,
+		ends_at TEXT NOT NULL,
+		google_event_id TEXT,
+		status TEXT NOT NULL DEFAULT 'planned'
+			CHECK (status IN ('planned', 'cancelled')),
+		created_at TEXT NOT NULL DEFAULT ${TIMESTAMP_DEFAULT},
+		updated_at TEXT NOT NULL DEFAULT ${TIMESTAMP_DEFAULT},
+		CHECK (organiser_id <> guest_id),
+		CHECK (ends_at > starts_at)
+	) STRICT`,
 	messagesTable("messages"),
 	`CREATE TABLE IF NOT EXISTS reviews (
 		id TEXT PRIMARY KEY,
@@ -137,6 +159,15 @@ export const TABLES: readonly string[] = [
 		updated_at TEXT NOT NULL DEFAULT ${TIMESTAMP_DEFAULT},
 		UNIQUE (author_id, target_id),
 		CHECK (author_id <> target_id)
+	) STRICT`,
+	`CREATE TABLE IF NOT EXISTS oauth_accounts (
+		provider TEXT NOT NULL CHECK (provider IN ('42', 'google')),
+		provider_user_id TEXT NOT NULL,
+		user_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+		email TEXT,
+		linked_at TEXT NOT NULL DEFAULT ${TIMESTAMP_DEFAULT},
+		PRIMARY KEY (provider, provider_user_id),
+		UNIQUE (provider, user_id)
 	) STRICT`,
 	`CREATE TABLE IF NOT EXISTS blocks (
 		blocker_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,

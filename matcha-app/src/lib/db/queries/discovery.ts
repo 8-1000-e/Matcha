@@ -8,6 +8,7 @@ import {
 } from "../core/identifiers";
 import { startsWith } from "../core/operators";
 import { every, join, raw, sql, when, type SqlFragment } from "../core/sql";
+import type { Flag } from "../core/values";
 import { ageYears, onlineNow } from "../schema/views";
 import { GENDERS, type Gender, type UserRow } from "../types";
 
@@ -106,12 +107,22 @@ function yearsAgo(years: number, label: string): string {
 function orientationClause(viewer: UserRow): SqlFragment {
 	return every([
 		sql`CASE ${viewer.orientation}
-			WHEN 'hetero' THEN candidate.gender IS NOT ${viewer.gender}
+			WHEN 'hetero' THEN CASE ${viewer.gender}
+				WHEN 'man' THEN candidate.gender = 'woman'
+				WHEN 'woman' THEN candidate.gender = 'man'
+				ELSE candidate.gender IS NOT ${viewer.gender} END
 			WHEN 'homo' THEN candidate.gender IS ${viewer.gender}
+			WHEN 'bi' THEN candidate.gender IN ('woman', 'man')
+			WHEN 'pan' THEN candidate.gender <> 'other'
 			ELSE 1 END`,
 		sql`CASE candidate.orientation
-			WHEN 'hetero' THEN ${viewer.gender} IS NOT candidate.gender
+			WHEN 'hetero' THEN CASE candidate.gender
+				WHEN 'man' THEN ${viewer.gender} = 'woman'
+				WHEN 'woman' THEN ${viewer.gender} = 'man'
+				ELSE ${viewer.gender} IS NOT candidate.gender END
 			WHEN 'homo' THEN ${viewer.gender} IS candidate.gender
+			WHEN 'bi' THEN ${viewer.gender} IN ('woman', 'man')
+			WHEN 'pan' THEN ${viewer.gender} <> 'other'
 			ELSE 1 END`,
 	]);
 }
@@ -179,7 +190,12 @@ function filterClauses(
 		clauses.push(raw(onlineNow("candidate.last_seen_at")));
 	}
 	if (filters.usernameQuery !== undefined) {
-		clauses.push(sql`candidate.username ${startsWith(filters.usernameQuery)}`);
+		const needle = filters.usernameQuery;
+		clauses.push(sql`(
+			candidate.username ${startsWith(needle)}
+			OR candidate.first_name ${startsWith(needle)}
+			OR candidate.last_name ${startsWith(needle)}
+		)`);
 	}
 	if (filters.tagIds !== undefined && filters.tagIds.length > 0) {
 		const tagIds = filters.tagIds.map((tagId) =>
@@ -308,6 +324,74 @@ export function findCandidates(
 			LIMIT ${limit} OFFSET ${offset}`,
 	);
 }
+export interface MapBounds {
+	south: number;
+	north: number;
+	west: number;
+	east: number;
+}
+
+export interface MapCandidateRow {
+	id: string;
+	first_name: string;
+	age: number;
+	city: string | null;
+	latitude: number | null;
+	longitude: number | null;
+	distance_km: number | null;
+	is_online: Flag;
+	profile_photo_id: string | null;
+}
+
+export function findMapCandidates(
+	viewer: UserRow,
+	bounds: MapBounds,
+	limit: number,
+	options: DiscoveryOptions = {},
+): MapCandidateRow[] {
+	if (viewer.profile_completed !== 1) {
+		throw new DatabaseError("profile_incomplete");
+	}
+
+	const south = finiteNumber(bounds.south, -90, 90, "south");
+	const north = finiteNumber(bounds.north, -90, 90, "north");
+	const west = finiteNumber(bounds.west, -180, 180, "west");
+	const east = finiteNumber(bounds.east, -180, 180, "east");
+	const rows = boundedInteger(limit, 1, 1000, "limit");
+
+	const inside = west <= east
+		? sql`candidate.longitude BETWEEN ${west} AND ${east}`
+		: sql`(candidate.longitude >= ${west} OR candidate.longitude <= ${east})`;
+
+	return queryAll<MapCandidateRow>(
+		sql`SELECT
+				candidate.id,
+				candidate.first_name,
+				${raw(ageYears("candidate.birth_date"))} AS age,
+				candidate.city,
+				candidate.latitude,
+				candidate.longitude,
+				distance_km(
+					${viewer.latitude}, ${viewer.longitude},
+					candidate.latitude, candidate.longitude
+				) AS distance_km,
+				${raw(onlineNow("candidate.last_seen_at"))} AS is_online,
+				(
+					SELECT id FROM photos
+					WHERE photos.user_id = candidate.id AND photos.is_profile = 1
+				) AS profile_photo_id
+			FROM users AS candidate
+			JOIN user_popularity AS popularity ON popularity.user_id = candidate.id
+			WHERE ${discoveryConditions(viewer, options)}
+				AND candidate.latitude IS NOT NULL
+				AND candidate.longitude IS NOT NULL
+				AND candidate.latitude BETWEEN ${south} AND ${north}
+				AND ${inside}
+			ORDER BY distance_km IS NULL, distance_km
+			LIMIT ${rows}`,
+	);
+}
+
 export function findCandidatesByIds(
 	viewer: UserRow,
 	ids: readonly string[],

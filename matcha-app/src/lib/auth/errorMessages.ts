@@ -25,6 +25,13 @@ const EXPIRED = "Votre session a expiré, reconnectez-vous.";
 const LINK_DEAD = "Ce lien n’est plus valide, demandez-en un nouveau.";
 
 const TRANSLATIONS: Record<string, AuthError> = {
+
+	last_sign_in_method: {
+		field: null,
+		message:
+			"C’est votre seule façon de vous connecter. Définissez d’abord un mot de passe avec « mot de passe oublié ».",
+	},
+
 	last_photo_required: {
 		field: null,
 		message: "Gardez au moins une photo : votre profil doit rester complet.",
@@ -193,6 +200,36 @@ const TRANSLATIONS: Record<string, AuthError> = {
 		field: null,
 		message: "Vérifiez votre adresse e-mail pour continuer.",
 	},
+	review_requires_conversation: {
+		field: null,
+		message:
+			"Échangez au moins vingt messages avec cette personne avant de la noter.",
+	},
+	guest_google_required: {
+		field: null,
+		message:
+			"Cette personne n’a pas encore relié son compte Google : elle ne peut pas recevoir d’invitation.",
+	},
+	calendar_not_connected: {
+		field: null,
+		message:
+			"Reliez votre compte Google depuis les réglages pour proposer un rendez-vous.",
+	},
+	"not the organiser": {
+		field: null,
+		message: "Seule la personne qui a proposé ce rendez-vous peut le modifier.",
+	},
+	"event not found": { field: null, message: "Ce rendez-vous n’existe plus." },
+	"event is cancelled": { field: null, message: "Ce rendez-vous a été annulé." },
+	"title is invalid": { field: null, message: "Ce titre n’est pas valide." },
+	"title is empty": { field: null, message: "Donnez un titre au rendez-vous." },
+	"title is too long": { field: null, message: "Cent vingt caractères maximum." },
+	"location is invalid": { field: null, message: "Ce lieu n’est pas valide." },
+	"location is too long": { field: null, message: "Deux cents caractères maximum." },
+	"dates are invalid": { field: null, message: "Ces dates ne sont pas valides." },
+	"start is in the past": { field: null, message: "Choisissez une date à venir." },
+	"end is before start": { field: null, message: "La fin doit suivre le début." },
+	"event is too long": { field: null, message: "Douze heures maximum." },
 	"request body is too large": { field: null, message: GENERIC_ERROR },
 	"invalid request body": { field: null, message: GENERIC_ERROR },
 	"invalid json body": { field: null, message: GENERIC_ERROR },

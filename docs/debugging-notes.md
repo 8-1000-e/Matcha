@@ -125,3 +125,70 @@ Impossible d'`await` dedans. Tout script qui mélange réseau et écriture doit 
 faire en deux temps : d'abord tout l'asynchrone (HTTP, sharp) en mémoire, puis
 une seule transaction synchrone. C'est aussi ce qui donne le facteur ~50 sur le
 temps d'exécution du seed.
+
+# Session du 2026-08-16 — bonus
+
+## Le feed affichait tous les profils empilés, sans défilement
+
+**Symptômes** : `main` mesuré à 7208 px pour un viewport de 800, chaque carte à
+7022 px, la page défilait au lieu du deck.
+
+**Cause** : l'ossature portait `flex-1` **et** `h-dvh`. `flex-1` vaut
+`flex: 1 1 0%` : la hauteur est décidée par l'algorithme flex, pas par `h-dvh`.
+Le `body` étant en `min-h-dvh`, il grandit avec son contenu, l'enfant suit, et
+plus rien ne borne la zone défilante.
+
+**Correctif** : `flex h-dvh overflow-hidden` sans `flex-1` en mode `fit`.
+Vérifié en remesurant la chaîne : 800 px partout, deck 568 px.
+
+## Les appels entrants ne sonnaient plus chez le destinataire
+
+**Symptômes** : ça sonne côté appelant, rien en face, puis « appel manqué ».
+
+**Cause** : régression de ma part. Pour supprimer un `401` sur `/login`, j'avais
+conditionné le chargement de la config ICE à `getSession()`, qui vérifie le
+**jeton d'accès** (15 minutes). Passé ce délai le layout croyait l'utilisateur
+déconnecté, la config n'était pas chargée, et l'abonnement au canal d'appel en
+dépend (`if (config === null) return`).
+
+**Correctif** : le layout se fie au cookie `refresh`, et `getIceConfig` passe par
+`request()` qui sait rafraîchir un jeton expiré et rejouer l'appel.
+
+## `PATCH /api/notifications/[id]` répondait 404
+
+**Cause** : `markNotificationRead` exigeait `read_at IS NULL`, donc marquer comme
+lue une notification déjà lue renvoyait « introuvable ». Rendu idempotent :
+on vérifie l'appartenance, puis l'`UPDATE` ne touche que si non lue.
+
+**Au passage** : ouvrir une conversation ne marquait ses notifications lues que
+si des messages non lus étaient visibles à l'écran. `markConversationRead` est
+maintenant appelé au montage du fil, systématiquement.
+
+## `GET /api/views` et `/api/blocks` renvoyaient 500
+
+**Cause** : `SUMMARY_COLUMNS` sélectionnait `profiles.popularity_score`,
+colonne disparue de la vue `user_profiles` quand la note composite a été
+supprimée. Séquelle du merge de deux branches. Remplacée par `review_average` et
+`review_count`.
+
+## Le badge « En ligne » ne s'affichait jamais dans le feed
+
+**Cause** : la projection lisait `candidate.is_online`, colonne de `users` que
+rien n'écrit jamais (0 utilisateur à 1, alors que 2 étaient réellement actifs).
+La présence se calcule depuis `last_seen_at` (fenêtre de 120 s), comme partout
+ailleurs.
+
+## L'inscription OAuth renvoyait 400 quoi qu'on saisisse
+
+**Cause** : `validateOauthSignup` appelait `validateRegister` avec un mot de
+passe factice, `Placeholder!2026#matcha`, refusé par le contrôle de robustesse
+(« contains a common english word »). `validateRegister` accepte désormais
+`{ email: false, password: false }` pour sauter ces deux blocs.
+
+## Les images ne s'ouvraient pas dans l'éditeur de photos
+
+**Cause** : `crossOrigin = "anonymous"` sur une `Image` pointant vers
+`/api/photos/<id>`, route protégée par session. L'attribut bascule la requête en
+mode CORS et les cookies ne suivent pas — surtout derrière le proxy HTTPS où
+l'origine diffère. Attribut retiré : l'image est de même origine, le canvas
+n'est donc jamais « tainted ».

@@ -121,6 +121,16 @@ export function addPhoto(file: File): Promise<ProfileResult> {
 	return upload<Payload>("/api/profile/photos", body);
 }
 
+export function replacePhoto(id: string, file: File): Promise<ProfileResult> {
+	const body = new FormData();
+	body.set("photo", file);
+	forgetProfile();
+	return request<Payload>(`/api/profile/photos/${id}`, {
+		method: "PUT",
+		body,
+	});
+}
+
 export function pickProfilePhoto(id: string): Promise<ProfileResult> {
 	forgetProfile();
 	return send<Payload>("PATCH", `/api/profile/photos/${id}`, {

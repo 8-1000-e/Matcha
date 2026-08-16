@@ -13,6 +13,7 @@ export interface ProfileRelationship {
 	target_blocked_viewer: Flag;
 	viewer_reported_target: Flag;
 	viewer_review_score: number | null;
+	exchanged_messages: number;
 }
 
 export interface PublicProfile
@@ -90,7 +91,24 @@ export function findPublicProfile(
 				(
 					SELECT score FROM reviews
 					WHERE reviews.author_id = ${viewer.id} AND reviews.target_id = target.id
-				) AS viewer_review_score
+				) AS viewer_review_score,
+				(
+					SELECT COUNT(*) FROM messages
+					JOIN matches ON matches.id = messages.match_id
+					WHERE messages.kind = 'text'
+						AND matches.user_a_id = MIN(${viewer.id}, target.id)
+						AND matches.user_b_id = MAX(${viewer.id}, target.id)
+						AND EXISTS (
+							SELECT 1 FROM messages AS mine
+							WHERE mine.match_id = matches.id AND mine.sender_id = ${viewer.id}
+								AND mine.kind = 'text'
+						)
+						AND EXISTS (
+							SELECT 1 FROM messages AS theirs
+							WHERE theirs.match_id = matches.id AND theirs.sender_id = target.id
+								AND theirs.kind = 'text'
+						)
+				) AS exchanged_messages
 			FROM users AS target
 			JOIN user_popularity AS popularity ON popularity.user_id = target.id
 			WHERE target.id = ${targetId}`,

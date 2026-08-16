@@ -80,3 +80,31 @@ pour ne pas se faire couper par pravatar.
 
 Non installé dans le projet, volontairement. Pour des captures ou des tests
 d'interaction, l'installer dans un dossier temporaire hors du dépôt.
+
+## Ajouts du 2026-08-16
+
+**Dépendances** : `maplibre-gl` (globe et carte), `leaflet` + `react-leaflet` +
+`@types/leaflet` installés puis **abandonnés** au profit de MapLibre — ils
+peuvent être désinstallés.
+
+**Variables d'environnement** (déjà renseignées dans `.env`) :
+
+```
+OAUTH_42_CLIENT_ID=        OAUTH_42_CLIENT_SECRET=
+OAUTH_GOOGLE_CLIENT_ID=    OAUTH_GOOGLE_CLIENT_SECRET=
+OAUTH_REDIRECT_BASE=http://localhost:3000
+```
+
+`OAUTH_REDIRECT_BASE` doit correspondre **au caractère près** aux URI de
+redirection déclarées sur l'intra 42 et dans Google Cloud :
+`<base>/api/auth/42/callback` et `<base>/api/auth/google/callback`.
+
+**Console Google** : l'écran de consentement s'appelle maintenant « Google Auth
+Platform ». Les scopes sont dans « Accès aux données », les comptes autorisés
+dans « Public » (obligatoire tant que l'application est en statut Test).
+
+**Scripts** : `npm run db:migrate` applique le schéma sans redémarrer le serveur.
+
+**ESLint** : `argsIgnorePattern: "^_"` ajouté — le hook de pré-commit refuse tout
+warning, les paramètres non encore utilisés doivent donc être préfixés par `_`.
+

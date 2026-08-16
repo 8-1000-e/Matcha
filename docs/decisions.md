@@ -378,3 +378,56 @@ visibilité. Les trois se replacent sur `position`, et la restauration perd son
 un glissement doit pouvoir liker sans que le bouton soit cliqué. Le bouton
 reste, parce qu'un geste n'est pas découvrable et que le sujet exige de pouvoir
 **retirer** un like.
+
+## 2026-08-16 — Bonus : OAuth, photos, carte, rendez-vous
+
+**Connexion 42 et Google par un seul jeu de routes.** `/api/auth/[provider]/start`
+et `/callback`, avec une table `oauth_accounts` plutôt que des colonnes dans
+`users` : deux contraintes d'unicité (`(provider, provider_user_id)` et
+`(provider, user_id)`) empêchent qu'un compte fournisseur serve deux profils, ou
+qu'un profil accumule deux comptes du même fournisseur.
+
+**Le brouillon d'inscription OAuth est signé.** Il transporte
+`provider_user_id` ; non signé, n'importe qui pourrait forger un cookie et créer
+un compte rattaché à l'identité d'un tiers. HMAC-SHA256 avec `AUTH_SECRET`,
+vérifié en temps constant.
+
+**Rattachement automatique seulement si l'e-mail est vérifié** par le
+fournisseur. Sinon, créer un compte Google avec l'adresse d'un tiers permettrait
+de prendre son compte Matcha.
+
+**Pas de mot de passe utilisable pour un compte OAuth**, et colonne
+`users.has_password` pour le savoir : sans elle, impossible de distinguer un
+compte OAuth d'un compte classique, donc impossible d'empêcher quelqu'un de
+délier son unique moyen de connexion.
+
+**Le drop de photo envoie directement**, seul le crayon ouvre l'éditeur — demande
+explicite de l'utilisateur. L'éditeur exporte en WebP carré 1024 px via canvas,
+sans dépendance.
+
+**Remplacement de photo plutôt que suppression + ajout** : `PUT /api/profile/photos/[id]`
+garde l'identifiant, la position et le statut de photo de profil, donc la
+retouche ne consomme pas le quota de cinq.
+
+**MapLibre plutôt que Leaflet** pour la carte : seul MapLibre projette un vrai
+globe. Tuiles OpenStreetMap, aucune clé ni facturation — contrairement à Google
+Maps qui exige un compte de facturation même en quota gratuit.
+
+**Regroupement des marqueurs fait maison** (grille de 56 px recalculée à chaque
+fin de mouvement) : le clustering natif de MapLibre impose des cercles WebGL,
+incompatibles avec les photos de profil en marqueurs HTML.
+
+**Coordonnées floutées côté serveur**, décalage déterministe de 700 m maximum
+dérivé de l'identifiant. Un décalage aléatoire à chaque requête serait moyennable
+sur plusieurs chargements et révélerait la position exacte.
+
+**La loupe cherche un nom, pas des critères.** Les filtres croisés existaient
+déjà dans le feed ; `/search` porte sur `username`, `first_name` et `last_name`.
+
+**Rendez-vous : Google invite, pas nous.** L'événement est créé dans l'agenda de
+l'organisateur avec l'invité en `attendees` et `sendUpdates=all`. Les deux
+comptes doivent être liés à Google, sinon le bouton est bloqué.
+
+**Repli de localisation par IP écarté.** Le sujet le donne comme exemple
+(« par exemple son adresse IP ») ; l'utilisateur a tranché pour la saisie
+manuelle de ville. Le code avait été écrit puis retiré.

@@ -9,12 +9,16 @@ import {
 	useLayoutEffect,
 	useRef,
 	useState,
+	type Dispatch,
 	type FormEvent,
+	type SetStateAction,
 } from "react";
 import { CallBar } from "@/components/Call/CallBar";
 import { CallEntry } from "@/components/Call/CallEntry";
 import { PhoneIcon } from "@/components/Call/CallIcons";
 import { useCall } from "@/components/Call/CallProvider";
+import { EventEntry } from "@/components/Event/EventEntry";
+import { EventPanel } from "@/components/Event/EventPanel";
 import { BackLink } from "@/components/Form/Button";
 import { AppNav } from "@/components/Layout/AppNav";
 import { Backdrop } from "@/components/Layout/Backdrop";
@@ -23,6 +27,7 @@ import { NotificationBell } from "@/components/Notifications/NotificationBell";
 import { LocationSync } from "@/components/Presence/LocationSync";
 import { PresenceAvatar } from "@/components/Presence/PresenceAvatar";
 import { PresenceHeartbeat } from "@/components/Presence/PresenceHeartbeat";
+import { getEvents, type AppEvent } from "@/lib/calendar/client";
 import {
 	getMessages,
 	getPartner,
@@ -96,13 +101,17 @@ function Header({
 	online,
 	gone,
 	matchId,
+	userId,
 	onBlocked,
+	events,
 }: {
 	partner: Partner | null;
 	online: boolean;
 	gone: boolean;
 	matchId: string;
+	userId: string;
 	onBlocked: () => void;
+	events: EventState;
 }) {
 	const name = gone
 		? "Utilisateur supprimé"
@@ -113,6 +122,17 @@ function Header({
 			<BackLink href="/messages" compact />
 
 			<Identity partner={partner} online={online} gone={gone} name={name} />
+
+			<EventPanel
+				matchId={matchId}
+				userId={userId}
+				disabled={partner === null || gone}
+				ready={events.ready}
+				open={events.open}
+				setOpen={events.setOpen}
+				events={events.list}
+				setEvents={events.setList}
+			/>
 
 			<CallButton partner={partner} gone={gone} matchId={matchId} />
 
@@ -127,6 +147,14 @@ function Header({
 			)}
 		</header>
 	);
+}
+
+interface EventState {
+	ready: boolean;
+	open: boolean;
+	setOpen: (open: boolean) => void;
+	list: AppEvent[];
+	setList: Dispatch<SetStateAction<AppEvent[]>>;
 }
 
 const LIVENESS_MS = 60_000;
@@ -231,6 +259,9 @@ export function ThreadPage({
 	const [exhausted, setExhausted] = useState(false);
 	const [draft, setDraft] = useState("");
 	const [sending, setSending] = useState(false);
+	const [eventList, setEventList] = useState<AppEvent[]>([]);
+	const [eventsReady, setEventsReady] = useState(false);
+	const [eventsOpen, setEventsOpen] = useState(false);
 
 	const thread = useRef<HTMLDivElement>(null);
 	const sentinel = useRef<HTMLDivElement>(null);
@@ -245,6 +276,31 @@ export function ThreadPage({
 		unseen.current = false;
 		void markConversationRead(matchId);
 	}, [matchId]);
+
+	useEffect(() => {
+		void markConversationRead(matchId);
+	}, [matchId]);
+
+	const loadEvents = useCallback(() => {
+		void getEvents(matchId).then((result) => {
+			setEventsReady(true);
+			if (result.ok) {
+				setEventList(result.data.events);
+			}
+		});
+	}, [matchId]);
+
+	useEffect(() => {
+		loadEvents();
+	}, [loadEvents]);
+
+	const events: EventState = {
+		ready: eventsReady,
+		open: eventsOpen,
+		setOpen: setEventsOpen,
+		list: eventList,
+		setList: setEventList,
+	};
 
 	const add = useCallback((incoming: ChatMessage[], atTop: boolean) => {
 		setMessages((current) => {
@@ -334,12 +390,15 @@ export function ThreadPage({
 		return subscribe(chatChannel(matchId), "message", (payload) => {
 			const incoming = payload as ChatMessage;
 			add([incoming], false);
+			if (incoming.kind === "event") {
+				loadEvents();
+			}
 			if (incoming.sender_id !== userId) {
 				unseen.current = true;
 				flushRead();
 			}
 		});
-	}, [matchId, userId, add, flushRead]);
+	}, [matchId, userId, add, flushRead, loadEvents]);
 
 	useEffect(() => {
 		return subscribe(chatChannel(matchId), "read", () => {
@@ -445,6 +504,8 @@ export function ThreadPage({
 						online={online}
 						gone={gone}
 						matchId={matchId}
+						userId={userId}
+						events={events}
 						onBlocked={() => {
 							router.replace("/messages");
 						}}
@@ -493,7 +554,18 @@ export function ThreadPage({
 														{dayLabel(message.sent_at)}
 													</li>
 												) : null}
-											{message.kind === "call" ? (
+											{message.kind === "event" ? (
+												<EventEntry
+													event={eventList.find(
+														(entry) => entry.id === message.event_id,
+													)}
+													mine={message.sender_id === userId}
+													sentAt={message.sent_at}
+													onOpen={() => {
+														setEventsOpen(true);
+													}}
+												/>
+											) : message.kind === "call" ? (
 												<CallEntry
 													message={message}
 													mine={message.sender_id === userId}

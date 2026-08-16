@@ -143,3 +143,9 @@ export function verifyAccessToken(token: string): AccessPayload | null
 
 	return { sub, iat, exp };
 }
+
+export function createRandomSecret(): string
+{
+	return randomBytes(32).toString("base64url");
+}
+

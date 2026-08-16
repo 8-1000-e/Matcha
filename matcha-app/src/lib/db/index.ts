@@ -54,6 +54,7 @@ export {
 	countCandidates,
 	findCandidates,
 	findCandidatesByIds,
+	findMapCandidates,
 	SORT_KEYS,
 	type DiscoveryFilters,
 	type DiscoveryOptions,
@@ -105,6 +106,7 @@ export {
 	markConversationRead,
 	messages,
 	recordCall,
+	sendEventMessage,
 	sendMessage,
 } from "./repositories/messages";
 export {
@@ -136,6 +138,7 @@ export {
 	listPhotos,
 	photos,
 	removePhoto,
+	replacePhotoPath,
 	reorderPhotos,
 	setProfilePhoto,
 } from "./repositories/photos";
@@ -150,6 +153,8 @@ export {
 export {
 	findPopularity,
 	listVisibleReviews,
+	canReview,
+	countExchangedMessages,
 	removeReview,
 	reviews,
 	upsertReview,
@@ -203,3 +208,25 @@ export { applySchema, dropSchema, SCHEMA_VERSION } from "./schema/apply";
 export { onlineNow, PRESENCE_WINDOW_SECONDS } from "./schema/views";
 export { TAG_LABELS } from "./schema/tags";
 export * from "./types";
+
+export {
+	findOAuthAccount,
+	findOAuthAccountFor,
+	setOAuthRefreshToken,
+	linkOAuthAccount,
+	listOAuthAccounts,
+	oauthAccounts,
+	unlinkOAuthAccount,
+} from "./repositories/oauth";
+
+export {
+	createEvent,
+	events,
+	findEvent,
+	listEvents,
+	listUpcomingEvents,
+	setEventStatus,
+	setGoogleEventId,
+	updateEvent,
+} from "./repositories/events";
+
