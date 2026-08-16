@@ -7,6 +7,8 @@ import { fetchMapPoints, type MapPoint } from "@/lib/discovery/map";
 
 const DEBOUNCE_MS = 400;
 
+const CELL_PX = 56;
+
 const STYLE = {
 	version: 8 as const,
 	sources: {
@@ -49,6 +51,20 @@ function markerElement(point: MapPoint): HTMLElement {
 	return wrapper;
 }
 
+function clusterElement(count: number): HTMLElement {
+	const wrapper = document.createElement("span");
+	const size = count > 99 ? 52 : count > 9 ? 46 : 40;
+	wrapper.className
+		= "flex items-center justify-center rounded-full bg-matcha font-semibold text-white ring-2 ring-white shadow-[0_2px_8px_rgba(38,48,28,0.45)]";
+	wrapper.style.width = `${size}px`;
+	wrapper.style.height = `${size}px`;
+	wrapper.style.fontSize = count > 99 ? "13px" : "14px";
+	wrapper.style.cursor = "pointer";
+	wrapper.textContent = count > 999 ? "999+" : String(count);
+
+	return wrapper;
+}
+
 function popupHtml(point: MapPoint): string {
 	const distance = point.distance_km === null
 		? "distance inconnue"
@@ -71,6 +87,7 @@ export function UsersGlobe({
 	const container = useRef<HTMLDivElement>(null);
 	const map = useRef<MapLibre | null>(null);
 	const markers = useRef<Marker[]>([]);
+	const points = useRef<MapPoint[]>([]);
 	const timer = useRef<number | null>(null);
 
 	const [count, setCount] = useState(0);
@@ -102,6 +119,53 @@ export function UsersGlobe({
 			});
 		});
 
+		function draw() {
+			for (const marker of markers.current) {
+				marker.remove();
+			}
+
+			const cells = new Map<string, MapPoint[]>();
+			for (const point of points.current) {
+				const screen = instance.project([point.longitude, point.latitude]);
+				const key = `${Math.round(screen.x / CELL_PX)}:${Math.round(screen.y / CELL_PX)}`;
+				const bucket = cells.get(key);
+				if (bucket === undefined) {
+					cells.set(key, [point]);
+					continue;
+				}
+				bucket.push(point);
+			}
+
+			markers.current = [...cells.values()].map((bucket) => {
+				const first = bucket[0];
+				if (bucket.length === 1) {
+					return new Marker({ element: markerElement(first) })
+						.setLngLat([first.longitude, first.latitude])
+						.setPopup(new Popup({ offset: 22 }).setHTML(popupHtml(first)))
+						.addTo(instance);
+				}
+
+				const centre = bucket.reduce(
+					(total, point) => ({
+						lon: total.lon + point.longitude / bucket.length,
+						lat: total.lat + point.latitude / bucket.length,
+					}),
+					{ lon: 0, lat: 0 },
+				);
+				const element = clusterElement(bucket.length);
+				element.addEventListener("click", () => {
+					instance.easeTo({
+						center: [centre.lon, centre.lat],
+						zoom: Math.min(instance.getZoom() + 2.5, 16),
+					});
+				});
+
+				return new Marker({ element })
+					.setLngLat([centre.lon, centre.lat])
+					.addTo(instance);
+			});
+		}
+
 		function load() {
 			if (timer.current !== null) {
 				window.clearTimeout(timer.current);
@@ -126,15 +190,8 @@ export function UsersGlobe({
 						return;
 					}
 
-					for (const marker of markers.current) {
-						marker.remove();
-					}
-					markers.current = result.data.points.map((point) =>
-						new Marker({ element: markerElement(point) })
-							.setLngLat([point.longitude, point.latitude])
-							.setPopup(new Popup({ offset: 22 }).setHTML(popupHtml(point)))
-							.addTo(instance),
-					);
+					points.current = result.data.points;
+					draw();
 					setCount(result.data.points.length);
 					setCapped(result.data.capped);
 				});
@@ -143,6 +200,7 @@ export function UsersGlobe({
 
 		instance.on("load", load);
 		instance.on("moveend", load);
+		instance.on("zoomend", draw);
 		map.current = instance;
 
 		return () => {
