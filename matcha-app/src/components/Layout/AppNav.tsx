@@ -46,6 +46,24 @@ function MessagesIcon() {
 	);
 }
 
+function SearchIcon() {
+	return (
+		<svg
+			viewBox="0 0 24 24"
+			className="size-5"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="1.8"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden="true"
+		>
+			<circle cx="11" cy="11" r="6" />
+			<path d="m20 20-3.6-3.6" />
+		</svg>
+	);
+}
+
 function HeartIcon() {
 	return (
 		<svg
@@ -149,6 +167,7 @@ export function AppNav() {
 
 	const links = [
 		{ href: "/feed", label: "Suggestions", icon: <FeedIcon /> },
+		{ href: "/search", label: "Rechercher", icon: <SearchIcon /> },
 		{ href: "/messages", label: "Messages", icon: <MessagesIcon /> },
 		{ href: "/likes", label: "Likes reçus", icon: <HeartIcon /> },
 		{ href: "/views", label: "Visites", icon: <EyeIcon /> },

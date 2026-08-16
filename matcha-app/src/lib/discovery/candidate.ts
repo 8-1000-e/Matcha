@@ -1,4 +1,5 @@
 import type { DiscoveryRow, Gender, Orientation } from "@/lib/db";
+import { blurPoint } from "./blur";
 
 export interface CandidatePayload {
 	id: string;
@@ -23,9 +24,13 @@ export interface CandidatePayload {
 	last_seen_at: string | null;
 	created_at: string;
 	viewer_liked: boolean;
+	map_latitude: number | null;
+	map_longitude: number | null;
 }
 
 export function serializeCandidate(row: DiscoveryRow): CandidatePayload {
+	const point = blurPoint(row.id, row.latitude, row.longitude);
+
 	return {
 		id: row.id,
 		username: row.username,
@@ -49,5 +54,7 @@ export function serializeCandidate(row: DiscoveryRow): CandidatePayload {
 		last_seen_at: row.last_seen_at,
 		created_at: row.created_at,
 		viewer_liked: row.viewer_liked === 1,
+		map_latitude: point?.latitude ?? null,
+		map_longitude: point?.longitude ?? null,
 	};
 }

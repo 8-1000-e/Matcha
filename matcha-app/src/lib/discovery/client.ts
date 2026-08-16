@@ -14,6 +14,7 @@ export interface FeedFilters {
 	ratingMin?: number;
 	maxDistanceKm?: number;
 	city?: string;
+	username?: string;
 	tags?: number[];
 	tagMode?: "any" | "all";
 	sort?: string;

@@ -189,7 +189,12 @@ function filterClauses(
 		clauses.push(raw(onlineNow("candidate.last_seen_at")));
 	}
 	if (filters.usernameQuery !== undefined) {
-		clauses.push(sql`candidate.username ${startsWith(filters.usernameQuery)}`);
+		const needle = filters.usernameQuery;
+		clauses.push(sql`(
+			candidate.username ${startsWith(needle)}
+			OR candidate.first_name ${startsWith(needle)}
+			OR candidate.last_name ${startsWith(needle)}
+		)`);
 	}
 	if (filters.tagIds !== undefined && filters.tagIds.length > 0) {
 		const tagIds = filters.tagIds.map((tagId) =>

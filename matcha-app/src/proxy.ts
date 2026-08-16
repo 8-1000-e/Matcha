@@ -56,6 +56,7 @@ export const config = {
 	matcher: [
 		"/me",
 		"/feed",
+		"/search",
 		"/users/:path*",
 		"/messages",
 		"/messages/:path*",

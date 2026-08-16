@@ -1,8 +1,13 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect } from "react";
+import { Alert } from "@/components/Form/Alert";
 import { LoginForm, OauthGroup } from "@/components/Form/AuthForms";
 import { TextLink } from "@/components/Form/Button";
 import { Notice } from "@/components/Form/Notice";
 import { FlowScreen } from "@/components/Layout/Screen";
+import type { OauthFeedback } from "@/lib/oauth/messages";
 
 const NOTICES = {
 	created:
@@ -13,7 +18,22 @@ const NOTICES = {
 
 export type LoginNotice = keyof typeof NOTICES;
 
-export function LoginPage({ notice }: { notice?: LoginNotice }) {
+export function LoginPage({
+	notice,
+	oauthMessage,
+}: {
+	notice?: LoginNotice;
+	oauthMessage?: OauthFeedback;
+}) {
+	useEffect(() => {
+		if (oauthMessage === undefined) {
+			return;
+		}
+		const url = new URL(window.location.href);
+		url.searchParams.delete("oauth");
+		window.history.replaceState(null, "", url.toString());
+	}, [oauthMessage]);
+
 	return (
 		<FlowScreen
 			back="/"
@@ -29,6 +49,13 @@ export function LoginPage({ notice }: { notice?: LoginNotice }) {
 		>
 			<div className="flex flex-col gap-6">
 				{notice ? <Notice>{NOTICES[notice]}</Notice> : null}
+				{oauthMessage ? (
+					oauthMessage.tone === "success" ? (
+						<Notice>{oauthMessage.text}</Notice>
+					) : (
+						<Alert>{oauthMessage.text}</Alert>
+					)
+				) : null}
 
 				<OauthGroup />
 				<LoginForm />

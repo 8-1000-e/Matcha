@@ -25,6 +25,7 @@ const EXPIRED = "Votre session a expiré, reconnectez-vous.";
 const LINK_DEAD = "Ce lien n’est plus valide, demandez-en un nouveau.";
 
 const TRANSLATIONS: Record<string, AuthError> = {
+
 	last_sign_in_method: {
 		field: null,
 		message:

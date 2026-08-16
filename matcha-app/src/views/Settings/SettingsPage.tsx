@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { GoogleIcon, Intra42Icon } from "@/components/Brand/ProviderLogos";
 import { Alert } from "@/components/Form/Alert";
+import { Notice } from "@/components/Form/Notice";
 import { Footer } from "@/components/Layout/Footer";
 import { PrivateScreen } from "@/components/Layout/Screen";
 import { PresenceAvatar } from "@/components/Presence/PresenceAvatar";
@@ -18,6 +19,7 @@ import {
 	unlinkAccount,
 	type LinkedAccount,
 } from "@/lib/oauth/client";
+import type { OauthFeedback } from "@/lib/oauth/messages";
 import {
 	changePassword,
 	deleteAccount,
@@ -403,6 +405,7 @@ function Connections() {
 	const [accounts, setAccounts] = useState<LinkedAccount[] | null>(null);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [done, setDone] = useState<string | null>(null);
 
 	useEffect(() => {
 		let live = true;
@@ -419,6 +422,7 @@ function Connections() {
 	async function unlink(provider: string) {
 		setBusy(true);
 		setError(null);
+		setDone(null);
 		const result = await unlinkAccount(provider);
 		setBusy(false);
 		if (!result.ok) {
@@ -428,6 +432,7 @@ function Connections() {
 		setAccounts((current) =>
 			current === null ? current : current.filter((entry) => entry.provider !== provider),
 		);
+		setDone(provider === "42" ? "Compte Intra 42 délié." : "Compte Google délié.");
 	}
 
 	return (
@@ -463,7 +468,7 @@ function Connections() {
 										type="button"
 										disabled={busy}
 										onClick={() => void unlink(id)}
-										className={GHOST}
+										className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-red-200 bg-white/70 px-3 text-sm font-medium text-red-700 transition-colors duration-200 ease-out hover:bg-red-50 disabled:cursor-progress"
 									>
 										Délier
 									</button>
@@ -475,6 +480,7 @@ function Connections() {
 			)}
 
 			{error !== null ? <Alert>{error}</Alert> : null}
+			{done !== null ? <Notice>{done}</Notice> : null}
 		</Card>
 	);
 }
@@ -749,9 +755,20 @@ function DeleteAccount() {
 	);
 }
 
-export function SettingsPage() {
+export function SettingsPage({ oauthMessage }: { oauthMessage?: OauthFeedback }) {
 	const [profile, setProfile] = useState<Profile | null>(null);
-	const [section, setSection] = useState<Section>("location");
+	const [section, setSection] = useState<Section>(
+		oauthMessage === undefined ? "location" : "connections",
+	);
+
+	useEffect(() => {
+		if (oauthMessage === undefined) {
+			return;
+		}
+		const url = new URL(window.location.href);
+		url.searchParams.delete("oauth");
+		window.history.replaceState(null, "", url.toString());
+	}, [oauthMessage]);
 
 	async function reload() {
 		const result = await getProfile();
@@ -802,6 +819,16 @@ export function SettingsPage() {
 					</nav>
 
 					<div>
+						{oauthMessage !== undefined && section === "connections" ? (
+							<div className="mb-4">
+								{oauthMessage.tone === "success" ? (
+									<Notice>{oauthMessage.text}</Notice>
+								) : (
+									<Alert>{oauthMessage.text}</Alert>
+								)}
+							</div>
+						) : null}
+
 						{section === "location" ? (
 							<Location profile={profile} onChanged={reload} />
 						) : section === "connections" ? (
