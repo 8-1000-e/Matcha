@@ -3,11 +3,13 @@
 import Image from "next/image";
 import { useRef, useState, useTransition } from "react";
 import { ActionButton } from "@/components/Form/Button";
+import { PhotoEditor } from "@/components/Photo/PhotoEditor";
 import type { AuthError } from "@/lib/auth/errorMessages";
 import {
 	addPhoto,
 	pickProfilePhoto,
 	removePhoto,
+	replacePhoto,
 	type ProfileResult,
 } from "@/lib/profile/client";
 import { Errors, type StepProps } from "./StepBase";
@@ -41,6 +43,9 @@ export function PhotosStep({ profile, onSaved, onNext }: StepProps) {
 	const [pending, startTransition] = useTransition();
 	const [slide, setSlide] = useState(0);
 	const [sliding, setSliding] = useState(true);
+	const [editing, setEditing] = useState<
+		{ mode: "new"; source: File } | { mode: "replace"; id: string; source: string } | null
+	>(null);
 
 	function run(call: () => Promise<ProfileResult>, done?: () => void) {
 		startTransition(async () => {
@@ -61,9 +66,23 @@ export function PhotosStep({ profile, onSaved, onNext }: StepProps) {
 			input.current.value = "";
 		}
 		if (file) {
-			const added = profile.photos.length;
-			run(() => addPhoto(file), () => setSlide(added));
+			setEditing({ mode: "new", source: file });
 		}
+	}
+
+	function saveEdited(file: File) {
+		if (editing === null) {
+			return;
+		}
+		if (editing.mode === "new") {
+			const added = profile.photos.length;
+			run(() => addPhoto(file), () => {
+				setSlide(added);
+				setEditing(null);
+			});
+			return;
+		}
+		run(() => replacePhoto(editing.id, file), () => setEditing(null));
 	}
 
 	const photos = profile.photos;
@@ -92,6 +111,15 @@ export function PhotosStep({ profile, onSaved, onNext }: StepProps) {
 
 	return (
 		<div className="flex flex-col gap-5">
+			{editing !== null ? (
+				<PhotoEditor
+					source={editing.source}
+					busy={pending}
+					onCancel={() => setEditing(null)}
+					onDone={saveEdited}
+				/>
+			) : null}
+
 			<input
 				ref={input}
 				id="photo"
@@ -149,6 +177,26 @@ export function PhotosStep({ profile, onSaved, onNext }: StepProps) {
 											{/* Attachee a la photo, et seulement sur celle du
 											    milieu : les exemplaires voisins ne sont la que
 											    pour l'apercu. */}
+											{index === position ? (
+												<button
+													type="button"
+													onClick={() =>
+														setEditing({
+															mode: "replace",
+															id: entry.id,
+															source: entry.url,
+														})}
+													disabled={pending}
+													aria-label="Retoucher cette photo"
+													className="absolute top-0 left-0 cursor-pointer rounded-tl-2xl rounded-br-xl bg-white/90 p-1.5 text-ink transition-colors duration-200 ease-out hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+												>
+													<svg viewBox="0 0 20 20" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+														<path d="M13.5 3.5 16.5 6.5 7 16H4v-3z" />
+														<path d="m11.5 5.5 3 3" />
+													</svg>
+												</button>
+											) : null}
+
 											{index === position ? (
 												<button
 													type="button"

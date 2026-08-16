@@ -1,8 +1,19 @@
 import { requireSession } from "@/lib/auth/guards";
-import { photos, removePhoto, setProfilePhoto } from "@/lib/db";
+import {
+	createId,
+	photos,
+	removePhoto,
+	replacePhotoPath,
+	setProfilePhoto,
+} from "@/lib/db";
 import { readJsonBody } from "@/lib/http/body";
 import { profileResponse } from "@/lib/profile/profile";
-import { removePhotoFile } from "@/lib/profile/storage";
+import {
+	removePhotoFile,
+	STORED_EXTENSION,
+	writePhotoFile,
+} from "@/lib/profile/storage";
+import { readPhotoUpload } from "@/lib/profile/upload";
 import { validateProfilePhoto } from "@/lib/profile/validation";
 
 interface Context {
@@ -39,6 +50,41 @@ export async function PATCH(request: Request, context: Context)
 	{
 		return notFound();
 	}
+
+	return profileResponse(session.user.id);
+}
+
+export async function PUT(request: Request, context: Context)
+{
+	const session = await requireSession();
+	if (!session.ok)
+	{
+		return session.response;
+	}
+
+	const { id } = await context.params;
+	const previous = photos.findOne({ id, user_id: session.user.id });
+	if (!previous)
+	{
+		return notFound();
+	}
+
+	const upload = await readPhotoUpload(request);
+	if (!upload.ok)
+	{
+		return upload.response;
+	}
+
+	const name = `${createId()}.${STORED_EXTENSION}`;
+	await writePhotoFile(name, upload.normalized);
+
+	if (replacePhotoPath(session.user.id, id, name) === null)
+	{
+		await removePhotoFile(name);
+		return notFound();
+	}
+
+	await removePhotoFile(previous.path);
 
 	return profileResponse(session.user.id);
 }

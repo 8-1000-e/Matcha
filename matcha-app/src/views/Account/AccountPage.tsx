@@ -7,11 +7,13 @@ import { Alert } from "@/components/Form/Alert";
 import { ActionButton } from "@/components/Form/Button";
 import { Footer } from "@/components/Layout/Footer";
 import { PrivateScreen } from "@/components/Layout/Screen";
+import { PhotoEditor } from "@/components/Photo/PhotoEditor";
 import { TAG_LABELS } from "@/lib/db/schema/tags";
 import { MINIMUM_TAGS } from "@/lib/db/types";
 import {
 	addPhoto,
 	getProfile,
+	replacePhoto,
 	pickProfilePhoto,
 	removePhoto,
 	saveProfile,
@@ -370,17 +372,26 @@ function Photos({
 }) {
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [editing, setEditing] = useState<
+		{ mode: "new"; source: File } | { mode: "replace"; id: string; source: string } | null
+	>(null);
 	const full = profile.photos.length >= 5;
 
-	async function upload(file: File) {
+	async function saveEdited(file: File) {
+		if (editing === null) {
+			return;
+		}
 		setBusy(true);
 		setError(null);
-		const result = await addPhoto(file);
+		const result = editing.mode === "new"
+			? await addPhoto(file)
+			: await replacePhoto(editing.id, file);
 		setBusy(false);
 		if (!result.ok) {
 			setError(result.errors[0]?.message ?? null);
 			return;
 		}
+		setEditing(null);
 		await onChanged();
 	}
 
@@ -451,7 +462,7 @@ function Photos({
 							const file = event.target.files?.[0];
 							event.target.value = "";
 							if (file !== undefined) {
-								void upload(file);
+								setEditing({ mode: "new", source: file });
 							}
 						}}
 						className="sr-only"
@@ -460,6 +471,15 @@ function Photos({
 			</div>
 
 			{error !== null ? <Alert>{error}</Alert> : null}
+
+			{editing !== null ? (
+				<PhotoEditor
+					source={editing.source}
+					busy={busy}
+					onCancel={() => setEditing(null)}
+					onDone={(file) => void saveEdited(file)}
+				/>
+			) : null}
 
 			{profile.photos.length === 0 ? (
 				<p className="py-10 text-center text-sm text-muted">Aucune photo.</p>
@@ -487,6 +507,30 @@ function Photos({
 							) : null}
 
 							<div className="absolute inset-x-0 bottom-0 flex justify-end gap-1.5 bg-linear-to-t from-ink/70 to-transparent p-2 opacity-0 transition-opacity duration-200 ease-out group-hover:opacity-100 focus-within:opacity-100">
+								<button
+									type="button"
+									disabled={busy}
+									onClick={() =>
+										setEditing({ mode: "replace", id: photo.id, source: photo.url })}
+									aria-label="Retoucher la photo"
+									title="Retoucher la photo"
+									className="flex size-8 cursor-pointer items-center justify-center rounded-lg bg-white/90 text-ink transition-colors duration-200 ease-out hover:bg-white disabled:cursor-progress"
+								>
+									<svg
+										viewBox="0 0 20 20"
+										className="size-4"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="1.7"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										aria-hidden="true"
+									>
+										<path d="M13.5 3.5 16.5 6.5 7 16H4v-3z" />
+										<path d="m11.5 5.5 3 3" />
+									</svg>
+								</button>
+
 								{photo.is_profile ? null : (
 									<button
 										type="button"

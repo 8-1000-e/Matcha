@@ -136,6 +136,7 @@ export {
 	listPhotos,
 	photos,
 	removePhoto,
+	replacePhotoPath,
 	reorderPhotos,
 	setProfilePhoto,
 } from "./repositories/photos";

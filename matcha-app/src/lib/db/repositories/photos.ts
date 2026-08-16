@@ -80,6 +80,20 @@ export function setProfilePhoto(
 	});
 }
 
+export function replacePhotoPath(
+	userId: string,
+	photoId: string,
+	path: string,
+): PhotoRow | null {
+	return transaction(() => {
+		const target = photos.findOne({ id: photoId, user_id: userId });
+		if (target === undefined) {
+			return null;
+		}
+		return photos.updateById(photoId, { path }) ?? null;
+	});
+}
+
 export function removePhoto(userId: string, photoId: string): boolean {
 	return transaction(() => {
 		const target = photos.findOne({ id: photoId, user_id: userId });
