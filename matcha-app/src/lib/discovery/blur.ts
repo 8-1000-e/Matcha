@@ -17,8 +17,22 @@ export function coarseDistance(km: number | null): number | null {
 	return km < 1 ? 0 : Math.round(km);
 }
 
-export function coarseBound(degrees: number): number {
-	return Math.round(degrees * 100) / 100;
+export const GRID_DEGREES = 0.01;
+
+export function snapDown(degrees: number): number {
+	return Math.floor(degrees / GRID_DEGREES) * GRID_DEGREES;
+}
+
+export function snapUp(degrees: number): number {
+	return Math.ceil(degrees / GRID_DEGREES) * GRID_DEGREES;
+}
+
+export function coarseOrigin(degrees: number | null): number | null {
+	if (degrees === null) {
+		return null;
+	}
+
+	return Math.round(degrees / GRID_DEGREES) * GRID_DEGREES;
 }
 
 export function blurPoint(

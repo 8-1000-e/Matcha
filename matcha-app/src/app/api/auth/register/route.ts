@@ -24,7 +24,7 @@ export async function POST(request: Request)
 		return Response.json({ errors: result.errors }, { status: 400 });
 	}
 
-	const limited = rateLimited(request, REGISTER_RULE, null);
+	const limited = rateLimited(request, REGISTER_RULE, result.value.email);
 	if (limited !== null)
 	{
 		return limited;

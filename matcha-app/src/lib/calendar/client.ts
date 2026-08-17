@@ -19,8 +19,12 @@ export function getEvents(matchId: string): Promise<ApiResult<{ events: AppEvent
 export function proposeEvent(
 	matchId: string,
 	draft: EventDraft,
-): Promise<ApiResult<{ event: AppEvent }>> {
-	return send<{ event: AppEvent }>("POST", `/api/matches/${matchId}/events`, draft);
+): Promise<ApiResult<{ event: AppEvent; calendar_synced: boolean }>> {
+	return send<{ event: AppEvent; calendar_synced: boolean }>(
+		"POST",
+		`/api/matches/${matchId}/events`,
+		draft,
+	);
 }
 
 export function editEvent(

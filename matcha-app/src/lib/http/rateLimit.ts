@@ -16,11 +16,15 @@ export const EMAIL_RULE: RateRule = { name: "email", limit: 3, windowSeconds: 90
 
 const PURGE_WINDOW_SECONDS = 86_400;
 
-function clientIp(request: Request): string {
-	const forwarded = request.headers.get("x-forwarded-for") ?? "";
-	const first = forwarded.split(",")[0]?.trim() ?? "";
+const SPREAD_FACTOR = 5;
 
-	return first.length > 0 ? first : "local";
+function clientIp(request: Request): string | null {
+	const forwarded = request.headers.get("x-forwarded-for")
+		?? request.headers.get("x-real-ip")
+		?? "";
+	const first = forwarded.split(",")[0]?.trim().toLowerCase() ?? "";
+
+	return first.length > 0 ? first : null;
 }
 
 function since(seconds: number): string {
@@ -36,21 +40,37 @@ export function rateLimited(
 	rule: RateRule,
 	subject: string | null,
 ): Response | null {
-	const buckets = [`${rule.name}:ip:${clientIp(request)}`];
-	if (subject !== null && subject.length > 0) {
-		buckets.push(`${rule.name}:id:${subject.toLowerCase()}`);
+	const ip = clientIp(request);
+	const key = subject === null ? "" : subject.trim().toLowerCase();
+	const buckets: { bucket: string; limit: number }[] = [];
+
+	if (ip !== null) {
+		buckets.push({ bucket: `${rule.name}:ip:${ip}`, limit: rule.limit });
+	}
+	if (key.length > 0) {
+		buckets.push({
+			bucket: `${rule.name}:id:${key}:${ip ?? "direct"}`,
+			limit: rule.limit,
+		});
+		buckets.push({
+			bucket: `${rule.name}:id:${key}`,
+			limit: rule.limit * SPREAD_FACTOR,
+		});
+	}
+	if (buckets.length === 0) {
+		return null;
 	}
 
 	const window = since(rule.windowSeconds);
-	for (const bucket of buckets) {
-		if (countHits(bucket, window) >= rule.limit) {
+	for (const entry of buckets) {
+		if (countHits(entry.bucket, window) >= entry.limit) {
 			return tooManyRequests();
 		}
 	}
 
 	purgeHits(since(PURGE_WINDOW_SECONDS));
-	for (const bucket of buckets) {
-		recordHit(bucket);
+	for (const entry of buckets) {
+		recordHit(entry.bucket);
 	}
 
 	return null;

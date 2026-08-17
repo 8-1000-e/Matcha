@@ -16,11 +16,24 @@ projet. Ce qui a été corrigé sur cette branche :
   coordonnées alors que seul le point renvoyé était flouté (dichotomie sur les
   bornes), et `distance_km` exact permettait une trilatération en choisissant sa
   propre position. `coarseDistance` arrondit au kilomètre, `coarseBound`
-  quantifie les bornes au centième de degré : les deux oracles tombent sous les
-  700 m du floutage.
+  quantifie les bornes au centième de degré. **Surtout, la position du
+  demandeur est elle-même ramenée sur une grille de 0,01° (`coarseOrigin`)
+  avant tout calcul de distance** : sans cela il suffisait de se téléporter par
+  petits pas via `PUT /api/profile/location` en mode `picked` et de regarder la
+  distance changer pour trianguler une position exacte. La résolution de
+  l'oracle est maintenant d'environ 1,1 km, au-dessus des 700 m du floutage —
+  vérifié en glissant le point de vue de 111 m par pas : la distance ne bouge
+  qu'aux frontières de cellule.
 - **Limitation de débit** (`lib/http/rateLimit.ts`, table `rate_hits`) sur
   `login` (10 / 5 min), `register` (5 / h), `password/forgot` et `verify/resend`
-  (3 / 15 min). Compteurs par IP **et** par identifiant.
+  (3 / 15 min). **Trois seaux** par requête : par IP, par couple
+  identifiant + IP, et par identifiant seul avec une limite cinq fois plus
+  large. Ce troisième seau est le compromis : sans lui, faire tourner
+  `x-forwarded-for` contourne tout ; avec une limite basse, n'importe qui
+  verrouillerait le compte d'un autre en dix requêtes.
+
+  Limite connue et assumée : sans proxy de confiance, `x-forwarded-for` reste
+  déclaratif. C'est une mesure de défense en profondeur, pas une barrière.
 
 **`500` supprimés**
 

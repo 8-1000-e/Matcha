@@ -97,7 +97,11 @@ export async function POST(request: Request, context: Context)
 	emitMessage(guarded.partnerId, guarded.user.id, matchId);
 
 	return Response.json(
-		{ ok: true, event: serializeEvent({ ...event, google_event_id: googleId }) },
+		{
+			ok: true,
+			event: serializeEvent({ ...event, google_event_id: googleId }),
+			calendar_synced: googleId !== null,
+		},
 		{ status: 201 },
 	);
 }

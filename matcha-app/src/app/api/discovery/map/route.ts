@@ -1,6 +1,6 @@
 import { requireSession } from "@/lib/auth/guards";
 import { DatabaseError, findMapCandidates } from "@/lib/db";
-import { blurPoint, coarseBound, coarseDistance } from "@/lib/discovery/blur";
+import { blurPoint, coarseDistance, snapDown, snapUp } from "@/lib/discovery/blur";
 
 const MAX_POINTS = 500;
 
@@ -51,10 +51,10 @@ export async function GET(request: Request)
 		const rows = findMapCandidates(
 			session.user,
 			{
-				south: coarseBound(south),
-				north: coarseBound(north),
-				west: coarseBound(west),
-				east: coarseBound(east),
+				south: snapDown(south),
+				north: snapUp(north),
+				west: snapDown(west),
+				east: snapUp(east),
 			},
 			MAX_POINTS,
 		);
