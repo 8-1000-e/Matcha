@@ -798,6 +798,36 @@ La liste est plafonnée à 50, du plus récemment modifié au plus ancien. La no
 sur le profil reste `review_average` de `GET /api/users/[id]` : la moyenne des
 avis sur 5, rien d'autre.
 
+## `GET /api/profile/export`
+
+Renvoie **tout** ce que la base conserve sur le connecté, en JSON, avec un
+`content-disposition: attachment` : le navigateur enregistre un fichier
+`matcha-<pseudo>-<date>.json` au lieu de l'afficher. C'est le droit d'accès et de
+portabilité du RGPD (articles 15 et 20).
+
+Contenu : le compte (sans le hachage du mot de passe), les centres d'intérêt, les
+photos, les likes donnés et reçus, les visites faites et reçues, les
+correspondances, **les conversations en clair**, les rendez-vous, les avis écrits
+et reçus, les comptes bloqués, les signalements émis, les notifications, les
+comptes externes liés et l'historique des sessions.
+
+Trois décisions :
+
+- **Les messages sont déchiffrés à l'export.** C'est la raison d'être du
+  chiffrement réversible plutôt que d'un hachage : un hachage rendrait ce droit
+  impossible à honorer.
+- **Les tiers ne sont désignés que par leur nom d'utilisateur**, jamais par leur
+  identifiant interne, leur adresse e-mail ni leurs coordonnées. Les messages
+  reçus figurent bien dans l'export — ils font partie de la conversation de
+  l'utilisateur — mais rien d'autre du profil d'en face n'y est.
+- **Les photos ne sont pas incluses en binaire**, seulement leurs identifiants et
+  leur ordre. Les encoder en base64 ferait gonfler le fichier sans rien apporter :
+  elles restent téléchargeables depuis `/api/photos/<id>`.
+
+Aucun paramètre, aucun corps. `401` sans session valide. Le hachage du mot de
+passe, les jetons d'actualisation et le jeton Google chiffré ne sortent jamais :
+seules les **dates** des sessions sont exportées, pas leurs valeurs.
+
 ## `GET /api/profile/reviews`
 
 Mes propres avis reçus, pour la page `/me`. `GET /api/users/[id]/reviews` ne

@@ -54,6 +54,15 @@ const OAUTH_PROVIDERS = [
 
 type Section = (typeof SECTIONS)[number]["key"];
 
+const FILENAME_RE = /filename="([^"]+)"/;
+
+function fileNameFrom(response: Response): string | null {
+	const header = response.headers.get("content-disposition") ?? "";
+	const found = FILENAME_RE.exec(header);
+
+	return found === null ? null : found[1];
+}
+
 function when(iso: string) {
 	return new Date(iso).toLocaleDateString("fr-FR", {
 		day: "numeric",
@@ -485,6 +494,62 @@ function Connections() {
 	);
 }
 
+function ExportData() {
+	const [pending, setPending] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+
+	async function download() {
+		setPending(true);
+		setError(null);
+
+		const response = await fetch("/api/profile/export", {
+			credentials: "same-origin",
+		});
+		if (!response.ok) {
+			setPending(false);
+			setError("L’export a échoué, réessayez.");
+			return;
+		}
+
+		const blob = await response.blob();
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement("a");
+		link.href = url;
+		link.download = fileNameFrom(response) ?? "matcha-donnees.json";
+		document.body.append(link);
+		link.click();
+		link.remove();
+		URL.revokeObjectURL(url);
+		setPending(false);
+	}
+
+	return (
+		<div>
+			<h3 className="text-sm font-medium">Mes données</h3>
+			<p className="mt-1 text-sm text-muted">
+				Téléchargez tout ce que Matcha conserve sur vous, au format JSON :
+				profil, photos, likes, visites, conversations, rendez-vous, avis,
+				signalements et sessions.
+			</p>
+
+			{error !== null ? (
+				<div className="mt-3">
+					<Alert>{error}</Alert>
+				</div>
+			) : null}
+
+			<button
+				type="button"
+				className={`${GHOST} mt-3`}
+				disabled={pending}
+				onClick={() => void download()}
+			>
+				{pending ? "Préparation…" : "Exporter mes données"}
+			</button>
+		</div>
+	);
+}
+
 function Account({
 	profile,
 	onSaved,
@@ -528,6 +593,10 @@ function Account({
 
 			<div className="mt-5 border-t border-edge/30 pt-4">
 				<PasswordForm />
+			</div>
+
+			<div className="mt-5 border-t border-edge/30 pt-4">
+				<ExportData />
 			</div>
 
 			<div className="mt-5 border-t border-edge/30 pt-4">
