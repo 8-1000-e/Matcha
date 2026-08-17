@@ -135,7 +135,9 @@ export async function request<T>(
 	let payload = await readPayload(response);
 	if (path !== REFRESH_PATH && expired(response, payload)) {
 		if (!(await renew())) {
-			window.location.replace("/login");
+			if (window.location.pathname !== "/login") {
+				window.location.replace("/login");
+			}
 			return { ok: false, errors: readErrors(payload), code: readCode(payload) };
 		}
 
