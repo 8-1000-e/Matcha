@@ -3,7 +3,7 @@ import { setLocation, setLocationConsent } from "@/lib/db";
 import { readJsonBody } from "@/lib/http/body";
 import { forwardGeocode, reverseGeocode } from "@/lib/profile/geocoding";
 import { profileResponse } from "@/lib/profile/profile";
-import { validateLocation } from "@/lib/profile/validation";
+import { isRecord, validateLocation } from "@/lib/profile/validation";
 
 export async function PUT(request: Request)
 {
@@ -75,7 +75,7 @@ export async function PATCH(request: Request)
 		return body.response;
 	}
 
-	const consent = (body.value as { consent?: unknown }).consent;
+	const consent = isRecord(body.value) ? body.value.consent : undefined;
 	if (typeof consent !== "boolean")
 	{
 		return Response.json(

@@ -402,6 +402,7 @@ function Photos({
 		setBusy(false);
 		if (!result.ok) {
 			setError(result.errors[0]?.message ?? null);
+			setEditing(null);
 			return;
 		}
 		setEditing(null);
@@ -527,7 +528,7 @@ function Photos({
 									</span>
 								) : null}
 
-								<div className="absolute inset-x-0 bottom-0 flex justify-end gap-1.5 bg-linear-to-t from-ink/70 to-transparent p-2 opacity-0 transition-opacity duration-200 ease-out group-hover:opacity-100 focus-within:opacity-100">
+								<div className="absolute inset-x-0 bottom-0 flex justify-end gap-1.5 bg-linear-to-t from-ink/70 to-transparent p-2 transition-opacity duration-200 ease-out sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
 									<button
 										type="button"
 										disabled={busy}

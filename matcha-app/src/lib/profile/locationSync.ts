@@ -1,3 +1,5 @@
+export const GEOLOCATION_TIMEOUT_MS = 15_000;
+
 export const LOCATION_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 export function syncDue(updatedAt: string | null): boolean {

@@ -1,4 +1,4 @@
-import { requireSession } from "@/lib/auth/guards";
+import { requireAnySession, requireSession } from "@/lib/auth/guards";
 import {
 	countUnreadMessages,
 	countUnreadNotifications,
@@ -12,7 +12,7 @@ import { userChannel } from "@/lib/realtime/server";
 
 export async function GET()
 {
-	const session = await requireSession();
+	const session = await requireAnySession();
 	if (!session.ok)
 	{
 		return session.response;

@@ -171,6 +171,7 @@ export {
 	profileViews,
 	recordView,
 } from "./repositories/profileViews";
+export { countHits, purgeHits, recordHit } from "./repositories/rateLimit";
 export {
 	findPopularity,
 	listVisibleReviews,

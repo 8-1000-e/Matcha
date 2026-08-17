@@ -200,6 +200,14 @@ const TRANSLATIONS: Record<string, AuthError> = {
 		field: null,
 		message: "Vérifiez votre adresse e-mail pour continuer.",
 	},
+	too_many_requests: {
+		field: null,
+		message: "Trop de tentatives, patientez quelques minutes.",
+	},
+	already_reported: {
+		field: null,
+		message: "Vous avez déjà signalé ce profil.",
+	},
 	review_requires_conversation: {
 		field: null,
 		message:

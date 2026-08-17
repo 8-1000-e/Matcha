@@ -3,6 +3,7 @@ import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { setAuthCookies } from "@/lib/auth/session";
 import { findUserByUsername, purgeIfDue } from "@/lib/db";
 import { readJsonBody } from "@/lib/http/body";
+import { LOGIN_RULE, rateLimited } from "@/lib/http/rateLimit";
 const DECOY_HASH = hashPassword(randomBytes(32).toString("base64url"));
 DECOY_HASH.catch(() => undefined);
 
@@ -28,6 +29,12 @@ export async function POST(request: Request)
 	}
 
 	const username = rawUsername.trim();
+
+	const limited = rateLimited(request, LOGIN_RULE, username);
+	if (limited !== null)
+	{
+		return limited;
+	}
 
 	const user = findUserByUsername(username);
 	const stored = user?.password_hash ?? await DECOY_HASH;

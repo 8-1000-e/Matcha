@@ -2,6 +2,7 @@ import { after } from "next/server";
 import { createEmailToken, EMAIL_TTL } from "@/lib/auth/tokens";
 import { findUserByEmail, issueEmailToken, revokeEmailTokens } from "@/lib/db";
 import { readJsonBody } from "@/lib/http/body";
+import { EMAIL_RULE, rateLimited } from "@/lib/http/rateLimit";
 import { sendMail } from "@/lib/mail/mailer";
 import { resendVerifyMail } from "@/lib/mail/templates";
 
@@ -24,6 +25,12 @@ export async function POST(request: Request)
 	if (typeof email !== "string" || email.length === 0)
 	{
 		return Response.json({ errors: ["email is required"] }, { status: 400 });
+	}
+
+	const limited = rateLimited(request, EMAIL_RULE, email.trim().toLowerCase());
+	if (limited !== null)
+	{
+		return limited;
 	}
 
 	const user = findUserByEmail(email.trim().toLowerCase());

@@ -16,6 +16,18 @@ export interface CalendarInvite {
 	guestEmail: string;
 }
 
+async function safeFetch(url: string, init: RequestInit): Promise<Response | null>
+{
+	try
+	{
+		return await fetch(url, init);
+	}
+	catch
+	{
+		return null;
+	}
+}
+
 export async function accessTokenFor(userId: string): Promise<string | null>
 {
 	const clientId = process.env.OAUTH_GOOGLE_CLIENT_ID;
@@ -37,7 +49,7 @@ export async function accessTokenFor(userId: string): Promise<string | null>
 	form.set("client_id", clientId);
 	form.set("client_secret", clientSecret);
 
-	const response = await fetch(TOKEN_URL, {
+	const response = await safeFetch(TOKEN_URL, {
 		method: "POST",
 		headers: {
 			"content-type": "application/x-www-form-urlencoded",
@@ -45,7 +57,7 @@ export async function accessTokenFor(userId: string): Promise<string | null>
 		},
 		body: form,
 	});
-	if (!response.ok)
+	if (response === null || !response.ok)
 	{
 		return null;
 	}
@@ -77,12 +89,12 @@ function payload(invite: CalendarInvite): string
 
 export async function createCalendarEvent(accessToken: string, invite: CalendarInvite): Promise<string | null>
 {
-	const response = await fetch(`${EVENTS_URL}?sendUpdates=all`, {
+	const response = await safeFetch(`${EVENTS_URL}?sendUpdates=all`, {
 		method: "POST",
 		headers: headers(accessToken),
 		body: payload(invite),
 	});
-	if (!response.ok)
+	if (response === null || !response.ok)
 	{
 		return null;
 	}
@@ -94,7 +106,7 @@ export async function createCalendarEvent(accessToken: string, invite: CalendarI
 
 export async function updateCalendarEvent(accessToken: string, googleEventId: string, invite: CalendarInvite): Promise<boolean>
 {
-	const response = await fetch(
+	const response = await safeFetch(
 		`${EVENTS_URL}/${encodeURIComponent(googleEventId)}?sendUpdates=all`,
 		{
 			method: "PATCH",
@@ -103,18 +115,22 @@ export async function updateCalendarEvent(accessToken: string, googleEventId: st
 		},
 	);
 
-	return response.ok;
+	return response !== null && response.ok;
 }
 
 export async function cancelCalendarEvent(accessToken: string, googleEventId: string): Promise<boolean>
 {
-	const response = await fetch(
+	const response = await safeFetch(
 		`${EVENTS_URL}/${encodeURIComponent(googleEventId)}?sendUpdates=all`,
 		{
 			method: "DELETE",
 			headers: { authorization: `Bearer ${accessToken}` },
 		},
 	);
+	if (response === null)
+	{
+		return false;
+	}
 
 	return response.ok || response.status === 410;
 }

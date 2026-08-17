@@ -53,6 +53,7 @@ export function PhotosStep({ profile, onSaved, onNext }: StepProps) {
 			const result = await call();
 			if (!result.ok) {
 				setErrors(result.errors);
+				setEditing(null);
 				return;
 			}
 

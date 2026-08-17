@@ -18,7 +18,15 @@ export function readBody(
 	kind: MessageKind,
 	body: string | null,
 ): string | null {
-	return kind === "text" && body !== null ? decryptMessage(body) : null;
+	if (kind !== "text" || body === null) {
+		return null;
+	}
+	try {
+		return decryptMessage(body);
+	}
+	catch {
+		return null;
+	}
 }
 
 export function serializeMessage(row: MessageRow): MessagePayload {

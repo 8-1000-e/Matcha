@@ -283,11 +283,13 @@ Toutes les routes de cette section exigent une **session valide** (cookie
 `access`, ou `refresh` renouvelé par le proxy). Sans session : `401
 { "errors": ["unauthorized"] }`.
 
-Elles **n'exigent pas** que le compte soit vérifié. Un compte non vérifié peut
-donc remplir son profil ; le blocage se fait sur les routes de fonctionnalité
-(suggestions, recherche, like), comme pour `profile_completed`. Sans quoi
-changer d'adresse — qui remet `is_verified` à 0 — enfermerait l'utilisateur
-dans un profil qu'il ne peut plus corriger.
+**Seules la lecture (`GET`) et la suppression (`DELETE`) passent par
+`requireAnySession`** : elles n'exigent pas que le compte soit vérifié. Toutes
+les **écritures** — `PATCH /api/profile`, les photos, les tags, la localisation —
+passent par `requireSession` et répondent donc `403 email_not_verified` tant que
+l'adresse n'est pas confirmée. Conséquence à connaître : changer d'adresse remet
+`is_verified` à 0, donc suspend la modification du profil jusqu'à la validation
+du nouveau lien.
 
 Chaque écriture recalcule `profile_completed` et **renvoie le profil complet**,
 pour que le front n'ait pas à refetcher :
@@ -837,9 +839,8 @@ peut pas servir : elle refuse son propre identifiant avec un `400`.
 { "ok": true, "review_average": 4.2, "review_count": 12, "reviews": [ ... ] }
 ```
 
-Les avis ont la même forme que sur le profil public. Écrire ou supprimer un avis
-n'a **toujours pas de route** : la note de popularité ne peut donc bouger que
-par le seed.
+Les avis ont la même forme que sur le profil public. Pour écrire ou supprimer
+le sien, voir `PUT` et `DELETE /api/users/[id]/reviews`.
 
 ## Quelle notification pour quelle action
 
@@ -870,8 +871,8 @@ passe `matches.is_active` à 0 dès qu'un like est supprimé, ce qui satisfait
 
 # Notifications
 
-Les cinq types du §IV.7, ni plus ni moins : `LIKED`, `VIEWED`, `MESSAGE`,
-`MATCH`, `UNLIKED`.
+Les cinq types du §IV.7 — `LIKED`, `VIEWED`, `MESSAGE`, `MATCH`, `UNLIKED` —
+plus `MISSED_CALL`, ajouté avec le bonus d'appel.
 
 Toute notification passe par un point unique côté serveur, qui appelle
 `notify()` puis publie sur `private-user-<destinataire>`. `notify()` écarte déjà
@@ -914,11 +915,11 @@ voir les notifications non lues : deux exigences distinctes. Les compteurs
 divergent dès qu'on ouvre la cloche, puisqu'une notification devient lue à
 l'ouverture alors qu'un message ne l'est qu'en ouvrant la conversation.
 
-**`link` est `null`** pour les quatre notifications liées à un acteur :
-`actor_username` est déjà joint, donc le client construit la destination
-lui-même, et le serveur s'épargne une requête. Seul `MESSAGE` porte un lien,
-`/messages/<matchId>`, parce que le `matchId` n'est nulle part ailleurs dans la
-charge.
+**`link` pointe vers le profil de l'acteur** (`/users/<id>`) pour `LIKED`,
+`VIEWED`, `MATCH` et `UNLIKED`. Les deux exceptions sont `MESSAGE` et
+`MISSED_CALL`, dont le lien de repli est `null` : ils visent une conversation,
+donc `emitMessage` et `emitMissedCall` fournissent eux-mêmes
+`/messages/<matchId>`, que le repli ne saurait pas reconstruire.
 
 `read_at` devient le booléen `read` : le front n'a pas besoin de l'horodatage.
 
@@ -1166,7 +1167,7 @@ est publié sur le canal du chat parce que **les deux parties y sont déjà
 abonnées** — celle qui subit la rupture n'a rien demandé et n'a donc aucun autre
 signal.
 
-Un seul nom d'événement pour les cinq types de notification : le client ajoute
+Un seul nom d'événement pour tous les types de notification : le client ajoute
 en tête et incrémente son badge sans connaître les types. En ajouter un plus
 tard ne touche pas le client.
 

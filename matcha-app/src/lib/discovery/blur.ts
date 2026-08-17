@@ -9,6 +9,18 @@ export interface BlurredPoint {
 	longitude: number;
 }
 
+export function coarseDistance(km: number | null): number | null {
+	if (km === null) {
+		return null;
+	}
+
+	return km < 1 ? 0 : Math.round(km);
+}
+
+export function coarseBound(degrees: number): number {
+	return Math.round(degrees * 100) / 100;
+}
+
 export function blurPoint(
 	id: string,
 	latitude: number | null,

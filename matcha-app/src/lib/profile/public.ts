@@ -6,6 +6,7 @@ import {
 	type Orientation,
 	type PublicProfile,
 } from "@/lib/db";
+import { coarseDistance } from "@/lib/discovery/blur";
 import type { ProfilePhoto } from "./profile";
 
 export interface PublicProfilePayload {
@@ -55,7 +56,7 @@ export function buildPublicProfile(
 		biography: profile.biography,
 		city: profile.city,
 		neighborhood: profile.neighborhood,
-		distance_km: profile.distance_km,
+		distance_km: coarseDistance(profile.distance_km),
 		tags: listUserTags(profile.id).map((tag) => tag.label),
 		photos: listPhotos(profile.id).map((photo) => ({
 			id: photo.id,

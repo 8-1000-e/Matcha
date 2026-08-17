@@ -5,7 +5,7 @@ import { messagesTable, notificationsTable, TABLES } from "./tables";
 import { TAG_LABELS } from "./tags";
 import { TRIGGERS } from "./triggers";
 import { VIEWS } from "./views";
-export const SCHEMA_VERSION = 15;
+export const SCHEMA_VERSION = 17;
 
 function addOauthColumns(database: Database.Database): void {
 	const columns = database.prepare("PRAGMA table_info(oauth_accounts)").all() as {
@@ -131,6 +131,10 @@ function rebuildEventMessages(database: Database.Database): void {
 	database.exec("ALTER TABLE messages_with_events RENAME TO messages");
 }
 
+function dropDeadIndexes(database: Database.Database): void {
+	database.exec("DROP INDEX IF EXISTS users_is_online_idx");
+}
+
 function seedTags(database: Database.Database): void {
 	const insert = database.prepare(
 		"INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING",
@@ -155,6 +159,7 @@ export function applySchema(database: Database.Database): void {
 		rebuildMessages(database);
 		rebuildEventMessages(database);
 		rebuildNotifications(database);
+		dropDeadIndexes(database);
 		for (const statement of [...INDEXES, ...TRIGGERS, ...VIEWS]) {
 			database.exec(statement);
 		}

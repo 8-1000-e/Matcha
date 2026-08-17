@@ -9,10 +9,10 @@ const GENDERS: Record<string, string> = {
 };
 
 const ORIENTATIONS: Record<string, string> = {
-	hetero: "Hétéro",
-	homo: "Homo",
-	bi: "Bi",
-	pan: "Pan",
+	hetero: "Hétérosexuel·le",
+	homo: "Homosexuel·le",
+	bi: "Bisexuel·le",
+	pan: "Pansexuel·le",
 	other: "Autre",
 };
 

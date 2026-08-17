@@ -65,18 +65,33 @@ function clusterElement(count: number): HTMLElement {
 	return wrapper;
 }
 
-function popupHtml(point: MapPoint): string {
+function popupNode(point: MapPoint): HTMLElement {
 	const distance = point.distance_km === null
 		? "distance inconnue"
 		: point.distance_km < 1
 			? "à moins d’1 km"
 			: `à ${Math.round(point.distance_km)} km`;
 
-	return `<span class="flex flex-col gap-1">
-		<span class="text-sm font-medium">${point.first_name} · ${point.age} ans</span>
-		<span class="text-xs text-muted">${point.city ?? "ville inconnue"} · ${distance}</span>
-		<a href="/users/${point.id}" class="text-xs font-medium text-matcha underline decoration-matcha/40 underline-offset-4">Voir le profil</a>
-	</span>`;
+	const wrapper = document.createElement("span");
+	wrapper.className = "flex flex-col gap-1";
+
+	const identity = document.createElement("span");
+	identity.className = "text-sm font-medium";
+	identity.textContent = `${point.first_name} · ${point.age} ans`;
+
+	const place = document.createElement("span");
+	place.className = "text-xs text-muted";
+	place.textContent = `${point.city ?? "ville inconnue"} · ${distance}`;
+
+	const link = document.createElement("a");
+	link.href = `/users/${encodeURIComponent(point.id)}`;
+	link.className
+		= "text-xs font-medium text-matcha underline decoration-matcha/40 underline-offset-4";
+	link.textContent = "Voir le profil";
+
+	wrapper.append(identity, place, link);
+
+	return wrapper;
 }
 
 export function UsersGlobe({
@@ -141,7 +156,7 @@ export function UsersGlobe({
 				if (bucket.length === 1) {
 					return new Marker({ element: markerElement(first) })
 						.setLngLat([first.longitude, first.latitude])
-						.setPopup(new Popup({ offset: 22 }).setHTML(popupHtml(first)))
+						.setPopup(new Popup({ offset: 22 }).setDOMContent(popupNode(first)))
 						.addTo(instance);
 				}
 

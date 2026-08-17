@@ -26,14 +26,22 @@ export async function exchangeCode(provider: OAuthProvider, config: ProviderConf
 	body.set("code", code);
 	body.set("redirect_uri", redirectUri(provider));
 
-	const response = await fetch(config.tokenUrl, {
-		method: "POST",
-		headers: {
-			"content-type": "application/x-www-form-urlencoded",
-			accept: "application/json",
-		},
-		body,
-	});
+	let response: Response;
+	try
+	{
+		response = await fetch(config.tokenUrl, {
+			method: "POST",
+			headers: {
+				"content-type": "application/x-www-form-urlencoded",
+				accept: "application/json",
+			},
+			body,
+		});
+	}
+	catch
+	{
+		return null;
+	}
 	if (!response.ok)
 	{
 		return null;
@@ -80,9 +88,20 @@ function text(value: unknown): string | null
 
 export async function fetchOAuthProfile(provider: OAuthProvider, config: ProviderConfig, accessToken: string): Promise<OAuthProfile | null>
 {
-	const response = await fetch(config.profileUrl, {
-		headers: { authorization: `Bearer ${accessToken}`, accept: "application/json" },
-	});
+	let response: Response;
+	try
+	{
+		response = await fetch(config.profileUrl, {
+			headers: {
+				authorization: `Bearer ${accessToken}`,
+				accept: "application/json",
+			},
+		});
+	}
+	catch
+	{
+		return null;
+	}
 	if (!response.ok)
 	{
 		return null;

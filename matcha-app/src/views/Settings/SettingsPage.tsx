@@ -30,7 +30,7 @@ import {
 	type Place,
 	type Profile,
 } from "@/lib/profile/client";
-import { syncDue } from "@/lib/profile/locationSync";
+import { GEOLOCATION_TIMEOUT_MS, syncDue } from "@/lib/profile/locationSync";
 import { CityPicker } from "@/views/CompleteProfile/CityPicker";
 import { Errors } from "@/views/CompleteProfile/StepBase";
 
@@ -129,6 +129,7 @@ function Location({
 						: "Position refusée : votre ville reste utilisée.",
 				);
 			},
+			{ timeout: GEOLOCATION_TIMEOUT_MS },
 		);
 	}
 
@@ -250,14 +251,20 @@ function Location({
 
 function Blocked() {
 	const [blocked, setBlocked] = useState<BlockedUser[] | null>(null);
+	const [failed, setFailed] = useState(false);
 	const [busy, setBusy] = useState(false);
 
 	useEffect(() => {
 		let live = true;
 		void listBlocked().then((result) => {
-			if (live) {
-				setBlocked(result.ok ? result.data.blocked : []);
+			if (!live) {
+				return;
 			}
+			if (!result.ok) {
+				setFailed(true);
+				return;
+			}
+			setBlocked(result.data.blocked);
 		});
 		return () => {
 			live = false;
@@ -281,7 +288,9 @@ function Blocked() {
 			title="Comptes bloqués"
 			description="Ces personnes ne voient plus votre profil et n’apparaissent plus dans vos suggestions."
 		>
-			{blocked === null ? (
+			{failed ? (
+				<Alert>Cette liste n’a pas pu être chargée, rechargez la page.</Alert>
+			) : blocked === null ? (
 				<p className="text-sm text-muted">Chargement…</p>
 			) : blocked.length === 0 ? (
 				<p className="text-sm text-muted">Vous n’avez bloqué personne.</p>
@@ -419,9 +428,14 @@ function Connections() {
 	useEffect(() => {
 		let live = true;
 		void fetchLinkedAccounts().then((result) => {
-			if (live) {
-				setAccounts(result.ok ? result.data.accounts : []);
+			if (!live) {
+				return;
 			}
+			if (!result.ok) {
+				setError("Vos comptes reliés n’ont pas pu être chargés.");
+				return;
+			}
+			setAccounts(result.data.accounts);
 		});
 		return () => {
 			live = false;
@@ -449,7 +463,9 @@ function Connections() {
 			title="Connexions"
 			description="Reliez un compte pour vous connecter en un clic, sans mot de passe."
 		>
-			{accounts === null ? (
+			{accounts === null && error !== null ? (
+				<Alert>{error}</Alert>
+			) : accounts === null ? (
 				<p className="text-sm text-muted">Chargement…</p>
 			) : (
 				<ul className="flex flex-col divide-y divide-edge/20">

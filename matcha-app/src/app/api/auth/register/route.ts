@@ -4,6 +4,7 @@ import { createEmailToken, EMAIL_TTL } from "@/lib/auth/tokens";
 import { validateRegister } from "@/lib/auth/validation";
 import { ConstraintError, createUser, isEmailTaken, issueEmailToken, isUsernameTaken } from "@/lib/db";
 import { readJsonBody } from "@/lib/http/body";
+import { rateLimited, REGISTER_RULE } from "@/lib/http/rateLimit";
 import { sendMail } from "@/lib/mail/mailer";
 import { verifyEmailMail } from "@/lib/mail/templates";
 
@@ -21,6 +22,12 @@ export async function POST(request: Request)
 	if (!result.ok)
 	{
 		return Response.json({ errors: result.errors }, { status: 400 });
+	}
+
+	const limited = rateLimited(request, REGISTER_RULE, null);
+	if (limited !== null)
+	{
+		return limited;
 	}
 
 	if (isEmailTaken(result.value.email) || isUsernameTaken(result.value.username))

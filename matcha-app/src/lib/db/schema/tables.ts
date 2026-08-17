@@ -193,6 +193,10 @@ export const TABLES: readonly string[] = [
 		UNIQUE (reporter_id, reported_id),
 		CHECK (reporter_id <> reported_id)
 	) STRICT`,
+	`CREATE TABLE IF NOT EXISTS rate_hits (
+		bucket TEXT NOT NULL,
+		hit_at TEXT NOT NULL DEFAULT ${TIMESTAMP_DEFAULT}
+	) STRICT`,
 	notificationsTable("notifications"),
 	`DROP TABLE IF EXISTS feed_entries;
 	DROP TABLE IF EXISTS feed_sessions;

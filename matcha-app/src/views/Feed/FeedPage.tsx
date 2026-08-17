@@ -52,7 +52,7 @@ export function FeedPage({
 }) {
 	const [filters, setFilters] = useState<FeedFilters>({});
 	const [state, setState] = useState<State>(initial === null
-		? EMPTY
+		? { ...EMPTY, error: "Les suggestions n’ont pas pu être chargées." }
 		: {
 			items: initial.items,
 			session: initial.session,

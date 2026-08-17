@@ -1,6 +1,6 @@
 export const INDEXES: readonly string[] = [
+	"CREATE INDEX IF NOT EXISTS rate_hits_idx ON rate_hits (bucket, hit_at)",
 	"CREATE INDEX IF NOT EXISTS users_birth_date_idx ON users (birth_date)",
-	"CREATE INDEX IF NOT EXISTS users_is_online_idx ON users (is_online)",
 	"CREATE INDEX IF NOT EXISTS users_last_seen_at_idx ON users (last_seen_at)",
 	"CREATE INDEX IF NOT EXISTS users_location_idx ON users (latitude, longitude)",
 	"CREATE INDEX IF NOT EXISTS users_city_idx ON users (city)",
