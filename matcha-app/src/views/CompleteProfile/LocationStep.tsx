@@ -5,6 +5,7 @@ import { ActionButton } from "@/components/Form/Button";
 import { Notice } from "@/components/Form/Notice";
 import type { AuthError } from "@/lib/auth/errorMessages";
 import { type Place, saveLocation } from "@/lib/profile/client";
+import { GEOLOCATION_TIMEOUT_MS } from "@/lib/profile/locationSync";
 import { CityPicker } from "./CityPicker";
 import { Errors, fieldError, type StepProps } from "./StepBase";
 
@@ -68,6 +69,7 @@ export function LocationStep({ profile, onSaved, onNext }: StepProps) {
 				setLocating(false);
 				setNotice(geolocationMessage(error));
 			},
+			{ timeout: GEOLOCATION_TIMEOUT_MS },
 		);
 	}
 

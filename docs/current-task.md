@@ -1,4 +1,89 @@
-# Tâche en cours — bonus rendez-vous
+# Tâche en cours — correctifs d'audit
+
+Branche `fix/audit`, partie de `main`. Mise à jour : 2026-08-17.
+
+## Audit complet et correctifs
+
+Quatre audits (sécurité, données, front, qualité) ont tourné sur l'ensemble du
+projet. Ce qui a été corrigé sur cette branche :
+
+**Sécurité**
+
+- **XSS stocké sur la carte** — `UsersGlobe.tsx` construisait la bulle avec
+  `Popup.setHTML()` en interpolant la ville, qui n'est validée que contre les
+  caractères de contrôle. Reconstruit en DOM avec `textContent`.
+- **Déanonymisation GPS** — le filtre de la carte portait sur les vraies
+  coordonnées alors que seul le point renvoyé était flouté (dichotomie sur les
+  bornes), et `distance_km` exact permettait une trilatération en choisissant sa
+  propre position. `coarseDistance` arrondit au kilomètre, `coarseBound`
+  quantifie les bornes au centième de degré. **Surtout, la position du
+  demandeur est elle-même ramenée sur une grille de 0,01° (`coarseOrigin`)
+  avant tout calcul de distance** : sans cela il suffisait de se téléporter par
+  petits pas via `PUT /api/profile/location` en mode `picked` et de regarder la
+  distance changer pour trianguler une position exacte. La résolution de
+  l'oracle est maintenant d'environ 1,1 km, au-dessus des 700 m du floutage —
+  vérifié en glissant le point de vue de 111 m par pas : la distance ne bouge
+  qu'aux frontières de cellule.
+- **Limitation de débit** (`lib/http/rateLimit.ts`, table `rate_hits`) sur
+  `login` (10 / 5 min), `register` (5 / h), `password/forgot` et `verify/resend`
+  (3 / 15 min). **Trois seaux** par requête : par IP, par couple
+  identifiant + IP, et par identifiant seul avec une limite cinq fois plus
+  large. Ce troisième seau est le compromis : sans lui, faire tourner
+  `x-forwarded-for` contourne tout ; avec une limite basse, n'importe qui
+  verrouillerait le compte d'un autre en dix requêtes.
+
+  Limite connue et assumée : sans proxy de confiance, `x-forwarded-for` reste
+  déclaratif. C'est une mesure de défense en profondeur, pas une barrière.
+
+**`500` supprimés**
+
+- `PATCH /api/profile/location` avec le corps `null` (garde `isRecord`).
+- Signalement en double : `409 already_reported` au lieu de `500`, et la
+  réponse ne renvoie plus l'ancien motif à la place du nouveau.
+- `readBody` ne laisse plus une erreur de déchiffrement tuer toute une
+  conversation.
+- Six `await fetch` sans garde dans l'agenda Google et le flux OAuth.
+- Course sur les sessions de feed : `total` est relu **dans** la transaction
+  d'extension, sinon deux requêtes concurrentes visaient les mêmes positions.
+
+**Bugs fonctionnels**
+
+- `recordView` ne s'exécutait plus après le premier profil (`useRef` jamais
+  réinitialisé) — fonctionnalité notée du sujet.
+- `getCurrentPosition` sans `timeout` : bouton bloqué à vie si l'utilisateur
+  ignore la demande.
+- Un échec d'envoi de photo laissait la modale ouverte devant le message
+  d'erreur.
+- Orientations `pan` et `other` affichées en brut sur le profil public.
+- Boutons de gestion des photos invisibles sur écran tactile.
+- Panne serveur déguisée en liste vide : feed, comptes bloqués, comptes liés.
+- `GET /api/notifications` passait par `requireSession`, donc `403` sur
+  `/verify-email` où la cloche est montée.
+
+**Rendez-vous**
+
+- Création atomique : la ligne `events` et le message du fil sont écrits dans
+  une même transaction, l'appel Google vient après.
+- `PATCH` et `DELETE` renvoient `calendar_synced` au lieu d'un `{ ok: true }`
+  menteur quand Google refuse, et le panneau l'affiche.
+
+**Schéma** — `user_version 17` : table `rate_hits` + index, suppression de
+`users_is_online_idx` (index sur une colonne morte).
+
+**Divers** — `leaflet`, `react-leaflet` et `@types/leaflet` retirés de
+`package.json` ; trois affirmations de `api/doc/README.md` qui disaient
+l'inverse du code ont été corrigées.
+
+## Écarté volontairement
+
+Les refactors (le garde de conversation existe en trois exemplaires, le filtre
+de blocage est réécrit dix fois en SQL), la suite de tests, la reprise de
+l'accessibilité des six modales, et les optimisations (`JOIN user_popularity`,
+N+1 sur les matchs, cache de requêtes préparées sans plafond).
+
+---
+
+# Tâche précédente — bonus rendez-vous
 
 Branche `bonus` (poussée sur origin). Mise à jour : 2026-08-16.
 

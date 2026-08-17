@@ -83,7 +83,7 @@ export function ModerationMenu({
 			setDone(
 				result.ok
 					? "Signalement envoyé."
-					: "Le signalement a échoué.",
+					: (result.errors[0]?.message ?? "Le signalement a échoué."),
 			);
 		});
 	}

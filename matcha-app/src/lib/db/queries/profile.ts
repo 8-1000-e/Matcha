@@ -1,3 +1,4 @@
+import { coarseOrigin } from "@/lib/discovery/blur";
 import { queryOne } from "../core/client";
 import { raw, sql } from "../core/sql";
 import type { Flag } from "../core/values";
@@ -41,7 +42,7 @@ export function findPublicProfile(
 				${raw(onlineNow("target.last_seen_at"))} AS is_online,
 				${raw(ageYears("target.birth_date"))} AS age,
 				distance_km(
-					${viewer.latitude}, ${viewer.longitude},
+					${coarseOrigin(viewer.latitude)}, ${coarseOrigin(viewer.longitude)},
 					target.latitude, target.longitude
 				) AS distance_km,
 				popularity.review_average AS review_average,

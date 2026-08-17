@@ -85,7 +85,7 @@ export function listBlocked(
 	);
 }
 
-export function report(values: ReportInsert): ReportRow | undefined {
+export function report(values: ReportInsert): ReportRow | null {
 	const id = values.id ?? createId();
 	const inserted = execute(
 		sql`INSERT INTO reports
@@ -100,10 +100,7 @@ export function report(values: ReportInsert): ReportRow | undefined {
 			ON CONFLICT DO NOTHING`,
 	);
 	if (inserted.changes === 0) {
-		return reports.findOne({
-			reporter_id: values.reporter_id,
-			reported_id: values.reported_id,
-		});
+		return null;
 	}
-	return reports.findById(id);
+	return reports.findById(id) ?? null;
 }

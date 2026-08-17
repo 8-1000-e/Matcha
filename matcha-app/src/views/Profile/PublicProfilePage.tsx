@@ -27,9 +27,11 @@ const GENDERS: Record<string, string> = {
 };
 
 const ORIENTATIONS: Record<string, string> = {
-	hetero: "Hétéro",
-	homo: "Homo",
-	bi: "Bi",
+	hetero: "Hétérosexuel·le",
+	homo: "Homosexuel·le",
+	bi: "Bisexuel·le",
+	pan: "Pansexuel·le",
+	other: "Autre",
 };
 
 function place(profile: PublicProfilePayload) {
@@ -617,14 +619,14 @@ export function PublicProfilePage({
 	viewerId: string;
 }) {
 	const [tab, setTab] = useState<"photos" | "reviews">("photos");
-	const seen = useRef(false);
+	const seen = useRef<string | null>(null);
 	const router = useRouter();
 
 	useEffect(() => {
-		if (seen.current) {
+		if (seen.current === profile.id) {
 			return;
 		}
-		seen.current = true;
+		seen.current = profile.id;
 		void recordView(profile.id);
 	}, [profile.id]);
 

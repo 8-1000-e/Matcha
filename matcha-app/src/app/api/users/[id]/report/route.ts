@@ -36,9 +36,9 @@ export async function POST(request: Request, context: Context)
 		reported_id: id,
 		reason: result.value,
 	});
-	if (filed === undefined)
+	if (filed === null)
 	{
-		return Response.json({ errors: ["report failed"] }, { status: 500 });
+		return Response.json({ errors: ["already_reported"] }, { status: 409 });
 	}
 
 	return Response.json({ ok: true, reason: filed.reason });

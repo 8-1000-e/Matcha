@@ -1,6 +1,6 @@
 import { requireSession } from "@/lib/auth/guards";
 import { DatabaseError, findMapCandidates } from "@/lib/db";
-import { blurPoint } from "@/lib/discovery/blur";
+import { blurPoint, coarseDistance, snapDown, snapUp } from "@/lib/discovery/blur";
 
 const MAX_POINTS = 500;
 
@@ -50,7 +50,12 @@ export async function GET(request: Request)
 	{
 		const rows = findMapCandidates(
 			session.user,
-			{ south, north, west, east },
+			{
+				south: snapDown(south),
+				north: snapUp(north),
+				west: snapDown(west),
+				east: snapUp(east),
+			},
 			MAX_POINTS,
 		);
 
@@ -66,7 +71,7 @@ export async function GET(request: Request)
 				first_name: row.first_name,
 				age: row.age,
 				city: row.city,
-				distance_km: row.distance_km,
+				distance_km: coarseDistance(row.distance_km),
 				is_online: row.is_online === 1,
 				profile_photo_id: row.profile_photo_id,
 				latitude: blurred.latitude,

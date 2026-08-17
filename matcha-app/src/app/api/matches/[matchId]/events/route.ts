@@ -9,6 +9,7 @@ import {
 	listEvents,
 	sendEventMessage,
 	setGoogleEventId,
+	transaction,
 } from "@/lib/db";
 import { readJsonBody } from "@/lib/http/body";
 import { serializeMessage } from "@/lib/messages/messages";
@@ -64,15 +65,23 @@ export async function POST(request: Request, context: Context)
 		return Response.json({ errors: ["calendar_not_connected"] }, { status: 409 });
 	}
 
-	const event = createEvent({
-		match_id: matchId,
-		organiser_id: guarded.user.id,
-		guest_id: guarded.partnerId,
-		title: result.value.title,
-		location: result.value.location,
-		starts_at: result.value.starts_at,
-		ends_at: result.value.ends_at,
+	const created = transaction(() => {
+		const row = createEvent({
+			match_id: matchId,
+			organiser_id: guarded.user.id,
+			guest_id: guarded.partnerId,
+			title: result.value.title,
+			location: result.value.location,
+			starts_at: result.value.starts_at,
+			ends_at: result.value.ends_at,
+		});
+
+		return {
+			event: row,
+			message: sendEventMessage(matchId, guarded.user.id, row.id),
+		};
 	});
+	const event = created.event;
 
 	const googleId = await createCalendarEvent(token, inviteFrom(event, guest.email));
 	if (googleId !== null)
@@ -80,9 +89,7 @@ export async function POST(request: Request, context: Context)
 		setGoogleEventId(event.id, googleId);
 	}
 
-	const message = serializeMessage(
-		sendEventMessage(matchId, guarded.user.id, event.id),
-	);
+	const message = serializeMessage(created.message);
 
 	after(() => {
 		publish(chatChannel(matchId), "message", message);
@@ -90,7 +97,11 @@ export async function POST(request: Request, context: Context)
 	emitMessage(guarded.partnerId, guarded.user.id, matchId);
 
 	return Response.json(
-		{ ok: true, event: serializeEvent({ ...event, google_event_id: googleId }) },
+		{
+			ok: true,
+			event: serializeEvent({ ...event, google_event_id: googleId }),
+			calendar_synced: googleId !== null,
+		},
 		{ status: 201 },
 	);
 }

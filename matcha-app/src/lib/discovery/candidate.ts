@@ -1,5 +1,5 @@
 import type { DiscoveryRow, Gender, Orientation } from "@/lib/db";
-import { blurPoint } from "./blur";
+import { blurPoint, coarseDistance } from "./blur";
 
 export interface CandidatePayload {
 	id: string;
@@ -42,7 +42,7 @@ export function serializeCandidate(row: DiscoveryRow): CandidatePayload {
 		biography: row.biography,
 		city: row.city,
 		neighborhood: row.neighborhood,
-		distance_km: row.distance_km,
+		distance_km: coarseDistance(row.distance_km),
 		common_tags: row.common_tags,
 		review_average: row.review_average,
 		review_count: row.review_count,

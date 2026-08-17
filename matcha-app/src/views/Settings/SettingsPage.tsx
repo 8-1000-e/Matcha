@@ -30,7 +30,7 @@ import {
 	type Place,
 	type Profile,
 } from "@/lib/profile/client";
-import { syncDue } from "@/lib/profile/locationSync";
+import { GEOLOCATION_TIMEOUT_MS, syncDue } from "@/lib/profile/locationSync";
 import { CityPicker } from "@/views/CompleteProfile/CityPicker";
 import { Errors } from "@/views/CompleteProfile/StepBase";
 
@@ -53,6 +53,15 @@ const OAUTH_PROVIDERS = [
 ];
 
 type Section = (typeof SECTIONS)[number]["key"];
+
+const FILENAME_RE = /filename="([^"]+)"/;
+
+function fileNameFrom(response: Response): string | null {
+	const header = response.headers.get("content-disposition") ?? "";
+	const found = FILENAME_RE.exec(header);
+
+	return found === null ? null : found[1];
+}
 
 function when(iso: string) {
 	return new Date(iso).toLocaleDateString("fr-FR", {
@@ -120,6 +129,7 @@ function Location({
 						: "Position refusée : votre ville reste utilisée.",
 				);
 			},
+			{ timeout: GEOLOCATION_TIMEOUT_MS },
 		);
 	}
 
@@ -241,14 +251,20 @@ function Location({
 
 function Blocked() {
 	const [blocked, setBlocked] = useState<BlockedUser[] | null>(null);
+	const [failed, setFailed] = useState(false);
 	const [busy, setBusy] = useState(false);
 
 	useEffect(() => {
 		let live = true;
 		void listBlocked().then((result) => {
-			if (live) {
-				setBlocked(result.ok ? result.data.blocked : []);
+			if (!live) {
+				return;
 			}
+			if (!result.ok) {
+				setFailed(true);
+				return;
+			}
+			setBlocked(result.data.blocked);
 		});
 		return () => {
 			live = false;
@@ -272,7 +288,9 @@ function Blocked() {
 			title="Comptes bloqués"
 			description="Ces personnes ne voient plus votre profil et n’apparaissent plus dans vos suggestions."
 		>
-			{blocked === null ? (
+			{failed ? (
+				<Alert>Cette liste n’a pas pu être chargée, rechargez la page.</Alert>
+			) : blocked === null ? (
 				<p className="text-sm text-muted">Chargement…</p>
 			) : blocked.length === 0 ? (
 				<p className="text-sm text-muted">Vous n’avez bloqué personne.</p>
@@ -410,9 +428,14 @@ function Connections() {
 	useEffect(() => {
 		let live = true;
 		void fetchLinkedAccounts().then((result) => {
-			if (live) {
-				setAccounts(result.ok ? result.data.accounts : []);
+			if (!live) {
+				return;
 			}
+			if (!result.ok) {
+				setError("Vos comptes reliés n’ont pas pu être chargés.");
+				return;
+			}
+			setAccounts(result.data.accounts);
 		});
 		return () => {
 			live = false;
@@ -440,7 +463,9 @@ function Connections() {
 			title="Connexions"
 			description="Reliez un compte pour vous connecter en un clic, sans mot de passe."
 		>
-			{accounts === null ? (
+			{accounts === null && error !== null ? (
+				<Alert>{error}</Alert>
+			) : accounts === null ? (
 				<p className="text-sm text-muted">Chargement…</p>
 			) : (
 				<ul className="flex flex-col divide-y divide-edge/20">
@@ -482,6 +507,62 @@ function Connections() {
 			{error !== null ? <Alert>{error}</Alert> : null}
 			{done !== null ? <Notice>{done}</Notice> : null}
 		</Card>
+	);
+}
+
+function ExportData() {
+	const [pending, setPending] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+
+	async function download() {
+		setPending(true);
+		setError(null);
+
+		const response = await fetch("/api/profile/export", {
+			credentials: "same-origin",
+		});
+		if (!response.ok) {
+			setPending(false);
+			setError("L’export a échoué, réessayez.");
+			return;
+		}
+
+		const blob = await response.blob();
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement("a");
+		link.href = url;
+		link.download = fileNameFrom(response) ?? "matcha-donnees.json";
+		document.body.append(link);
+		link.click();
+		link.remove();
+		URL.revokeObjectURL(url);
+		setPending(false);
+	}
+
+	return (
+		<div>
+			<h3 className="text-sm font-medium">Mes données</h3>
+			<p className="mt-1 text-sm text-muted">
+				Téléchargez tout ce que Matcha conserve sur vous, au format JSON :
+				profil, photos, likes, visites, conversations, rendez-vous, avis,
+				signalements et sessions.
+			</p>
+
+			{error !== null ? (
+				<div className="mt-3">
+					<Alert>{error}</Alert>
+				</div>
+			) : null}
+
+			<button
+				type="button"
+				className={`${GHOST} mt-3`}
+				disabled={pending}
+				onClick={() => void download()}
+			>
+				{pending ? "Préparation…" : "Exporter mes données"}
+			</button>
+		</div>
 	);
 }
 
@@ -528,6 +609,10 @@ function Account({
 
 			<div className="mt-5 border-t border-edge/30 pt-4">
 				<PasswordForm />
+			</div>
+
+			<div className="mt-5 border-t border-edge/30 pt-4">
+				<ExportData />
 			</div>
 
 			<div className="mt-5 border-t border-edge/30 pt-4">

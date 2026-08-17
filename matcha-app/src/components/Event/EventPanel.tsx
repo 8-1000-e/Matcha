@@ -198,10 +198,10 @@ export function EventPanel({
 			starts_at: joinLocal(day, startTime),
 			ends_at: joinLocal(endDay.length === 0 ? day : endDay, endTime),
 		};
-		const pending
-			= editing === null
-				? proposeEvent(matchId, draft)
-				: editEvent(matchId, editing, draft);
+		const creating = editing === null;
+		const pending = creating
+			? proposeEvent(matchId, draft)
+			: editEvent(matchId, editing, draft);
 
 		void pending.then((result) => {
 			setBusy(false);
@@ -209,6 +209,8 @@ export function EventPanel({
 				setError(result.errors[0]?.message ?? null);
 				return;
 			}
+			const desynced = !result.data.calendar_synced;
+
 			setEvents((current) => {
 				const others = current.filter((entry) => entry.id !== result.data.event.id);
 				return [...others, result.data.event].sort((left, right) =>
@@ -216,6 +218,15 @@ export function EventPanel({
 				);
 			});
 			reset();
+
+			if (desynced) {
+				setError(
+					creating
+						? "Rendez-vous créé, mais l’agenda Google n’a pas suivi."
+						: "Modification enregistrée, mais l’agenda Google n’a pas suivi.",
+				);
+				return;
+			}
 			setOpen(false);
 		});
 	}
@@ -228,6 +239,9 @@ export function EventPanel({
 			if (!result.ok) {
 				setError(result.errors[0]?.message ?? null);
 				return;
+			}
+			if (!result.data.calendar_synced) {
+				setError("Rendez-vous annulé, mais l’agenda Google n’a pas suivi.");
 			}
 			setEvents((current) =>
 				current.map((entry) =>

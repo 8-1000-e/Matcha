@@ -71,6 +71,27 @@ export {
 	type FeedSession,
 } from "./queries/feed";
 export {
+	exportAccount,
+	exportBlocks,
+	exportEvents,
+	exportLikesGiven,
+	exportLikesReceived,
+	exportMatches,
+	exportMessages,
+	exportNotifications,
+	exportOAuthAccounts,
+	exportPhotos,
+	exportReports,
+	exportReviewsReceived,
+	exportReviewsWritten,
+	exportSessions,
+	exportTags,
+	exportViewsMade,
+	exportViewsReceived,
+	type ExportedAccount,
+	type ExportedMessage,
+} from "./queries/export";
+export {
 	findPublicProfile,
 	type ProfileRelationship,
 	type PublicProfile,
@@ -150,6 +171,7 @@ export {
 	profileViews,
 	recordView,
 } from "./repositories/profileViews";
+export { countHits, purgeHits, recordHit } from "./repositories/rateLimit";
 export {
 	findPopularity,
 	listVisibleReviews,

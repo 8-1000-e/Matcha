@@ -65,21 +65,24 @@ export async function PATCH(request: Request, context: Context)
 		return notFound();
 	}
 
+	let synced = true;
 	if (updated.google_event_id !== null)
 	{
 		const guest = findOAuthAccountFor("google", updated.guest_id);
 		const token = await accessTokenFor(updated.organiser_id);
-		if (guest?.email != null && token !== null)
-		{
-			await updateCalendarEvent(
+		synced = guest?.email != null && token !== null
+			&& await updateCalendarEvent(
 				token,
 				updated.google_event_id,
 				inviteFrom(updated, guest.email),
 			);
-		}
 	}
 
-	return Response.json({ ok: true, event: serializeEvent(updated) });
+	return Response.json({
+		ok: true,
+		event: serializeEvent(updated),
+		calendar_synced: synced,
+	});
 }
 
 export async function DELETE(_request: Request, context: Context)
@@ -103,14 +106,13 @@ export async function DELETE(_request: Request, context: Context)
 
 	setEventStatus(eventId, "cancelled");
 
+	let synced = true;
 	if (event.google_event_id !== null)
 	{
 		const token = await accessTokenFor(event.organiser_id);
-		if (token !== null)
-		{
-			await cancelCalendarEvent(token, event.google_event_id);
-		}
+		synced = token !== null
+			&& await cancelCalendarEvent(token, event.google_event_id);
 	}
 
-	return Response.json({ ok: true, cancelled: true });
+	return Response.json({ ok: true, cancelled: true, calendar_synced: synced });
 }

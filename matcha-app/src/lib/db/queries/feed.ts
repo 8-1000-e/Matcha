@@ -77,9 +77,18 @@ function extendFeedSession(
 	options: DiscoveryOptions,
 ): FeedSession
 {
-	if (session.exhausted === 1)
+	const fresh = queryOne<{ total: number; exhausted: number }>(sql`
+		SELECT total, exhausted FROM feed_sessions WHERE id = ${session.id}
+	`);
+	if (fresh === undefined)
 	{
 		return session;
+	}
+
+	const start = fresh.total;
+	if (fresh.exhausted === 1)
+	{
+		return { ...session, total: start, exhausted: 1 };
 	}
 
 	const candidates = findCandidates(viewer, {
@@ -94,11 +103,11 @@ function extendFeedSession(
 	{
 		execute(sql`
 			INSERT INTO feed_entries (session_id, position, candidate_id)
-			VALUES (${session.id}, ${session.total + index}, ${candidate.id})
+			VALUES (${session.id}, ${start + index}, ${candidate.id})
 		`);
 	});
 
-	const total = session.total + candidates.length;
+	const total = start + candidates.length;
 	execute(sql`
 		UPDATE feed_sessions SET total = ${total}, exhausted = ${exhausted}
 		WHERE id = ${session.id}

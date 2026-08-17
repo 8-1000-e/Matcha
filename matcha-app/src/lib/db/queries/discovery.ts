@@ -1,3 +1,4 @@
+import { coarseOrigin } from "@/lib/discovery/blur";
 import { queryAll, queryScalar } from "../core/client";
 import { DatabaseError } from "../core/errors";
 import {
@@ -171,7 +172,7 @@ function filterClauses(
 	if (filters.maxDistanceKm !== undefined) {
 		clauses.push(
 			sql`distance_km(
-				${viewer.latitude}, ${viewer.longitude},
+				${coarseOrigin(viewer.latitude)}, ${coarseOrigin(viewer.longitude)},
 				candidate.latitude, candidate.longitude
 			) <= ${finiteNumber(filters.maxDistanceKm, 0, 20038, "maxDistanceKm")}`,
 		);
@@ -271,7 +272,7 @@ function projection(viewer: UserRow): SqlFragment {
 		${raw(onlineNow("candidate.last_seen_at"))} AS is_online,
 		${raw(ageYears("candidate.birth_date"))} AS age,
 		distance_km(
-			${viewer.latitude}, ${viewer.longitude},
+			${coarseOrigin(viewer.latitude)}, ${coarseOrigin(viewer.longitude)},
 			candidate.latitude, candidate.longitude
 		) AS distance_km,
 		(
@@ -372,7 +373,7 @@ export function findMapCandidates(
 				candidate.latitude,
 				candidate.longitude,
 				distance_km(
-					${viewer.latitude}, ${viewer.longitude},
+					${coarseOrigin(viewer.latitude)}, ${coarseOrigin(viewer.longitude)},
 					candidate.latitude, candidate.longitude
 				) AS distance_km,
 				${raw(onlineNow("candidate.last_seen_at"))} AS is_online,
