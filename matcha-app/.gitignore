@@ -58,3 +58,5 @@ next-env.d.ts
 
 # Bonus - Chat audio
 certificates
+# maplibre worker (copié par scripts/copy-maplibre-worker.mjs)
+/public/maplibre/

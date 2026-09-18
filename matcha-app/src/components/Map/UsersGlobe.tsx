@@ -1,9 +1,11 @@
 "use client";
 
 import "maplibre-gl/dist/maplibre-gl.css";
-import { Map as MapLibre, Marker, NavigationControl, Popup } from "maplibre-gl";
+import { Map as MapLibre, Marker, NavigationControl, Popup, setWorkerUrl } from "maplibre-gl";
 import { useEffect, useRef, useState } from "react";
 import { fetchMapPoints, type MapPoint } from "@/lib/discovery/map";
+
+setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
 
 const DEBOUNCE_MS = 400;
 
